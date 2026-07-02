@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FRIDAY — Memory Inspector</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
+</head>
+<body>
+  <div class="page-layout">
+    <aside class="page-sidebar">
+      <a href="/" class="back-link">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+        Back to Chat
+      </a>
+      <div style="margin-bottom:24px">
+        <div class="logo">
+          <div class="logo-icon">
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+              <circle cx="14" cy="14" r="12" stroke="#6C63FF" stroke-width="2"/>
+              <circle cx="14" cy="14" r="5" fill="#6C63FF"/>
+              <circle cx="14" cy="14" r="3" fill="#0D1117"/>
+            </svg>
+          </div>
+          <span class="logo-text">FRIDAY</span>
+        </div>
+      </div>
+
+      <nav style="display:flex;flex-direction:column;gap:4px">
+        <a href="#" class="nav-item active" onclick="showSection('timeline', this); return false;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span>Timeline</span>
+        </a>
+        <a href="#" class="nav-item" onclick="showSection('search', this); return false;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          <span>Search</span>
+        </a>
+        <a href="#" class="nav-item" onclick="showSection('add', this); return false;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <span>Add Memory</span>
+        </a>
+        <a href="#" class="nav-item" onclick="showSection('profile', this); return false;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span>User Profile</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer" style="margin-top:auto">
+        <div class="system-status">
+          <div class="status-dot status-online"></div>
+          <span>FRIDAY Online</span>
+        </div>
+      </div>
+    </aside>
+
+    <main class="page-main">
+      <div class="page-header">
+        <h1>Memory Inspector</h1>
+        <button class="btn-secondary" onclick="refreshAll()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          Refresh
+        </button>
+      </div>
+
+      <!-- Timeline Section -->
+      <section id="sectionTimeline" class="section active">
+        <h2 style="font-size:18px;margin-bottom:16px;color:var(--text-primary)">Memory Timeline</h2>
+        <div id="timelineContainer" class="timeline">
+          <div class="skeleton-card"></div>
+          <div class="skeleton-card"></div>
+          <div class="skeleton-card"></div>
+        </div>
+      </section>
+
+      <!-- Search Section -->
+      <section id="sectionSearch" class="section" style="display:none">
+        <h2 style="font-size:18px;margin-bottom:16px;color:var(--text-primary)">Search Memories</h2>
+        <div style="display:flex;gap:8px;margin-bottom:16px">
+          <input type="text" id="searchInput" placeholder="Search memories..." style="flex:1;padding:10px 16px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:var(--radius-md);font-size:14px">
+          <button class="btn-primary" onclick="performSearch()">Search</button>
+        </div>
+        <div id="searchResults"></div>
+      </section>
+
+      <!-- Add Memory Section -->
+      <section id="sectionAdd" class="section" style="display:none">
+        <h2 style="font-size:18px;margin-bottom:16px;color:var(--text-primary)">Add Manual Memory</h2>
+        <div style="max-width:600px">
+          <div style="margin-bottom:12px">
+            <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">Content</label>
+            <textarea id="addMemoryText" rows="4" placeholder="Enter the memory content..." style="width:100%;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px;resize:vertical"></textarea>
+          </div>
+          <div style="margin-bottom:12px">
+            <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">Category</label>
+            <select id="addMemoryCategory" style="width:100%;padding:10px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:var(--radius-md)">
+              <option value="personal">Personal</option>
+              <option value="preference">Preference</option>
+              <option value="work">Work</option>
+              <option value="health">Health</option>
+              <option value="social">Social</option>
+              <option value="finance">Finance</option>
+            </select>
+          </div>
+          <button class="btn-primary" onclick="addManualMemory()">Save Memory</button>
+        </div>
+      </section>
+
+      <!-- Profile Section -->
+      <section id="sectionProfile" class="section" style="display:none">
+        <h2 style="font-size:18px;margin-bottom:16px;color:var(--text-primary)">User Profile</h2>
+        <p style="color:var(--text-secondary);margin-bottom:16px">Facts and preferences FRIDAY has learned about you.</p>
+        <div id="profileContainer">
+          <div class="skeleton-card"></div>
+          <div class="skeleton-card"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script>
+    const API_BASE = window.location.origin;
+
+    function getHeaders() {
+      const token = localStorage.getItem('friday_token') || 'dev_token';
+      return { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+    }
+
+    function escapeHtml(text) {
+      const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+      return text.replace(/[&<>"']/g, c => map[c]);
+    }
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const icons = { success: '✓', error: '✕', warning: '⚠', info: 'ℹ' };
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.innerHTML = `<span class="toast-icon">${icons[type]}</span><span>${escapeHtml(message)}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(20px)';
+        toast.style.transition = 'all 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+      }, 4000);
+    }
+
+    // Navigation
+    function showSection(name, el) {
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      if (el) el.classList.add('active');
+      document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
+      const section = document.getElementById('section' + name.charAt(0).toUpperCase() + name.slice(1));
+      if (section) section.style.display = 'block';
+      
+      if (name === 'timeline') loadTimeline();
+      if (name === 'profile') loadProfile();
+    }
+
+    // Timeline
+    function loadTimeline() {
+      const container = document.getElementById('timelineContainer');
+      container.innerHTML = '<div class="skeleton-card"></div><div class="skeleton-card"></div>';
+      
+      fetch(`${API_BASE}/api/memory/all`, { headers: getHeaders() })
+        .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+        .then(data => {
+          const memories = Array.isArray(data) ? data : [];
+          if (memories.length === 0) {
+            container.innerHTML = '<div class="empty-state"><p>No memories yet</p></div>';
+            return;
+          }
+          
+          container.innerHTML = memories.map(m => {
+            const content = m.content || m.text || JSON.stringify(m);
+            const category = m.metadata?.category || m.category || 'general';
+            const timestamp = m.timestamp || m.metadata?.timestamp || '';
+            const timeStr = timestamp ? new Date(timestamp).toLocaleString() : 'Unknown time';
+            
+            return `
+              <div class="timeline-item">
+                <div class="timestamp">${timeStr}</div>
+                <div class="memory-card">
+                  <div class="memory-card-content">
+                    <p>${escapeHtml(content)}</p>
+                    <div class="memory-card-meta">
+                      <span class="memory-category">${escapeHtml(category)}</span>
+                    </div>
+                  </div>
+                  <div class="memory-card-actions">
+                    <button class="btn-icon" onclick="deleteMemory(${m.id || 0})" title="Delete">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join('');
+        })
+        .catch(err => {
+          container.innerHTML = `<div class="empty-state"><p>Error: ${err.message}</p></div>`;
+        });
+    }
+
+    // Search
+    function performSearch() {
+      const query = document.getElementById('searchInput').value.trim();
+      if (!query) { showToast('Enter a search query', 'warning'); return; }
+      
+      const results = document.getElementById('searchResults');
+      results.innerHTML = '<div class="skeleton-card"></div>';
+      
+      fetch(`${API_BASE}/api/memory/?query=${encodeURIComponent(query)}`, { headers: getHeaders() })
+        .then(r => r.json())
+        .then(data => {
+          const items = data.results || [];
+          if (items.length === 0) {
+            results.innerHTML = '<div class="empty-state"><p>No results found</p></div>';
+            return;
+          }
+          
+          results.innerHTML = items.map(m => {
+            const content = m.content || m.text || JSON.stringify(m);
+            const category = m.metadata?.category || m.category || 'general';
+            return `
+              <div class="memory-card" style="margin-bottom:8px">
+                <div class="memory-card-content">
+                  <p>${escapeHtml(content)}</p>
+                  <div class="memory-card-meta">
+                    <span class="memory-category">${escapeHtml(category)}</span>
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join('');
+        })
+        .catch(err => {
+          results.innerHTML = `<div class="empty-state"><p>Error: ${err.message}</p></div>`;
+        });
+    }
+
+    // Add Memory
+    function addManualMemory() {
+      const text = document.getElementById('addMemoryText').value.trim();
+      const category = document.getElementById('addMemoryCategory').value;
+      
+      if (!text) { showToast('Please enter content', 'warning'); return; }
+      
+      fetch(`${API_BASE}/api/memory/`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ text, metadata: { category } })
+      })
+        .then(r => r.json())
+        .then(data => {
+          showToast('Memory saved!', 'success');
+          document.getElementById('addMemoryText').value = '';
+        })
+        .catch(err => showToast('Failed: ' + err.message, 'error'));
+    }
+
+    // Delete
+    function deleteMemory(id) {
+      fetch(`${API_BASE}/api/memory/${id}`, {
+        method: 'DELETE',
+        headers: getHeaders()
+      })
+        .then(r => r.json())
+        .then(data => {
+          showToast('Memory deleted', 'success');
+          loadTimeline();
+        })
+        .catch(err => showToast('Failed: ' + err.message, 'error'));
+    }
+
+    // Profile
+    function loadProfile() {
+      const container = document.getElementById('profileContainer');
+      container.innerHTML = '<div class="skeleton-card"></div>';
+      
+      // Fetch all memories and extract profile-like info
+      fetch(`${API_BASE}/api/memory/all`, { headers: getHeaders() })
+        .then(r => r.json())
+        .then(data => {
+          const memories = Array.isArray(data) ? data : [];
+          
+          // Group by category
+          const groups = {};
+          memories.forEach(m => {
+            const cat = m.metadata?.category || m.category || 'general';
+            if (!groups[cat]) groups[cat] = [];
+            groups[cat].push(m);
+          });
+          
+          if (Object.keys(groups).length === 0) {
+            container.innerHTML = '<div class="empty-state"><p>No profile data yet. Start chatting to build your profile!</p></div>';
+            return;
+          }
+          
+          container.innerHTML = Object.entries(groups).map(([cat, items]) => `
+            <div class="profile-section">
+              <h3>${escapeHtml(cat.charAt(0).toUpperCase() + cat.slice(1))}</h3>
+              ${items.map(m => {
+                const content = m.content || m.text || '';
+                return `<div class="profile-fact"><span class="profile-fact-type">${cat}</span><span class="profile-fact-value">${escapeHtml(content)}</span></div>`;
+              }).join('')}
+            </div>
+          `).join('');
+        })
+        .catch(err => {
+          container.innerHTML = `<div class="empty-state"><p>Error: ${err.message}</p></div>`;
+        });
+    }
+
+    function refreshAll() {
+      loadTimeline();
+      loadProfile();
+    }
+
+    // Init
+    document.addEventListener('DOMContentLoaded', loadTimeline);
+  </script>
+</body>
+</html>

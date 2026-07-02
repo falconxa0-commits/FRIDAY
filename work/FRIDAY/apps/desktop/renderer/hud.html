@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Friday HUD</title>
+    <style>
+        :root {
+            --primary: #7C3AED;
+            --accent: #06B6D4;
+            --bg: rgba(5, 8, 16, 0.85);
+        }
+        body {
+            margin: 0;
+            padding: 20px;
+            background: transparent;
+            color: white;
+            font-family: 'Space Mono', monospace;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        .hud-container {
+            border: 2px solid var(--primary);
+            padding: 20px;
+            background: var(--bg);
+            border-radius: 15px;
+            box-shadow: 0 0 30px var(--primary);
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        .orb-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        #orb {
+            width: 120px;
+            height: 120px;
+            background: radial-gradient(circle, var(--accent) 0%, var(--primary) 70%, transparent 100%);
+            border-radius: 50%;
+            box-shadow: 0 0 50px var(--accent);
+            animation: pulse 2s infinite ease-in-out;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.1); opacity: 1; box-shadow: 0 0 70px var(--accent); }
+            100% { transform: scale(1); opacity: 0.8; }
+        }
+        .status-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            font-size: 10px;
+            text-transform: uppercase;
+        }
+        .status-item {
+            border-bottom: 1px solid var(--accent);
+            padding-bottom: 5px;
+        }
+        .chat-area {
+            flex: 1;
+            margin-top: 20px;
+            overflow-y: auto;
+            border-left: 2px solid var(--accent);
+            padding-left: 10px;
+        }
+        .scanning-line {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: var(--accent);
+            box-shadow: 0 0 10px var(--accent);
+            animation: scan 4s infinite linear;
+        }
+        @keyframes scan {
+            0% { top: 0; }
+            100% { top: 100%; }
+        }
+        .corner {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border: 3px solid var(--accent);
+        }
+        .top-left { top: -5px; left: -5px; border-right: none; border-bottom: none; }
+        .top-right { top: -5px; right: -5px; border-left: none; border-bottom: none; }
+        .bottom-left { bottom: -5px; left: -5px; border-right: none; border-top: none; }
+        .bottom-right { bottom: -5px; right: -5px; border-left: none; border-top: none; }
+    </style>
+</head>
+<body>
+    <div class="hud-container">
+        <div class="scanning-line"></div>
+        <div class="corner top-left"></div>
+        <div class="corner top-right"></div>
+        <div class="corner bottom-left"></div>
+        <div class="corner bottom-right"></div>
+        
+        <div class="orb-container">
+            <div id="orb"></div>
+        </div>
+
+        <div class="status-grid">
+            <div class="status-item">Core: ONLINE</div>
+            <div class="status-item">Vision: ACTIVE</div>
+            <div class="status-item">Memory: PERSISTENT</div>
+            <div class="status-item">Uplink: STABLE</div>
+        </div>
+
+        <div class="chat-area" id="chat">
+            <p style="color: var(--accent)">> SYSTEM INITIALIZED</p>
+            <p>> AWAITING INPUT...</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FRIDAY — AI Assistant</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- ========== LEFT SIDEBAR ========== -->
+    <aside class="sidebar sidebar-left" id="sidebarLeft">
+      <div class="sidebar-header">
+        <div class="logo">
+          <div class="logo-icon">
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+              <circle cx="14" cy="14" r="12" stroke="#6C63FF" stroke-width="2"/>
+              <circle cx="14" cy="14" r="5" fill="#6C63FF"/>
+              <circle cx="14" cy="14" r="3" fill="#0D1117"/>
+            </svg>
+          </div>
+          <span class="logo-text">FRIDAY</span>
+        </div>
+        <button class="btn-icon sidebar-toggle" onclick="toggleSidebar('left')" title="Toggle sidebar">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a href="#" class="nav-item active" data-view="chat" onclick="switchView('chat', this)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span>Chat</span>
+        </a>
+        <a href="#" class="nav-item" data-view="memory" onclick="switchView('memory', this)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+          <span>Memory</span>
+        </a>
+        <a href="#" class="nav-item" data-view="agents" onclick="switchView('agents', this)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span>Agents</span>
+        </a>
+        <a href="#" class="nav-item" data-view="integrations" onclick="switchView('integrations', this)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><circle cx="6" cy="6" r="1" fill="currentColor"/><circle cx="6" cy="18" r="1" fill="currentColor"/></svg>
+          <span>Integrations</span>
+        </a>
+        <a href="#" class="nav-item" data-view="actions" onclick="switchView('actions', this)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span>Actions</span>
+          <span class="badge" id="actionBadge" style="display:none">0</span>
+        </a>
+        <a href="#" class="nav-item" data-view="creative" onclick="switchView('creative', this)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="10.5" r="2.5"/><circle cx="8.5" cy="7.5" r="2.5"/><circle cx="6.5" cy="12.5" r="2.5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.93 0 1.65-.75 1.65-1.65 0-.43-.18-.81-.45-1.1-.27-.28-.45-.66-.45-1.1 0-.92.75-1.65 1.65-1.65H16c3.3 0 6-2.7 6-6 0-5.5-4.5-9.85-10-9.85z"/></svg>
+          <span>Creative</span>
+        </a>
+        <a href="#" class="nav-item" data-view="trust" onclick="switchView('trust', this)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span>Trust & Stats</span>
+        </a>
+        <a href="/static/memory.html" class="nav-item">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          <span>Memory Inspector</span>
+        </a>
+        <a href="/static/actions.html" class="nav-item">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          <span>Action Panel</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="system-status" id="systemStatus">
+          <div class="status-dot status-online"></div>
+          <span>FRIDAY Online</span>
+        </div>
+        <div class="brain-stats" id="brainStats">
+          <div class="stat-row"><span>Provider</span><span id="statProvider">—</span></div>
+          <div class="stat-row"><span>History</span><span id="statHistory">0</span></div>
+          <div class="stat-row"><span>Skills</span><span id="statSkills">0</span></div>
+          <div class="stat-row"><span>Memory</span><span id="statMemory">Off</span></div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ========== MAIN CONTENT ========== -->
+    <main class="main-content">
+      <!-- ===== CHAT VIEW ===== -->
+      <div class="view active" id="viewChat">
+        <div class="chat-header">
+          <button class="btn-icon mobile-menu" onclick="toggleSidebar('left')">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+          </button>
+          <h2 class="chat-title">Chat with FRIDAY</h2>
+          <div class="chat-header-actions">
+            <a href="https://open.bigmodel.cn" target="_blank" rel="noopener" class="glm-key-link" title="Get a free GLM API key">Get free GLM key ↗</a>
+            <button class="btn-icon" onclick="clearContext()" title="Clear conversation">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+            </button>
+            <button class="btn-icon" onclick="toggleSidebar('right')" title="Toggle context panel">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="chat-messages" id="chatMessages">
+          <div class="welcome-screen" id="welcomeScreen">
+            <div class="welcome-icon">
+              <svg width="64" height="64" viewBox="0 0 28 28" fill="none">
+                <circle cx="14" cy="14" r="12" stroke="#6C63FF" stroke-width="1.5" opacity="0.5"/>
+                <circle cx="14" cy="14" r="7" fill="#6C63FF" opacity="0.3"/>
+                <circle cx="14" cy="14" r="4" fill="#6C63FF"/>
+                <circle cx="14" cy="14" r="2" fill="#0D1117"/>
+              </svg>
+            </div>
+            <h1>Good <span id="greeting">day</span>, I'm FRIDAY</h1>
+            <p class="welcome-sub">Your personal AI assistant. Ask me anything, or try one of these:</p>
+            <div class="quick-actions">
+              <button class="quick-action" onclick="sendQuick('What can you do?')">What can you do?</button>
+              <button class="quick-action" onclick="sendQuick('Check the weather')">Check the weather</button>
+              <button class="quick-action" onclick="sendQuick('Search for the latest AI news')">Search the web</button>
+              <button class="quick-action" onclick="sendQuick('What do you remember about me?')">Check my memories</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="chat-input-area">
+          <div class="chat-input-wrapper">
+            <textarea 
+              id="chatInput" 
+              placeholder="Message FRIDAY..." 
+              rows="1"
+              onkeydown="handleInputKey(event)"
+              oninput="autoResize(this)"
+            ></textarea>
+            <button class="btn-send" id="btnSend" onclick="sendMessage()" title="Send message">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
+          <div class="input-footer">
+            <span class="connection-status" id="connectionStatus">
+              <span class="status-dot status-online"></span> Connected
+            </span>
+            <span class="streaming-indicator" id="streamingIndicator" style="display:none">
+              <span class="typing-dots"><span></span><span></span><span></span></span> Streaming
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== MEMORY VIEW ===== -->
+      <div class="view" id="viewMemory">
+        <div class="view-header">
+          <h2>Memory</h2>
+          <div class="view-header-actions">
+            <button class="btn-secondary" onclick="exportMemories()">Export</button>
+            <label class="btn-secondary" for="importFile">Import</label>
+            <input type="file" id="importFile" accept=".json" style="display:none" onchange="importMemories(event)">
+            <button class="btn-secondary" onclick="refreshMemories()">Refresh</button>
+          </div>
+        </div>
+        <div class="view-body">
+          <div class="search-bar">
+            <input type="text" id="memorySearch" placeholder="Search memories..." oninput="searchMemories(this.value)">
+          </div>
+          <div class="memory-add">
+            <input type="text" id="memoryAddText" placeholder="Add a memory...">
+            <select id="memoryAddCategory">
+              <option value="personal">Personal</option>
+              <option value="preference">Preference</option>
+              <option value="work">Work</option>
+              <option value="health">Health</option>
+              <option value="social">Social</option>
+              <option value="finance">Finance</option>
+            </select>
+            <button class="btn-primary" onclick="addMemory()">Add</button>
+          </div>
+          <div class="memory-list" id="memoryList">
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== AGENTS VIEW ===== -->
+      <div class="view" id="viewAgents">
+        <div class="view-header">
+          <h2>Agents</h2>
+        </div>
+        <div class="view-body">
+          <div class="agent-grid" id="agentGrid">
+            <div class="agent-card" data-type="research">
+              <div class="agent-icon">🔍</div>
+              <h3>Research Agent</h3>
+              <p>Deep research and analysis on any topic</p>
+              <button class="btn-primary btn-sm" onclick="runAgent('research')">Run</button>
+            </div>
+            <div class="agent-card" data-type="coding">
+              <div class="agent-icon">💻</div>
+              <h3>Coding Agent</h3>
+              <p>Write, debug, and review code</p>
+              <button class="btn-primary btn-sm" onclick="runAgent('coding')">Run</button>
+            </div>
+            <div class="agent-card" data-type="writing">
+              <div class="agent-icon">✍️</div>
+              <h3>Writing Agent</h3>
+              <p>Draft, edit, and polish content</p>
+              <button class="btn-primary btn-sm" onclick="runAgent('writing')">Run</button>
+            </div>
+            <div class="agent-card" data-type="task">
+              <div class="agent-icon">📋</div>
+              <h3>Task Agent</h3>
+              <p>Break down and execute complex tasks</p>
+              <button class="btn-primary btn-sm" onclick="runAgent('task')">Run</button>
+            </div>
+          </div>
+          <div class="agent-prompt-area" id="agentPromptArea" style="display:none">
+            <h3 id="agentPromptTitle">Agent Prompt</h3>
+            <textarea id="agentPromptInput" placeholder="Enter your prompt for the agent..." rows="4"></textarea>
+            <div class="agent-actions">
+              <button class="btn-primary" onclick="executeAgent()">Execute</button>
+              <button class="btn-secondary" onclick="cancelAgent()">Cancel</button>
+            </div>
+            <div class="agent-result" id="agentResult" style="display:none"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== INTEGRATIONS VIEW ===== -->
+      <div class="view" id="viewIntegrations">
+        <div class="view-header">
+          <h2>Integrations</h2>
+          <button class="btn-secondary" onclick="refreshIntegrations()">Refresh</button>
+        </div>
+        <div class="view-body">
+          <div class="integration-grid" id="integrationGrid">
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== ACTIONS VIEW ===== -->
+      <div class="view" id="viewActions">
+        <div class="view-header">
+          <h2>Pending Actions</h2>
+          <button class="btn-secondary" onclick="refreshActions()">Refresh</button>
+        </div>
+        <div class="view-body">
+          <div class="actions-list" id="actionsList">
+            <div class="empty-state">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#30363D" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              <p>No pending actions</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== CREATIVE VIEW (Z.ai) ===== -->
+      <div class="view" id="viewCreative">
+        <div class="view-header">
+          <h2>Creative Suite (Z.ai)</h2>
+        </div>
+        <div class="view-body">
+          <div class="creative-grid">
+            <!-- Image Generation -->
+            <div class="creative-card">
+              <h3>Image Generation (CogView-3)</h3>
+              <p class="creative-desc">Generate an image from a text prompt. Requires GLM_API_KEY.</p>
+              <textarea id="imagePrompt" placeholder="e.g. The Lagos skyline at sunset" rows="3"></textarea>
+              <button class="btn-primary" onclick="generateImage()">Generate Image</button>
+              <div id="imageResult" class="creative-result"></div>
+            </div>
+            <!-- Video Generation -->
+            <div class="creative-card">
+              <h3>Video Generation (CogVideoX)</h3>
+              <p class="creative-desc">Generate a video from a text prompt. Takes 1-3 minutes. Requires GLM_API_KEY.</p>
+              <textarea id="videoPrompt" placeholder="e.g. A drone shot over Victoria Island" rows="3"></textarea>
+              <button class="btn-primary" onclick="generateVideo()">Generate Video</button>
+              <div id="videoResult" class="creative-result"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== TRUST & STATS VIEW ===== -->
+      <div class="view" id="viewTrust">
+        <div class="view-header">
+          <h2>Trust & Stats</h2>
+          <button class="btn-secondary" onclick="loadTrustStats()">Refresh</button>
+        </div>
+        <div class="view-body">
+          <div class="trust-grid">
+            <div class="trust-card">
+              <h3>Benchmark Pass Rate</h3>
+              <div id="benchmarkRate" class="big-stat">—</div>
+              <p class="trust-source" id="benchmarkSource">From benchmarks/results.md</p>
+            </div>
+            <div class="trust-card">
+              <h3>Cost Tracker</h3>
+              <div id="costTracker" class="big-stat">—</div>
+              <p class="trust-source" id="costSource">GLM free tier = $0.00</p>
+            </div>
+            <div class="trust-card">
+              <h3>Rate Limit</h3>
+              <div id="rateLimit" class="big-stat">—</div>
+              <p class="trust-source" id="rateLimitSource">Z.ai free tier</p>
+            </div>
+            <div class="trust-card trust-report-card">
+              <h3>Trust Report</h3>
+              <p class="trust-desc">Runs hellfire_audit.py live and shows per-check results.</p>
+              <button class="btn-primary" onclick="runTrustReport()">Run Trust Report</button>
+              <div id="trustReportResult" class="trust-report-result"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- ========== RIGHT SIDEBAR ========== -->
+    <aside class="sidebar sidebar-right" id="sidebarRight">
+      <div class="sidebar-header">
+        <h3>Context</h3>
+        <button class="btn-icon" onclick="toggleSidebar('right')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+      </div>
+      <div class="context-panel">
+        <div class="context-section">
+          <h4>Detected Mood</h4>
+          <div class="mood-display" id="moodDisplay">
+            <span class="mood-emoji" id="moodEmoji">😊</span>
+            <span class="mood-label" id="moodLabel">Neutral</span>
+          </div>
+        </div>
+        <div class="context-section">
+          <h4>Personality Traits</h4>
+          <div class="trait-tags" id="traitTags">
+            <span class="trait-tag">Helpful</span>
+            <span class="trait-tag">Curious</span>
+            <span class="trait-tag">Concise</span>
+          </div>
+        </div>
+        <div class="context-section">
+          <h4>Active Skills</h4>
+          <div class="skill-list" id="skillList">
+            <span class="skill-tag">Loading...</span>
+          </div>
+        </div>
+        <div class="context-section">
+          <h4>Tools Available</h4>
+          <div class="tool-list" id="toolList">
+            <span class="tool-tag">Loading...</span>
+          </div>
+        </div>
+        <div class="context-section">
+          <h4>Conversation</h4>
+          <div class="conv-stats">
+            <div class="stat-row"><span>Messages</span><span id="convMsgCount">0</span></div>
+            <div class="stat-row"><span>Tool Calls</span><span id="convToolCount">0</span></div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- Tool Call Template -->
+  <template id="toolCallTemplate">
+    <div class="tool-call">
+      <div class="tool-call-header" onclick="this.parentElement.classList.toggle('expanded')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        <span class="tool-name"></span>
+        <span class="tool-badge">Tool</span>
+      </div>
+      <div class="tool-call-body">
+        <pre class="tool-input"></pre>
+        <pre class="tool-output"></pre>
+      </div>
+    </div>
+  </template>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

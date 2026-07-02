@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "Friday Browser Assistant",
+  "version": "1.0",
+  "description": "Friday at your service in your browser.",
+  "permissions": ["activeTab", "scripting", "storage"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  }
+}

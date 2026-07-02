@@ -1,0 +1,21 @@
+# =============================================================================
+# FRIDAY AI Assistant v5.0 — Optional Dependencies
+# =============================================================================
+# These packages require additional system libraries, hardware, or commercial
+# API keys. Install only if you need voice input/output or wake-word detection.
+# =============================================================================
+
+# --- Voice (requires PortAudio system library) ---
+pyaudio>=0.2.14
+
+# --- Speech-to-Text (very heavy — pulls PyTorch) ---
+openai-whisper>=20231117
+
+# --- Wake-Word Detection (requires Picovoice access key) ---
+pvporcupine>=3.0.0
+
+# --- Text-to-Speech (cloud) ---
+elevenlabs>=1.0.0
+
+# --- Text-to-Speech (local) ---
+pyttsx3>=2.90

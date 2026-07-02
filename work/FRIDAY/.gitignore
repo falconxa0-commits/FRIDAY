@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+node_modules/
+dist/
+build/
+*.log
+.env
+.venv
+*.png
+*.wav
+verification/
+reproduce_bug6.py
+test_results.txt
+final_test_output.txt
+api_server_test.log
+final_test_output.txt

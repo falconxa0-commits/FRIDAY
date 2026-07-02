@@ -1,0 +1,9 @@
+{
+  "name": "friday-web",
+  "version": "1.0.0",
+  "dependencies": {
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest"
+  }
+}

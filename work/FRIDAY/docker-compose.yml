@@ -1,0 +1,56 @@
+version: "3.8"
+
+services:
+  friday-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: friday-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./friday_workspace:/app/friday_workspace
+      - ./friday.log:/app/friday.log
+    networks:
+      - friday-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    depends_on:
+      friday-db:
+        condition: service_healthy
+
+  friday-db:
+    image: supabase/postgres:15.6.1
+    container_name: friday-db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: friday
+      POSTGRES_PASSWORD: friday_secret
+      POSTGRES_DB: friday
+    volumes:
+      - friday-db-data:/var/lib/postgresql/data
+    networks:
+      - friday-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U friday"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  friday-net:
+    driver: bridge
+
+volumes:
+  friday-db-data:
+    driver: local

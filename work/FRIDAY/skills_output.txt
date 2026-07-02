@@ -1,0 +1,31 @@
+/app/core/gemini_brain.py:1: FutureWarning: 
+
+All support for the `google.generativeai` package has ended. It will no longer be receiving 
+updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+See README for more details:
+
+https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+
+  import google.generativeai as genai
+Traceback (most recent call last):
+  File "/app/verify_skills.py", line 30, in <module>
+    asyncio.run(test_skills())
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/app/verify_skills.py", line 9, in test_skills
+    brain = FridayBrain()
+            ^^^^^^^^^^^^^
+  File "/app/core/brain.py", line 28, in __init__
+    self._discover_skills()
+  File "/app/core/brain.py", line 36, in _discover_skills
+    path = os.path.dirname(skills.__file__)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen posixpath>", line 181, in dirname
+TypeError: expected str, bytes or os.PathLike object, not NoneType

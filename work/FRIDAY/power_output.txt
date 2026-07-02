@@ -1,0 +1,2 @@
+GUEST Profile Status (Expected pending): pending
+POWER Profile Status (Expected approved): approved

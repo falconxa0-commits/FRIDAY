@@ -1,0 +1,20 @@
+Traceback (most recent call last):
+  File "/app/verify_vision_control.py", line 29, in <module>
+    asyncio.run(test_vision_click())
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/app/verify_vision_control.py", line 12, in test_vision_click
+    from control.pc_control import PCControl
+  File "/app/control/pc_control.py", line 9, in <module>
+    from vision.screen_analyzer import ScreenAnalyzer
+  File "/app/vision/screen_analyzer.py", line 42
+    prompt = f"Find the center coordinates (x, y) for the element: '{description}'. Return ONLY JSON: {\"x\": int, \"y\": int}. If not found, return {\"x\": -1, \"y\": -1}."
+                                                                                                        ^
+SyntaxError: unexpected character after line continuation character

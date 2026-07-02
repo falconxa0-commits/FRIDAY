@@ -1,0 +1,122 @@
+{
+  "3685d225-365d-42b4-ae05-239ab8168abe": {
+    "id": "3685d225-365d-42b4-ae05-239ab8168abe",
+    "component": "Printer",
+    "action": "submit_job",
+    "params": {
+      "file_path": "/tmp/file-A.pdf",
+      "copies": 1
+    },
+    "risk_level": "high",
+    "status": "pending",
+    "timestamp": "2026-07-02T21:28:00.724897"
+  },
+  "f471fd0d-1d32-4fc3-bc2d-b8898e0108d3": {
+    "id": "f471fd0d-1d32-4fc3-bc2d-b8898e0108d3",
+    "component": "Printer",
+    "action": "submit_job",
+    "params": {
+      "file_path": "/tmp/file-B.pdf",
+      "copies": 3
+    },
+    "risk_level": "high",
+    "status": "pending",
+    "timestamp": "2026-07-02T21:28:00.725225"
+  },
+  "1c96b9e9-9316-4dc3-985b-f5eade4e16d5": {
+    "id": "1c96b9e9-9316-4dc3-985b-f5eade4e16d5",
+    "component": "Printer",
+    "action": "list_printers",
+    "params": {},
+    "risk_level": "medium",
+    "status": "pending",
+    "timestamp": "2026-07-02T21:40:06.924762"
+  },
+  "f41ed403-a1c8-4fe4-a646-d4f85af174c4": {
+    "id": "f41ed403-a1c8-4fe4-a646-d4f85af174c4",
+    "component": "Printer",
+    "action": "list_printers",
+    "params": {},
+    "risk_level": "medium",
+    "status": "pending",
+    "timestamp": "2026-07-02T21:41:00.104694"
+  },
+  "c0379b22-4759-43b3-8769-9f6682ffa5f6": {
+    "id": "c0379b22-4759-43b3-8769-9f6682ffa5f6",
+    "component": "Commerce",
+    "action": "checkout",
+    "params": {
+      "item": "test",
+      "price": 1.0
+    },
+    "risk_level": "medium",
+    "status": "pending",
+    "timestamp": "2026-07-02T21:41:05.111725"
+  },
+  "42dbdb07-e771-4b59-9cc0-b771cb0e7ce7": {
+    "id": "42dbdb07-e771-4b59-9cc0-b771cb0e7ce7",
+    "component": "ImageGen",
+    "action": "generate_image",
+    "params": {
+      "prompt": "test"
+    },
+    "risk_level": "medium",
+    "status": "pending",
+    "timestamp": "2026-07-02T21:45:20.142566"
+  },
+  "91c5a4d8-1cac-4745-9b11-081d9056ddb8": {
+    "id": "91c5a4d8-1cac-4745-9b11-081d9056ddb8",
+    "component": "ImageGen",
+    "action": "generate_image",
+    "params": {
+      "prompt": "test"
+    },
+    "risk_level": "medium",
+    "status": "pending",
+    "timestamp": "2026-07-02T21:47:23.285407"
+  },
+  "13e39c18-6860-4f47-b214-7e5163774481": {
+    "id": "13e39c18-6860-4f47-b214-7e5163774481",
+    "component": "ImageGen",
+    "action": "generate_image",
+    "params": {
+      "prompt": "test"
+    },
+    "risk_level": "medium",
+    "status": "pending",
+    "timestamp": "2026-07-02T21:49:31.026902"
+  },
+  "250a867c-be72-45fb-8b92-f2be749288af": {
+    "id": "250a867c-be72-45fb-8b92-f2be749288af",
+    "component": "ImageGen",
+    "action": "generate_image",
+    "params": {
+      "prompt": "test"
+    },
+    "risk_level": "medium",
+    "status": "pending",
+    "timestamp": "2026-07-02T21:50:50.770202"
+  },
+  "5fb829cf-8828-4258-8589-f44e34d2eed8": {
+    "id": "5fb829cf-8828-4258-8589-f44e34d2eed8",
+    "component": "VideoGen",
+    "action": "generate_video",
+    "params": {
+      "prompt": "test"
+    },
+    "risk_level": "medium",
+    "status": "pending",
+    "timestamp": "2026-07-02T21:50:55.779519"
+  },
+  "d599a771-9f26-4196-aad8-5930a09b4113": {
+    "id": "d599a771-9f26-4196-aad8-5930a09b4113",
+    "component": "Weather",
+    "action": "get_weather",
+    "params": {
+      "location": "Lagos"
+    },
+    "risk_level": "low",
+    "status": "approved",
+    "timestamp": "2026-07-02T22:04:22.179179"
+  }
+}

@@ -1,0 +1,54 @@
+# =============================================================================
+# FRIDAY AI Assistant v5.1 — Requirements
+# =============================================================================
+# Split into core (always needed) and optional (hardware/voice/commerce deps).
+# Install core:      pip install -r requirements.txt
+# Install optional:  pip install -r requirements-optional.txt
+# =============================================================================
+
+# --- Core AI / LLM ---
+anthropic>=0.25.0
+openai>=1.0.0
+google-genai>=1.0.0
+zhipuai>=2.1.0
+
+# --- Web Framework ---
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+slowapi>=0.1.9
+websockets>=13.0
+
+# --- Database & Memory ---
+supabase>=2.4.0
+pgvector>=0.2.4
+numpy>=1.26.4
+
+# --- Vision / Screen ---
+pyautogui>=0.9.54
+playwright>=1.43.0
+Pillow>=10.3.0
+mss>=9.0.1
+pytesseract>=0.3.10
+opencv-python-headless>=4.9.0
+
+# --- Integrations ---
+google-auth>=2.29.0
+google-auth-oauthlib>=1.2.0
+google-api-python-client>=2.127.0
+spotipy>=2.23.0
+
+# --- Utilities ---
+requests>=2.31.0
+python-dotenv>=1.0.1
+pydantic>=2.7.0
+sqlalchemy>=2.0.29
+python-jose>=3.3.0
+passlib>=1.7.4
+aiofiles>=23.2.1
+httpx>=0.27.0
+schedule>=1.2.1
+psutil>=5.9.8
+pyperclip>=1.8.2
+watchdog>=4.0.0
+rich>=13.7.1
+typer>=0.12.3

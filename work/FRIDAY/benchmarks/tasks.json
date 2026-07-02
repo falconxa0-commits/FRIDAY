@@ -1,0 +1,18 @@
+[
+  {"id": 1, "task": "What is the weather in Lagos?", "expected_tool": "Weather"},
+  {"id": 2, "task": "Add a meeting for tomorrow at 2 PM", "expected_tool": "Calendar"},
+  {"id": 3, "task": "Search for latest AI news on Google", "expected_tool": "Browser"},
+  {"id": 4, "task": "Play some focus music on Spotify", "expected_tool": "Spotify"},
+  {"id": 5, "task": "Turn on the living room lights", "expected_tool": "HomeAssistant"},
+  {"id": 6, "task": "Summarize the file named main.py", "expected_tool": "FileManager"},
+  {"id": 7, "task": "Write a python script that prints primes", "expected_tool": "CodingAgent"},
+  {"id": 8, "task": "Analyze the current screen state", "expected_tool": "ScreenAnalyzer"},
+  {"id": 9, "task": "Search the web for recent breakthroughs in quantum computing", "expected_tool": "GLMWebSearch"},
+  {"id": 10, "task": "Generate an image of a sunset over the ocean", "expected_tool": "ImageGen"},
+  {"id": 11, "task": "Generate a short video of a cat playing piano", "expected_tool": "VideoGen"},
+  {"id": 12, "task": "Do deep research on the impact of AI on healthcare", "expected_tool": "DeepResearch"},
+  {"id": 13, "task": "Help me understand recursion in Python", "expected_tool": "CodeTutor"},
+  {"id": 14, "task": "Give me my morning briefing", "expected_tool": "MorningBriefing"},
+  {"id": 15, "task": "Check my inbox and summarize urgent emails", "expected_tool": "InboxTriage"},
+  {"id": 16, "task": "Execute this code: print(sum(range(1, 101)))", "expected_tool": "CodeExecution"}
+]
