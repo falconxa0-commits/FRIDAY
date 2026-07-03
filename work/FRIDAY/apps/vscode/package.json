@@ -1,0 +1,93 @@
+{
+  "name": "friday-ai",
+  "displayName": "Friday AI Assistant",
+  "description": "Personal AI assistant — chat, code explanation, error fixing, and research in VS Code. Powered by Z.ai GLM-4-Flash (free).",
+  "version": "2.0.0",
+  "publisher": "friday",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": ["Other", "Machine Learning", "Education"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "friday.explainSelection",
+        "title": "Friday: Explain Selection"
+      },
+      {
+        "command": "friday.fixError",
+        "title": "Friday: Fix This Error"
+      },
+      {
+        "command": "friday.generateCode",
+        "title": "Friday: Generate Code"
+      },
+      {
+        "command": "friday.researchTopic",
+        "title": "Friday: Research Topic"
+      },
+      {
+        "command": "friday.morningBriefing",
+        "title": "Friday: Morning Briefing"
+      },
+      {
+        "command": "friday.openDashboard",
+        "title": "Friday: Open Dashboard"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "fridayPanel",
+          "title": "Friday",
+          "icon": "media/friday-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "fridayPanel": [
+        {
+          "type": "webview",
+          "id": "friday.dashboardView",
+          "name": "Friday Dashboard",
+          "icon": "media/friday-icon.svg",
+          "contextualTitle": "Friday"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Friday AI Assistant",
+      "properties": {
+        "friday.apiUrl": {
+          "type": "string",
+          "default": "http://localhost:8000",
+          "description": "Friday API URL (set FRIDAY_API_TOKEN env var on the server)"
+        },
+        "friday.apiToken": {
+          "type": "string",
+          "default": "",
+          "description": "Friday API token (must match FRIDAY_API_TOKEN on the server)"
+        },
+        "friday.autoErrorDetect": {
+          "type": "boolean",
+          "default": true,
+          "description": "Auto-detect errors in the Problems panel and offer help"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package --out friday.vsix",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.80.0",
+    "typescript": "^5.3.0",
+    "@vscode/vsce": "^2.22.0"
+  }
+}

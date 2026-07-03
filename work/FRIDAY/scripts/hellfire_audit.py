@@ -141,7 +141,12 @@ def check_auth_rejection():
     # global, so setting it on api.main is enough.)
     try:
         client = TestClient(app)
-        public_routes = {"/health", "/docs", "/openapi.json", "/redoc", "/static", "/", "/docs/oauth2-redirect", "/api/ping"}
+        # Public routes that don't require auth by design
+        public_routes = {
+            "/health", "/docs", "/openapi.json", "/redoc", "/static", "/",
+            "/docs/oauth2-redirect", "/api/ping",
+            "/api/health/deep",  # health check — public by design
+        }
 
         failed_routes = []
         for route in app.routes:

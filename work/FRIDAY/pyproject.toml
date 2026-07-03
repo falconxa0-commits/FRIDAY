@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "friday-ai"
+version = "2.0.0"
+description = "Personal AI assistant powered by Z.ai GLM-4-Flash (free)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Project FRIDAY" }]
+
+dependencies = [
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.29.0",
+    "rich>=13.0.0",
+    "httpx>=0.27.0",
+    "pydantic>=2.7.0",
+    "python-dotenv>=1.0.1",
+    "requests>=2.31.0",
+    "numpy>=1.26.4",
+    "Pillow>=10.3.0",
+]
+
+[project.optional-dependencies]
+glm = ["zhipuai>=2.1.0"]
+voice = ["pyttsx3", "openai-whisper", "pyaudio"]
+browser = ["playwright>=1.43.0"]
+full = [
+    "zhipuai>=2.1.0",
+    "anthropic>=0.25.0",
+    "openai>=1.0.0",
+    "google-genai>=1.0.0",
+    "supabase>=2.4.0",
+    "spotipy>=2.23.0",
+    "playwright>=1.43.0",
+    "pyautogui>=0.9.54",
+    "mss>=9.0.1",
+    "pytesseract>=0.3.10",
+    "opencv-python-headless>=4.9.0",
+    "slowapi>=0.1.9",
+    "websockets>=13.0",
+    "schedule>=1.2.1",
+    "psutil>=5.9.8",
+]
+
+[project.scripts]
+friday = "cli.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["cli*", "core*", "api*", "agents*", "config*", "integrations*", "skills*", "voice*", "vision*", "control*", "database*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "strict"
+asyncio_default_fixture_loop_scope = "function"

@@ -171,4 +171,60 @@ async def get_stats():
         "recent_requests": recent,
         "zai_rate_limits": zai_limits,
         "rate_limit_warning": rate_limit_warning,
+        "optimization_suggestions": _generate_optimization_suggestions(provider_stats),
     }
+
+
+def _generate_optimization_suggestions(provider_stats: Dict[str, Dict]) -> List[dict]:
+    """Generate real optimization suggestions based on real usage data.
+
+    Only suggests things that would actually save money given the
+    observed usage pattern. Never suggests switching if a provider
+    isn't being used.
+    """
+    suggestions: List[dict] = []
+
+    # If user is paying for Claude/GPT on simple questions, suggest GLM
+    for paid_provider in ("claude", "gpt", "gemini"):
+        ps = provider_stats.get(paid_provider)
+        if not ps:
+            continue
+        # If the paid provider has many small requests (low token counts),
+        # those could likely be served by GLM for free
+        avg_tokens = (ps["tokens_in"] + ps["tokens_out"]) / max(ps["requests"], 1)
+        if avg_tokens < 200 and ps["requests"] >= 5:
+            # Estimate savings: paid_provider cost × 0.8 (assume 80% could move to GLM)
+            cost = ps["cost_usd"]
+            est_savings = cost * 0.8
+            if est_savings > 0.001:  # only suggest if savings > 0.1 cents
+                suggestions.append({
+                    "type": "switch_to_glm",
+                    "message": (
+                        f"{ps['requests']} of your {paid_provider} calls had small "
+                        f"token counts (<200 avg) — these are answerable by GLM-4-Flash "
+                        f"for free. Estimated savings: ${est_savings:.2f}"
+                    ),
+                    "estimated_savings_usd": round(est_savings, 2),
+                    "affected_provider": paid_provider,
+                    "affected_requests": ps["requests"],
+                })
+
+    # If GLM is being used heavily but rate limits are close, suggest local Ollama
+    glm_ps = provider_stats.get("glm")
+    if glm_ps and glm_ps["requests"] > 100:
+        suggestions.append({
+            "type": "consider_local",
+            "message": (
+                f"You've made {glm_ps['requests']} GLM requests. Consider installing "
+                f"Ollama locally for offline/low-latency queries to reduce GLM rate-limit usage."
+            ),
+            "estimated_savings_usd": 0.0,  # GLM is free, but rate-limit headroom has value
+            "affected_provider": "glm",
+            "affected_requests": glm_ps["requests"],
+        })
+
+    # If video generation is used heavily, suggest batching
+    # (CogVideoX is slow — batch when possible)
+    # (This would need a separate per-action log; skipped for now.)
+
+    return suggestions

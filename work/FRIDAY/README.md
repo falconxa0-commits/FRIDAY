@@ -1,6 +1,24 @@
-# Project FRIDAY — Personal AI Assistant
+# Project FRIDAY v2.0 — Personal AI Assistant
 
-FRIDAY is a Python-based personal AI assistant that wraps the Z.ai (ZhipuAI) GLM-4-Flash model — free, no paid API keys required — behind a unified chat interface with tool calling, persistent memory, action approval gating, and a web dashboard. It can also route to Claude, Gemini, GPT, or a local Ollama instance when those providers are configured, and ships with integrations for weather, calendar, Spotify, smart home, printers, and more. The default configuration works out of the box with only a free GLM key from `open.bigmodel.cn`.
+FRIDAY is a Python-based personal AI assistant that wraps the Z.ai (ZhipuAI) GLM-4-Flash model — free, no paid API keys required — behind a unified chat interface with tool calling, persistent memory, action approval gating, a sci-fi terminal CLI, a VS Code extension, and a web dashboard. It can also route to Claude, Gemini, GPT, or a local Ollama instance when those providers are configured, and ships with integrations for weather, calendar, Spotify, smart home, printers, commerce, and more. The default configuration works out of the box with only a free GLM key from `open.bigmodel.cn`.
+
+## v2.0 Highlights
+
+- **Sci-fi terminal CLI** (`friday` command) with animated boot sequence, two-pane layout, real-time status panel, colour-coded approval prompts, and receipt display
+- **VS Code extension** (`apps/vscode/friday.vsix`) — Explain Selection, Fix Error, Generate Code, Research Topic, Morning Briefing, Open Dashboard
+- **Windows binary build** (`build/build_windows.py`) — produces a single `friday.exe` via PyInstaller
+- **Cross-platform installers** (`install.sh`, `install.ps1`)
+- **Behavioral pattern learning** — Friday observes what you do and surfaces real recurring patterns
+- **Ambient screen awareness** — Friday watches your screen and proactively offers help
+- **Deep research with synthesis** — multi-source research with agreement/conflict detection + honest uncertainty flagging
+- **Multi-modal memory** — store and retrieve visual memories (screenshots, images) by semantic query
+- **MCP execution hub** — external AI agents (Claude Code, Cursor) can submit actions via `friday.request_approval`; Friday's ledger stands between suggestion and execution
+- **Conversational voice** — barge-in support, pace/vocabulary adjustment, night-mode whisper
+- **Team mode** — multi-user with per-user private memories + shared project memories
+- **Nigerian context** — Naira pricing with real exchange rates, local banks/delivery/news sources, Pidgin support
+- **Plugin marketplace** — `friday plugin install <name>` from `marketplace/`
+- **Cost dashboard with optimization** — suggests switching paid calls to GLM when possible
+- **Teach-me skill** — Socratic teaching mode for developers
 
 ## Feature Status
 
@@ -10,6 +28,7 @@ FRIDAY is a Python-based personal AI assistant that wraps the Z.ai (ZhipuAI) GLM
 | Web Search | Real | GLM built-in | Free |
 | Vision / Screen Analysis | Real | GLM-4V | Free |
 | Semantic Memory | Real | Z.ai Embedding-3 | Free |
+| Multi-modal Memory | Real | Z.ai Embedding-3 + GLM-4V | Free |
 | Image Generation | Real | CogView-3 | Free |
 | Video Generation | Real | CogVideoX | Free (1–3 min) |
 | Code Execution | Real | Z.ai Code Interpreter | Free |
@@ -22,6 +41,19 @@ FRIDAY is a Python-based personal AI assistant that wraps the Z.ai (ZhipuAI) GLM
 | Council Mode | Real | All configured providers | Free (GLM) |
 | Tamper-evident Ledger | Real | Built-in | Free |
 | MCP Server | Real | Built-in | Free |
+| MCP request_approval | Real | Built-in | Free |
+| Pattern Learning | Real | Built-in | Free |
+| Ambient Screen Awareness | Real | Built-in | Free |
+| Deep Research | Real | GLM web search + synthesis | Free |
+| Conversational Voice | Real | ElevenLabs/pyttsx3 + Whisper | Free (pyttsx3) |
+| Team Mode | Real | Built-in | Free |
+| Nigerian Context | Real | Open exchange rates + local RSS | Free |
+| Plugin Marketplace | Real | Built-in | Free |
+| CLI (sci-fi TUI) | Real | rich + textual | Free |
+| VS Code Extension | Real | TypeScript | Free |
+| Windows Binary | Real | PyInstaller | Free |
+| Writing Style Skill | Real | Heuristic + GLM | Free |
+| Teach-me Skill | Real | Socratic + GLM | Free |
 | Claude reasoning | Optional upgrade | Anthropic | Paid |
 | GPT coding | Optional upgrade | OpenAI | Paid |
 | Persistent Memory | Optional upgrade | Supabase | Free tier |
@@ -35,7 +67,7 @@ FRIDAY is a Python-based personal AI assistant that wraps the Z.ai (ZhipuAI) GLM
 
 **Smoke test:** All checks pass
 
-**End-to-end benchmark:** Requires `GLM_API_KEY` to run — see `benchmarks/results.md` for details.
+**FRIDAY v2.0 Definition of Done:** 15/15 checks pass — see `scripts/verify_v2_definition_of_done.py`
 
 ## Z.ai Free Tier Rate Limits
 
@@ -54,8 +86,9 @@ Approximate (check `open.bigmodel.cn/pricing` for current values):
 git clone <your-fork-url>
 cd FRIDAY
 
-# 2. Install dependencies (no torch, no sentence-transformers — fast install)
-pip install -r requirements.txt
+# 2. Install dependencies + Friday CLI
+bash install.sh         # Linux/Mac
+# or: .\install.ps1     # Windows (PowerShell)
 
 # 3. Get a free GLM API key from https://open.bigmodel.cn
 #    (Create account → API Keys → Create new key → copy)
@@ -63,126 +96,79 @@ pip install -r requirements.txt
 # 4. Set the key
 export GLM_API_KEY="your-real-key-here"
 
-# 5. Start the API + web dashboard
+# 5. Run the sci-fi TUI
+friday
+# Or start the web dashboard:
 uvicorn api.main:app --host 0.0.0.0 --port 8000
-
-# 6. Open http://localhost:8000 in your browser
-#    (Default FRIDAY_API_TOKEN is empty in dev mode — set it for production)
+# Then open http://localhost:8000
 ```
 
 You now have:
-- Real chat with GLM-4-Flash
+- Real chat with GLM-4-Flash (CLI + web + VS Code)
 - Real image generation (CogView-3)
 - Real video generation (CogVideoX, 1–3 min per video)
 - Real web search (GLM built-in)
 - Memory, action approval ledger, tamper-evident audit log
-- Trust & stats dashboard
+- Trust & stats dashboard with cost optimization suggestions
+- Voice mode with barge-in
+- Team mode for shared projects
+
+## CLI Commands
+
+```bash
+friday                       # full sci-fi TUI
+friday chat "msg"            # one-shot chat (streams)
+friday research "topic"      # research agent with sources
+friday generate "prompt"     # CogView-3 image
+friday video "prompt"        # CogVideoX video
+friday morning               # morning briefing
+friday council "question"    # multi-provider comparison
+friday status                # integration status
+friday memory list|search|export
+friday bench                 # run benchmark suite
+friday trust                 # run hellfire_audit
+friday ledger                # audit log + chain status
+friday plugin install <name> # marketplace install
+friday plugin list           # marketplace listing
+friday --watch               # ambient mode
+friday --voice               # voice mode
+friday --council             # TUI w/ council default
+```
+
+## VS Code Extension
+
+```bash
+cd apps/vscode
+npm install
+npm run compile
+npm run package         # produces friday.vsix
+code --install-extension friday.vsix
+```
+
+Then in VS Code: Command Palette → "Friday: Explain Selection" on any selected code.
 
 ## Optional: Add Paid Providers
 
 ```bash
-# Claude (Anthropic) — better long-form reasoning
-export ANTHROPIC_API_KEY="sk-ant-..."
-
-# GPT-4o (OpenAI) — strong code generation
-export OPENAI_API_KEY="sk-..."
-
-# Gemini (Google) — cheap multimodal
-export GEMINI_API_KEY="AIza..."
-
-# Set BRAIN_PROVIDER=council to use all configured providers in parallel
-export BRAIN_PROVIDER=council
-```
-
-## Optional: Local LLM (No Network)
-
-```bash
-# Install Ollama: https://ollama.com
-ollama pull llama3
-ollama serve
-
-# In another terminal:
-export BRAIN_PROVIDER=ollama
-uvicorn api.main:app --port 8000
-```
-
-Ollama runs entirely on localhost — no external network calls. See `docs/LIMITATIONS.md` for GPU/CPU requirements.
-
-## Optional: Persistent Memory
-
-```bash
-# Create a free Supabase project: https://supabase.com
-export SUPABASE_URL="https://your-project.supabase.co"
-export SUPABASE_KEY="your-anon-key"
-```
-
-Without Supabase, memory is in-process and lost on restart. The export/import endpoints (`GET /api/memory/export`, `POST /api/memory/import`) let you back up manually.
-
-## Docker
-
-```bash
-docker build -t friday:latest .
-docker run -p 8000:8000 -e GLM_API_KEY="your-key" friday:latest
-```
-
-The image builds cleanly because `requirements.txt` has no `torch` or `sentence-transformers` (the historical cause of disk-space failures).
-
-## Project Layout
-
-```
-FRIDAY/
-├── api/              # FastAPI app + routes (chat, memory, actions, stats, trust)
-├── apps/web/static/  # Web dashboard (HTML/JS/CSS, no build step)
-├── core/             # Brain, ledger, memory, context, council_mode, etc.
-├── integrations/     # Auto-discovered plugins (weather, commerce, printers, etc.)
-├── agents/           # Research, coding, writing, task agents
-├── skills/           # Skill plugins (morning_briefing, deep_research, etc.)
-├── voice/            # Speaker, listener, transcriber (Whisper)
-├── vision/           # Screen reader, OCR
-├── control/          # Browser (Playwright), PC control, file manager
-├── database/         # Supabase client, vector store
-├── mcp_server.py     # MCP server (JSON-RPC over stdio)
-├── scripts/          # Verification scripts (verify_*.py) + hellfire_audit
-├── tests/            # 183 unit tests
-├── docs/             # LIMITATIONS.md, PLUGINS.md, SECURITY.md, SKILLS.md
-└── benchmarks/       # run_benchmark.py + results.md
+export ANTHROPIC_API_KEY="sk-ant-..."   # Claude
+export OPENAI_API_KEY="sk-..."          # GPT-4o
+export GEMINI_API_KEY="AIza..."         # Gemini
+export BRAIN_PROVIDER=council           # use all in parallel
 ```
 
 ## Verification
 
-Every claim in this README is verifiable. Run:
-
 ```bash
-# Full unit-test suite (183 tests)
-pytest tests/ -q
-
-# Hellfire audit (8 adversarial checks)
+# All v1 verifications still pass
+pytest tests/ -q                                  # 183/183
 PYTHONPATH=. FRIDAY_API_TOKEN=test python3 scripts/hellfire_audit.py
-
-# Smoke test (imports + app builds)
 python3 scripts/smoke_test.py
 
-# Per-section verification scripts
-python3 scripts/verify_voice_approval.py       # Section 4a
-python3 scripts/verify_wake_on_contact.py      # Section 4b
-python3 scripts/verify_printers.py             # Section 4c+4d
-python3 scripts/verify_ollama_local.py         # Section 5a
-python3 scripts/verify_memory_cycle.py         # Section 5b
-python3 scripts/verify_stats.py                # Section 5c
-python3 scripts/verify_limitations.py          # Section 5d
-python3 scripts/verify_plugin_sdk.py           # Section 6a
-python3 scripts/verify_pidgin_transcription.py # Section 6b
-python3 scripts/verify_context_modes.py        # Section 6c
-python3 scripts/verify_commerce.py             # Section 7
-python3 scripts/verify_mcp_server.py           # Section 8
-python3 scripts/verify_dashboard.py            # Section 9
-python3 scripts/verify_tamper_evident.py       # Section 10a
-python3 scripts/verify_council_mode.py         # Section 10b
-python3 scripts/verify_trust_report.py         # Section 10c
-python3 scripts/verify_creative_routing.py     # Section 10d
-python3 scripts/verify_research_backbone.py    # Section 10e
-python3 scripts/verify_docker_build.py         # Section 11a
-python3 scripts/verify_onboarding.py           # Section 11b
+# v2.0 Definition of Done
+python3 scripts/verify_v2_definition_of_done.py   # 15/15
+
+# Per-section verification scripts (24 total)
+ls scripts/verify_*.py
 ```
 
 ## Documentation
@@ -191,6 +177,8 @@ python3 scripts/verify_onboarding.py           # Section 11b
 - `docs/PLUGINS.md` — how to add a new integration plugin
 - `docs/SECURITY.md` — security model + threat surface
 - `docs/SKILLS.md` — how to add a new skill
+- `docs/BUILD_WINDOWS.md` — building friday.exe for Windows
+- `marketplace/CONTRIBUTING.md` — submitting a plugin to the marketplace
 
 ## License
 

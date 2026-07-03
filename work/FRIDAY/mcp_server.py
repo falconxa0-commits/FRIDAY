@@ -453,6 +453,105 @@ class FridayMCPServer:
                 "receipt": self._make_receipt("execute_action", {"status": "error"}),
             }
 
+    async def handle_request_approval(self, params: dict) -> dict:
+        """Handle 'friday.request_approval' — external agent submits an action
+        for human approval via Friday's ledger.
+
+        This is the killer feature for trusted execution: another AI agent
+        (Claude Code, Cursor, etc.) can say "I want to delete this file"
+        and Friday's human-in-the-loop gate stands between the suggestion
+        and the action.
+
+        Friday speaks the request out loud (if voice is configured), waits
+        for the human's real voice/keyboard response, and returns
+        approved/rejected to the calling agent.
+
+        Params:
+            component: The integration component (e.g. "Filesystem")
+            action: The action name (e.g. "delete_file")
+            params: Action parameters
+            risk_level: "low" | "medium" | "high" | "critical"
+            description: Human-readable description of what the agent wants to do
+            timeout: Seconds to wait for approval (default 60)
+            use_voice: If True, use voice-native approval (default False)
+
+        Returns:
+            {status: "approved" | "rejected" | "timeout",
+             action_id: str,
+             receipt: dict}
+        """
+        component = params.get("component")
+        action = params.get("action")
+        action_params = params.get("params") or {}
+        risk_level = params.get("risk_level", "high")
+        description = params.get("description", f"{component}.{action}")
+        timeout = int(params.get("timeout", 60))
+        use_voice = bool(params.get("use_voice", False))
+
+        if not component or not action:
+            return {
+                "status": "error",
+                "message": "Missing required parameters: component and action",
+                "receipt": self._make_receipt("request_approval", {"status": "error"}),
+            }
+
+        ledger = self._get_ledger()
+        if not ledger:
+            return {
+                "status": "error",
+                "message": "Ledger not available",
+                "receipt": self._make_receipt("request_approval", {"status": "error"}),
+            }
+
+        # Queue the action in the ledger (this is the gate)
+        action_id = ledger.queue_action(
+            component, action, action_params, risk_level=risk_level,
+        )
+        logger.info(
+            "MCP request_approval: queued %s.%s (id=%s, risk=%s, timeout=%ss)",
+            component, action, action_id, risk_level, timeout,
+        )
+
+        # Wait for approval
+        try:
+            if use_voice:
+                approved = await ledger.wait_for_voice_approval(
+                    action_id, timeout=timeout,
+                )
+            else:
+                approved = await ledger.wait_for_approval(
+                    action_id, timeout=timeout,
+                )
+        except asyncio.TimeoutError:
+            approved = False
+
+        status = "approved" if approved else (
+            "timeout" if not approved and ledger.pending_actions.get(action_id, {}).get("status") == "pending"
+            else "rejected"
+        )
+
+        return {
+            "status": status,
+            "action_id": action_id,
+            "component": component,
+            "action": action,
+            "message": (
+                f"Action {action_id} {status} by human"
+                if approved
+                else f"Action {action_id} not approved within {timeout}s"
+            ),
+            "receipt": self._make_receipt("request_approval", {
+                "status": status,
+                "receipt": {
+                    "action_id": action_id,
+                    "component": component,
+                    "action": action,
+                    "risk_level": risk_level,
+                    "description": description,
+                },
+            }),
+        }
+
     # ─── Dispatch ───────────────────────────────────────────────────────
 
     async def dispatch(self, tool_name: str, params: dict) -> dict:
@@ -476,6 +575,7 @@ class FridayMCPServer:
             "video_generation": self.handle_video_generation,
             "code_execution": self.handle_code_execution,
             "execute_action": self.handle_execute_action,
+            "request_approval": self.handle_request_approval,
         }
 
         handler = handlers.get(tool_name)

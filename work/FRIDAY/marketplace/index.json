@@ -1,0 +1,27 @@
+{
+  "version": "1.0",
+  "updated": "2026-07-03",
+  "plugins": [
+    {
+      "name": "weather_advanced",
+      "description": "Enhanced weather integration with hourly forecast + severe weather alerts",
+      "author": "Friday Team",
+      "homepage": "https://github.com/friday-ai/weather-advanced",
+      "tags": ["weather", "alerts"]
+    },
+    {
+      "name": "crypto_nigerian",
+      "description": "Crypto prices in NGN with Nigerian exchange support",
+      "author": "Friday Team",
+      "homepage": "https://github.com/friday-ai/crypto-nigerian",
+      "tags": ["crypto", "nigeria", "finance"]
+    },
+    {
+      "name": "nepa_status",
+      "description": "Check NEPA/power outage status in Nigerian cities",
+      "author": "Friday Team",
+      "homepage": "https://github.com/friday-ai/nepa-status",
+      "tags": ["nigeria", "power", "utility"]
+    }
+  ]
+}

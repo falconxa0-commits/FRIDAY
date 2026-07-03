@@ -108,8 +108,85 @@
     "status": "pending",
     "timestamp": "2026-07-02T21:50:55.779519"
   },
-  "d599a771-9f26-4196-aad8-5930a09b4113": {
-    "id": "d599a771-9f26-4196-aad8-5930a09b4113",
+  "e93f2e3a-6c7b-4f7c-89b0-a1a89cf4c83b": {
+    "id": "e93f2e3a-6c7b-4f7c-89b0-a1a89cf4c83b",
+    "component": "Printer",
+    "action": "print_document",
+    "params": {
+      "file": "report.pdf"
+    },
+    "risk_level": "high",
+    "status": "pending",
+    "timestamp": "2026-07-03T05:27:43.288586"
+  },
+  "b94dabbf-e103-455e-a382-c91932fcaabe": {
+    "id": "b94dabbf-e103-455e-a382-c91932fcaabe",
+    "component": "Test",
+    "action": "alpha",
+    "params": {
+      "x": 1
+    },
+    "risk_level": "high",
+    "status": "pending",
+    "timestamp": "2026-07-03T05:27:46.497081"
+  },
+  "4e79fe9a-003d-471f-87e3-f6a89c5ae59d": {
+    "id": "4e79fe9a-003d-471f-87e3-f6a89c5ae59d",
+    "component": "Test",
+    "action": "beta",
+    "params": {
+      "x": 2
+    },
+    "risk_level": "high",
+    "status": "pending",
+    "timestamp": "2026-07-03T05:27:47.498690"
+  },
+  "643f999a-9ded-40b0-9036-d40a82971e1b": {
+    "id": "643f999a-9ded-40b0-9036-d40a82971e1b",
+    "component": "Printer",
+    "action": "print_document",
+    "params": {
+      "file": "report.pdf"
+    },
+    "risk_level": "high",
+    "status": "pending",
+    "timestamp": "2026-07-03T05:40:51.026894"
+  },
+  "ba29f995-f8ae-402b-9b2e-8c839e0f7e8a": {
+    "id": "ba29f995-f8ae-402b-9b2e-8c839e0f7e8a",
+    "component": "Test",
+    "action": "alpha",
+    "params": {
+      "x": 1
+    },
+    "risk_level": "high",
+    "status": "pending",
+    "timestamp": "2026-07-03T05:40:54.234601"
+  },
+  "3ab22b9d-0119-463d-8b0a-d8a2d9340efb": {
+    "id": "3ab22b9d-0119-463d-8b0a-d8a2d9340efb",
+    "component": "Test",
+    "action": "beta",
+    "params": {
+      "x": 2
+    },
+    "risk_level": "high",
+    "status": "pending",
+    "timestamp": "2026-07-03T05:40:55.236072"
+  },
+  "bc6f1988-5b92-4fcc-a9d6-e9075685cf1c": {
+    "id": "bc6f1988-5b92-4fcc-a9d6-e9075685cf1c",
+    "component": "Printer",
+    "action": "print_document",
+    "params": {
+      "file": "report.pdf"
+    },
+    "risk_level": "high",
+    "status": "pending",
+    "timestamp": "2026-07-03T05:41:32.408310"
+  },
+  "91a2598f-1b1b-4164-889e-4b03d4510016": {
+    "id": "91a2598f-1b1b-4164-889e-4b03d4510016",
     "component": "Weather",
     "action": "get_weather",
     "params": {
@@ -117,6 +194,40 @@
     },
     "risk_level": "low",
     "status": "approved",
-    "timestamp": "2026-07-02T22:04:22.179179"
+    "timestamp": "2026-07-03T05:41:34.411435"
+  },
+  "d4e506b1-3627-46aa-968a-15b6307d584d": {
+    "id": "d4e506b1-3627-46aa-968a-15b6307d584d",
+    "component": "Commerce",
+    "action": "checkout",
+    "params": {
+      "item": "expensive widget",
+      "price": 999.99
+    },
+    "risk_level": "high",
+    "status": "rejected",
+    "timestamp": "2026-07-03T05:41:35.014476"
+  },
+  "de9d514d-eb3e-410c-bd9a-e1cdb246cf07": {
+    "id": "de9d514d-eb3e-410c-bd9a-e1cdb246cf07",
+    "component": "Test",
+    "action": "alpha",
+    "params": {
+      "x": 1
+    },
+    "risk_level": "high",
+    "status": "pending",
+    "timestamp": "2026-07-03T05:41:35.616571"
+  },
+  "9b0e7e4c-0087-4be7-aa27-9c8f48795482": {
+    "id": "9b0e7e4c-0087-4be7-aa27-9c8f48795482",
+    "component": "Test",
+    "action": "beta",
+    "params": {
+      "x": 2
+    },
+    "risk_level": "high",
+    "status": "pending",
+    "timestamp": "2026-07-03T05:41:36.618801"
   }
 }

@@ -11,7 +11,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
-from api.routes import chat, memory, agents, integrations, actions, scheduler, stats, trust
+from api.routes import chat, memory, agents, integrations, actions, scheduler, stats, trust, team, health
 from config.settings import FRIDAY_API_TOKEN, BRAIN_PROVIDER
 
 logger = logging.getLogger("friday.api")
@@ -106,6 +106,8 @@ app.include_router(actions.router, prefix="/api/actions", dependencies=[Depends(
 app.include_router(scheduler.router, prefix="/api/scheduler", dependencies=[Depends(verify_token)])
 app.include_router(stats.router, prefix="/api/stats", dependencies=[Depends(verify_token)])
 app.include_router(trust.router, prefix="/api", dependencies=[Depends(verify_token)])
+app.include_router(team.router, prefix="/api/team", dependencies=[Depends(verify_token)])
+app.include_router(health.router, prefix="/api/health")  # no auth — health checks are public
 
 
 # ------------------------------------------------------------------
