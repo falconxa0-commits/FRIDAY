@@ -1,6 +1,6 @@
 """Chat API routes — SSE streaming, non-streaming POST, history, and stats."""
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional, AsyncGenerator
@@ -10,6 +10,14 @@ import logging
 logger = logging.getLogger("friday.api.chat")
 
 router = APIRouter()
+
+
+# Rate limiting (slowapi) — protects the GLM free tier from runaway clients.
+# We import the limiter lazily so the route still works if slowapi isn't installed.
+try:
+    from api.main import limiter
+except Exception:
+    limiter = None
 
 
 # ---------------------------------------------------------------------------
@@ -70,8 +78,20 @@ def _resolve_provider_and_model(brain) -> tuple:
 # POST /api/chat  — non-streaming (collects full response then returns JSON)
 # ---------------------------------------------------------------------------
 
+# Apply rate limiting if slowapi is available. We use a conditional decorator
+# pattern so the route still works if slowapi isn't installed.
+def _rate_limited(limit_str: str):
+    """Decorator that applies slowapi rate limiting if available."""
+    def decorator(func):
+        if limiter is not None:
+            return limiter.limit(limit_str)(func)
+        return func
+    return decorator
+
+
 @router.post("/chat")
-async def chat(request: ChatRequest):
+@_rate_limited("30/minute")
+async def chat(request: ChatRequest, http_request: Request):
     try:
         brain = await _get_brain()
         responses = []
@@ -91,7 +111,9 @@ async def chat(request: ChatRequest):
 # ---------------------------------------------------------------------------
 
 @router.get("/chat/stream")
+@_rate_limited("30/minute")
 async def chat_stream(
+    http_request: Request,
     message: str = Query(...),
     user_name: str = Query("User"),
 ):

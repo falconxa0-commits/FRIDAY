@@ -11,8 +11,11 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
-from api.routes import chat, memory, agents, integrations, actions, scheduler, stats, trust, team, health
-from config.settings import FRIDAY_API_TOKEN, BRAIN_PROVIDER
+from api.routes import (
+    chat, memory, agents, integrations, actions, scheduler, stats, trust,
+    team, health, patterns, visual_memory, nigeria,
+)
+from config.settings import FRIDAY_API_TOKEN, BRAIN_PROVIDER, FRIDAY_DEV_MODE
 
 logger = logging.getLogger("friday.api")
 
@@ -62,9 +65,13 @@ async def verify_token(
 
     Also checks the ``token`` query parameter so that ``EventSource``
     (which cannot send custom headers) can still authenticate.
+
+    Security model:
+      - If FRIDAY_DEV_MODE=1 is explicitly set → no auth (local dev only).
+      - Otherwise FRIDAY_API_TOKEN is required (auto-generated if missing).
     """
-    if not FRIDAY_API_TOKEN:
-        # Dev mode — no token required
+    if FRIDAY_DEV_MODE and not FRIDAY_API_TOKEN:
+        # Explicit dev mode — no token required
         return "dev_token"
 
     # 1. Check Authorization header
@@ -78,7 +85,7 @@ async def verify_token(
 
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,
-        detail="Invalid or missing Friday Token",
+        detail="Invalid or missing Friday Token. Set FRIDAY_API_TOKEN env var or FRIDAY_DEV_MODE=1 for local dev.",
     )
 
 
@@ -106,8 +113,15 @@ app.include_router(actions.router, prefix="/api/actions", dependencies=[Depends(
 app.include_router(scheduler.router, prefix="/api/scheduler", dependencies=[Depends(verify_token)])
 app.include_router(stats.router, prefix="/api/stats", dependencies=[Depends(verify_token)])
 app.include_router(trust.router, prefix="/api", dependencies=[Depends(verify_token)])
-app.include_router(team.router, prefix="/api/team", dependencies=[Depends(verify_token)])
+# Team routes use their own FRIDAY_USER_TOKEN auth (per-user tokens via
+# the Authorization header) — NOT the global FRIDAY_API_TOKEN. This
+# avoids the dual-token confusion where one header had to match two
+# different secrets.
+app.include_router(team.router, prefix="/api/team")
 app.include_router(health.router, prefix="/api/health")  # no auth — health checks are public
+app.include_router(patterns.router, prefix="/api/patterns", dependencies=[Depends(verify_token)])
+app.include_router(visual_memory.router, prefix="/api/visual-memory", dependencies=[Depends(verify_token)])
+app.include_router(nigeria.router, prefix="/api/nigeria", dependencies=[Depends(verify_token)])
 
 
 # ------------------------------------------------------------------

@@ -18,13 +18,18 @@ let statusBarItem: vscode.StatusBarItem | undefined;
 export function activate(context: vscode.ExtensionContext) {
     console.log('Friday AI Assistant extension activating...');
 
-    // Status bar item — ◆ Friday [WORK · GLM]
+    // Status bar item — fetches real mode + provider from /api/chat/stats
     statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
-    statusBarItem.text = '◆ Friday [WORK · GLM]';
+    statusBarItem.text = '◆ Friday [...]';
     statusBarItem.tooltip = 'Friday AI Assistant — click to open dashboard';
     statusBarItem.command = 'friday.openDashboard';
     statusBarItem.show();
     context.subscriptions.push(statusBarItem);
+
+    // Refresh status bar on activation + every 60 seconds
+    refreshStatusBar();
+    const statusInterval = setInterval(refreshStatusBar, 60_000);
+    context.subscriptions.push({ dispose: () => clearInterval(statusInterval) });
 
     // Register commands
     context.subscriptions.push(
@@ -66,6 +71,49 @@ export function activate(context: vscode.ExtensionContext) {
 
 export function deactivate() {
     console.log('Friday AI Assistant deactivating...');
+}
+
+// ---------------------------------------------------------------------------
+// Status bar refresh — fetches real mode + provider from /api/chat/stats
+// ---------------------------------------------------------------------------
+
+async function refreshStatusBar(): Promise<void> {
+    if (!statusBarItem) { return; }
+    const cfg = getConfig();
+    try {
+        const http = require('http');
+        const url = new URL('/api/chat/stats', cfg.apiUrl);
+        if (cfg.apiToken) {
+            url.searchParams.set('token', cfg.apiToken);
+        }
+        http.get(url.toString(), (res: any) => {
+            let body = '';
+            res.on('data', (chunk: Buffer) => { body += chunk.toString(); });
+            res.on('end', () => {
+                if (res.statusCode !== 200) {
+                    statusBarItem!.text = '◆ Friday [offline]';
+                    return;
+                }
+                try {
+                    const stats = JSON.parse(body);
+                    const provider = (stats.provider || 'unknown').toUpperCase();
+                    // Friday doesn't expose mode via /chat/stats — derive from time of day
+                    const hour = new Date().getHours();
+                    const mode = (hour >= 6 && hour < 9) ? 'MORNING'
+                               : (hour >= 9 && hour < 18) ? 'WORK'
+                               : (hour >= 18 && hour < 22) ? 'EVENING'
+                               : 'NIGHT';
+                    statusBarItem!.text = `◆ Friday [${mode} · ${provider}]`;
+                } catch {
+                    statusBarItem!.text = '◆ Friday [error]';
+                }
+            });
+        }).on('error', () => {
+            statusBarItem!.text = '◆ Friday [offline]';
+        });
+    } catch {
+        statusBarItem.text = '◆ Friday [error]';
+    }
 }
 
 // ---------------------------------------------------------------------------

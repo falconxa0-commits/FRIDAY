@@ -21,7 +21,7 @@ class WorkspaceOrchestrator:
         self.launcher.launch("Chrome")
         # PCControl.press_shortcut is async — must be awaited
         await self.pc.press_shortcut("win", "left")
-        return "Workspace optimized for coding. Good luck, sir."
+        return "Workspace optimized for coding. Good luck."
 
     async def set_presentation_mode(self):
         logger.info("Friday: Setting up Presentation Mode.")

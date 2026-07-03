@@ -74,8 +74,18 @@ def _get_user_from_header(authorization: Optional[str]):
 # ---------------------------------------------------------------------------
 
 @router.get("/members")
-async def list_members():
-    """List all team members (without their tokens)."""
+async def list_members(authorization: Optional[str] = Header(None)):
+    """List all team members (without their tokens).
+
+    Requires a valid FRIDAY_USER_TOKEN — only authenticated team members
+    can see the roster.
+    """
+    user = _get_user_from_header(authorization)
+    if not user:
+        raise HTTPException(
+            status_code=403,
+            detail="Valid FRIDAY_USER_TOKEN required to list team members.",
+        )
     tm = _get_team_mode()
     return {"members": tm.list_members()}
 

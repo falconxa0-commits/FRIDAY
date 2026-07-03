@@ -4,12 +4,27 @@ All integration calls produce receipts with real response data from
 the underlying integration, never echoes of input parameters.
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 import datetime
 import logging
 
 logger = logging.getLogger("friday.api.integrations")
+
+# Rate limiting (slowapi) — protects integration backends from abuse.
+try:
+    from api.main import limiter
+except Exception:
+    limiter = None
+
+
+def _rate_limited(limit_str: str):
+    """Decorator that applies slowapi rate limiting if available."""
+    def decorator(func):
+        if limiter is not None:
+            return limiter.limit(limit_str)(func)
+        return func
+    return decorator
 
 router = APIRouter()
 
@@ -147,7 +162,8 @@ async def list_categories():
 # ---------------------------------------------------------------------------
 
 @router.post("/execute")
-async def execute_integration(request: IntegrationActionRequest):
+@_rate_limited("20/minute")
+async def execute_integration(request: IntegrationActionRequest, http_request: Request):
     connector = _get_connector()
     if not connector:
         raise HTTPException(status_code=503, detail="Universal connector unavailable.")

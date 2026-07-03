@@ -4,13 +4,16 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "friday-ai"
-version = "2.0.0"
+version = "2.1.0"
 description = "Personal AI assistant powered by Z.ai GLM-4-Flash (free)"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "Project FRIDAY" }]
 
+# ── Default dependencies — installed by `pip install .` ──────────────────
+# These are the MINIMUM needed to run Friday with the free GLM provider.
+# All optional providers (Claude, Gemini, GPT, Ollama) are in [optional-dependencies].
 dependencies = [
     "fastapi>=0.110.0",
     "uvicorn[standard]>=0.29.0",
@@ -21,28 +24,46 @@ dependencies = [
     "requests>=2.31.0",
     "numpy>=1.26.4",
     "Pillow>=10.3.0",
+    "zhipuai>=2.1.0",            # GLM — the default free-tier provider
+    "slowapi>=0.1.9",            # rate limiting
+    "python-multipart>=0.0.6",   # file uploads (visual memory)
 ]
 
 [project.optional-dependencies]
-glm = ["zhipuai>=2.1.0"]
+# Voice: Whisper STT + pyttsx3 TTS
 voice = ["pyttsx3", "openai-whisper", "pyaudio"]
+# Browser automation: Playwright for price comparison
 browser = ["playwright>=1.43.0"]
-full = [
-    "zhipuai>=2.1.0",
+# Paid LLM providers (optional — Friday works with GLM alone)
+providers = [
     "anthropic>=0.25.0",
     "openai>=1.0.0",
     "google-genai>=1.0.0",
-    "supabase>=2.4.0",
-    "spotipy>=2.23.0",
-    "playwright>=1.43.0",
+]
+# Persistent memory via Supabase
+persist = ["supabase>=2.4.0", "pgvector>=0.2.4"]
+# Vision / screen analysis
+vision = [
     "pyautogui>=0.9.54",
     "mss>=9.0.1",
     "pytesseract>=0.3.10",
     "opencv-python-headless>=4.9.0",
-    "slowapi>=0.1.9",
+]
+# Google integrations (Calendar, Gmail)
+google = [
+    "google-auth>=2.29.0",
+    "google-auth-oauthlib>=1.2.0",
+    "google-api-python-client>=2.127.0",
+]
+# Spotify
+spotify = ["spotipy>=2.23.0"]
+# Everything — convenience alias
+full = [
+    "friday-ai[voice,browser,providers,persist,vision,google,spotify]",
     "websockets>=13.0",
     "schedule>=1.2.1",
     "psutil>=5.9.8",
+    "textual>=0.50.0",
 ]
 
 [project.scripts]

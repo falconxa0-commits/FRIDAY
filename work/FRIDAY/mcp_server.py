@@ -313,23 +313,28 @@ class FridayMCPServer:
         if not prompt:
             return {"status": "error", "message": "No prompt provided."}
 
-        # Gate through ledger
+        # Gate through ledger — FAIL CLOSED if ledger unavailable
         ledger = self._get_ledger()
-        if ledger:
-            action_id = ledger.queue_action(
-                "ImageGen", "generate_image",
-                {"prompt": prompt, "size": size},
-                risk_level="high",
-            )
-            # In MCP context, auto-approve is blocked by NEVER_AUTO_APPROVE_COMPONENTS
-            # We need explicit approval — for now, reject if not approved
-            approved = await ledger.wait_for_approval(action_id, timeout=30)
-            if not approved:
-                return {
-                    "status": "error",
-                    "message": "Image generation requires explicit approval. Action queued but not approved within timeout.",
-                    "receipt": self._make_receipt("image_generation", {"status": "rejected"}),
-                }
+        if ledger is None:
+            return {
+                "status": "error",
+                "message": "Ledger unavailable — refusing to execute without approval gate.",
+                "receipt": self._make_receipt("image_generation", {"status": "error"}),
+            }
+        action_id = ledger.queue_action(
+            "ImageGen", "generate_image",
+            {"prompt": prompt, "size": size},
+            risk_level="high",
+        )
+        # In MCP context, auto-approve is blocked by NEVER_AUTO_APPROVE_COMPONENTS
+        # We need explicit approval — for now, reject if not approved
+        approved = await ledger.wait_for_approval(action_id, timeout=30)
+        if not approved:
+            return {
+                "status": "error",
+                "message": "Image generation requires explicit approval. Action queued but not approved within timeout.",
+                "receipt": self._make_receipt("image_generation", {"status": "rejected"}),
+            }
 
         try:
             from integrations.image_gen import ImageGen
@@ -351,21 +356,26 @@ class FridayMCPServer:
         if not prompt:
             return {"status": "error", "message": "No prompt provided."}
 
-        # Gate through ledger
+        # Gate through ledger — FAIL CLOSED if ledger unavailable
         ledger = self._get_ledger()
-        if ledger:
-            action_id = ledger.queue_action(
-                "VideoGen", "generate_video",
-                {"prompt": prompt, "quality": quality},
-                risk_level="high",
-            )
-            approved = await ledger.wait_for_approval(action_id, timeout=30)
-            if not approved:
-                return {
-                    "status": "error",
-                    "message": "Video generation requires explicit approval. Action queued but not approved within timeout.",
-                    "receipt": self._make_receipt("video_generation", {"status": "rejected"}),
-                }
+        if ledger is None:
+            return {
+                "status": "error",
+                "message": "Ledger unavailable — refusing to execute without approval gate.",
+                "receipt": self._make_receipt("video_generation", {"status": "error"}),
+            }
+        action_id = ledger.queue_action(
+            "VideoGen", "generate_video",
+            {"prompt": prompt, "quality": quality},
+            risk_level="high",
+        )
+        approved = await ledger.wait_for_approval(action_id, timeout=30)
+        if not approved:
+            return {
+                "status": "error",
+                "message": "Video generation requires explicit approval. Action queued but not approved within timeout.",
+                "receipt": self._make_receipt("video_generation", {"status": "rejected"}),
+            }
 
         try:
             from integrations.video_gen import VideoGen
@@ -387,21 +397,26 @@ class FridayMCPServer:
         if not code:
             return {"status": "error", "message": "No code provided."}
 
-        # Gate through ledger
+        # Gate through ledger — FAIL CLOSED if ledger unavailable
         ledger = self._get_ledger()
-        if ledger:
-            action_id = ledger.queue_action(
-                "CodeExecution", "execute_code",
-                {"code": code, "language": language},
-                risk_level="critical",
-            )
-            approved = await ledger.wait_for_approval(action_id, timeout=30)
-            if not approved:
-                return {
-                    "status": "error",
-                    "message": "Code execution requires explicit approval. Action queued but not approved within timeout.",
-                    "receipt": self._make_receipt("code_execution", {"status": "rejected"}),
-                }
+        if ledger is None:
+            return {
+                "status": "error",
+                "message": "Ledger unavailable — refusing to execute without approval gate.",
+                "receipt": self._make_receipt("code_execution", {"status": "error"}),
+            }
+        action_id = ledger.queue_action(
+            "CodeExecution", "execute_code",
+            {"code": code, "language": language},
+            risk_level="critical",
+        )
+        approved = await ledger.wait_for_approval(action_id, timeout=30)
+        if not approved:
+            return {
+                "status": "error",
+                "message": "Code execution requires explicit approval. Action queued but not approved within timeout.",
+                "receipt": self._make_receipt("code_execution", {"status": "rejected"}),
+            }
 
         glm = self._get_glm_brain()
         if not glm or not glm.available():

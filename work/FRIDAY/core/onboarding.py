@@ -179,7 +179,7 @@ class AutoOnboarding:
     def rate_limit_info() -> str:
         return (
             "Z.ai Free Tier Rate Limits:\n\n"
-            "  - GLM-4-Flash: ~100 requests/min, 128K context (FREE)\n"
+            "  - GLM-4-Flash: ~60 requests/min, 100K tokens/day (FREE)\n"
             "  - GLM-4V: ~50 requests/min, 8K context (FREE)\n"
             "  - CogView-3 (images): Limited generations/day (FREE)\n"
             "  - CogVideoX (videos): Limited generations/day (FREE)\n"

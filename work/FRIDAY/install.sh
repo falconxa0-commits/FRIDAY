@@ -29,8 +29,11 @@ if [ ! -f .env ]; then
         cp .env.example .env
         echo "  Created .env from .env.example"
     else
+        # Pre-generate a secure FRIDAY_API_TOKEN so the user doesn't have to
+        GENERATED_TOKEN=$(python3 -c "import secrets; print(secrets.token_urlsafe(32))")
         echo "GLM_API_KEY=" > .env
-        echo "  Created empty .env"
+        echo "FRIDAY_API_TOKEN=$GENERATED_TOKEN" >> .env
+        echo "  Created .env with auto-generated FRIDAY_API_TOKEN"
     fi
 else
     echo "  .env already exists — leaving it alone"

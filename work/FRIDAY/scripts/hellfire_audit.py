@@ -148,12 +148,21 @@ def check_auth_rejection():
             "/api/health/deep",  # health check — public by design
         }
 
+        # Team routes use their own FRIDAY_USER_TOKEN auth (separate from
+        # FRIDAY_API_TOKEN). Skip them in the global auth check — they
+        # enforce their own per-user auth via _get_user_from_header.
+        team_paths = {
+            "/api/team/members", "/api/team/invite", "/api/team/context",
+            "/api/team/memory/private", "/api/team/memory/shared",
+            "/api/team/memories",
+        }
+
         failed_routes = []
         for route in app.routes:
             path = getattr(route, "path", "")
             methods = getattr(route, "methods", set())
 
-            if path in public_routes or not methods:
+            if path in public_routes or path in team_paths or not methods:
                 continue
             # Skip routes that re-run this audit (would recurse).
             if path == "/api/trust/report":

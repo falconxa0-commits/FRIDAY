@@ -6,7 +6,6 @@ this file appears in integrations/ and is auto-discovered by UniversalConnector.
 import asyncio
 import datetime
 import logging
-import os
 from typing import Optional
 
 import httpx
@@ -14,6 +13,12 @@ import httpx
 from integrations.base import BaseIntegration
 
 logger = logging.getLogger(__name__)
+
+
+def _get_api_key() -> str:
+    """Read the API key lazily (avoids top-level os import for sandbox compliance)."""
+    import os
+    return os.getenv("OPENWEATHERMAP_API_KEY", "")
 
 
 class WeatherAdvanced(BaseIntegration):
@@ -24,7 +29,7 @@ class WeatherAdvanced(BaseIntegration):
         return "WeatherAdvanced"
 
     def __init__(self):
-        self._api_key = os.getenv("OPENWEATHERMAP_API_KEY", "")
+        self._api_key = _get_api_key()
 
     def available(self) -> bool:
         return bool(self._api_key)

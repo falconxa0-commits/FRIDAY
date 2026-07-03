@@ -9,6 +9,15 @@
   },
   "categories": ["Other", "Machine Learning", "Education"],
   "main": "./out/extension.js",
+  "activationEvents": [
+    "onCommand:friday.explainSelection",
+    "onCommand:friday.fixError",
+    "onCommand:friday.generateCode",
+    "onCommand:friday.researchTopic",
+    "onCommand:friday.morningBriefing",
+    "onCommand:friday.openDashboard",
+    "onStartupFinished"
+  ],
   "contributes": {
     "commands": [
       {

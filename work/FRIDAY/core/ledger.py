@@ -47,6 +47,8 @@ class ActionLedger:
         # In-memory hash-chained audit log (each entry includes a hash
         # that depends on the previous entry's hash — any tampering
         # breaks the chain and is detectable via verify_chain()).
+        # The chain is persisted to CHAIN_PERSIST_PATH so tamper-evidence
+        # survives process restarts.
         self._audit_chain: List[dict] = []
 
         # Per-action events for efficient await (replaces busy-polling)
@@ -57,6 +59,8 @@ class ActionLedger:
 
         # Restore previously persisted pending actions
         self._load_persisted()
+        # Restore persisted hash-chained audit log
+        self._load_chain()
 
     # ----------------------------------------------------------------
     # Persistence
@@ -112,6 +116,37 @@ class ActionLedger:
     # ----------------------------------------------------------------
 
     GENESIS_HASH = "genesis"
+    CHAIN_PERSIST_PATH = "action_ledger_chain.json"
+
+    # Keys in action params that are redacted in the file-based audit log
+    # (the hash chain still includes the full params — only the human-readable
+    # text log is redacted, to prevent secret leakage into log aggregators).
+    SENSITIVE_PARAM_KEYS = frozenset({
+        "password", "passwd", "pwd",
+        "api_key", "apikey", "token", "secret",
+        "payment_method", "card_number", "cvv", "expiry",
+        "client_secret", "access_token", "refresh_token",
+        "stripe_token", "payment_intent_id",
+    })
+
+    @staticmethod
+    def _redact_params(params: dict) -> dict:
+        """Return a copy of params with sensitive values replaced by '***'.
+
+        Used only for the human-readable file log. The hash chain
+        includes the full params so tamper detection still works.
+        """
+        if not isinstance(params, dict):
+            return params
+        redacted = {}
+        for k, v in params.items():
+            if k.lower() in ActionLedger.SENSITIVE_PARAM_KEYS:
+                redacted[k] = "***REDACTED***"
+            elif isinstance(v, str) and len(v) > 100:
+                redacted[k] = v[:50] + "...(truncated)"
+            else:
+                redacted[k] = v
+        return redacted
 
     @staticmethod
     def _compute_entry_hash(entry: dict, prev_hash: str) -> str:
@@ -135,30 +170,32 @@ class ActionLedger:
 
     def _log_audit(self, action_data, approved_by="human"):
         """Append an entry to BOTH the file-based audit log and the
-        in-memory hash-chained audit log.
+        persisted hash-chained audit log.
 
-        The hash chain makes any subsequent modification to a logged
-        entry detectable via ``verify_chain()``.
+        - File log: human-readable, append-only, with SENSITIVE params redacted.
+        - Hash chain: persisted to ``CHAIN_PERSIST_PATH`` (JSON file),
+          tamper-evident across process restarts.
         """
-        # 1. File-based log (human-readable, append-only)
+        # 1. File-based log (human-readable, append-only, REDACTED)
         try:
+            redacted_params = self._redact_params(action_data.get("params", {}))
             with open(self.audit_log, "a") as f:
                 f.write(
                     f"{datetime.datetime.now().isoformat()} | "
                     f"{approved_by.upper()} | "
                     f"{action_data['component']}.{action_data['action']} | "
-                    f"{action_data['params']}\n"
+                    f"{redacted_params}\n"
                 )
         except Exception:
             logger.exception("Failed to write audit log file")
 
-        # 2. Hash-chained in-memory log (tamper-evident)
+        # 2. Hash-chained log (tamper-evident, PERSISTED to disk)
         prev_hash = self._audit_chain[-1]["hash"] if self._audit_chain else self.GENESIS_HASH
         entry = {
             "action_id": action_data.get("id", ""),
             "component": action_data.get("component", ""),
             "action": action_data.get("action", ""),
-            "params": action_data.get("params", {}),
+            "params": action_data.get("params", {}),  # full params for hash integrity
             "timestamp": action_data.get("timestamp", datetime.datetime.now().isoformat()),
             "status": action_data.get("status", ""),
             "approved_by": approved_by,
@@ -166,6 +203,51 @@ class ActionLedger:
         }
         entry["hash"] = self._compute_entry_hash(entry, prev_hash)
         self._audit_chain.append(entry)
+        # Persist the full chain to disk so tamper-evidence survives restarts
+        self._persist_chain()
+
+    def _persist_chain(self) -> None:
+        """Persist the hash-chained audit log to disk as JSON.
+
+        Each entry's hash is recomputed from its contents, so modifying
+        the JSON file and restarting will be detected by verify_chain().
+        """
+        try:
+            with open(self.CHAIN_PERSIST_PATH, "w") as f:
+                json.dump(self._audit_chain, f, indent=2, default=str)
+        except Exception:
+            logger.exception("Failed to persist audit chain")
+
+    def _load_chain(self) -> None:
+        """Load the persisted hash-chained audit log from disk on startup."""
+        import os as _os
+        if not _os.path.exists(self.CHAIN_PERSIST_PATH):
+            return
+        try:
+            with open(self.CHAIN_PERSIST_PATH, "r") as f:
+                data = json.load(f)
+            if isinstance(data, list):
+                # Validate the loaded chain before accepting it
+                prev_hash = self.GENESIS_HASH
+                valid = True
+                for entry in data:
+                    expected = self._compute_entry_hash(entry, prev_hash)
+                    if entry.get("hash") != expected:
+                        logger.warning(
+                            "Loaded audit chain has broken hash at entry — "
+                            "discarding chain (possible tampering)."
+                        )
+                        valid = False
+                        break
+                    prev_hash = entry.get("hash", "")
+                if valid:
+                    self._audit_chain = data
+                    logger.info(
+                        "Loaded %d entries from persisted audit chain",
+                        len(self._audit_chain),
+                    )
+        except Exception:
+            logger.exception("Failed to load persisted audit chain")
 
     def get_audit_log(self) -> List[dict]:
         """Return the hash-chained audit log entries (newest last)."""

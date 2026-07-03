@@ -1,4 +1,3 @@
-import anthropic
 import asyncio
 import logging
 import os
@@ -11,6 +10,13 @@ import re
 from typing import List, Dict, Any, AsyncGenerator, Optional
 from datetime import datetime
 
+# Lazy import of optional LLM SDKs — these are NOT required for the
+# default GLM-only install, so we must not fail at module import time.
+try:
+    import anthropic
+except ImportError:
+    anthropic = None  # type: ignore[assignment]
+
 from config.settings import ANTHROPIC_API_KEY, GEMINI_API_KEY, GLM_API_KEY, TAVILY_API_KEY
 from config.friday_identity import get_system_prompt
 from core.gemini_brain import GeminiBrain
@@ -19,7 +25,6 @@ from core.local_brain import LocalBrain
 from integrations.registry import UniversalRegistry
 from core.universal_connector import UniversalConnector
 from skills.base import BaseSkill
-from core.cost_tracker import CostTracker
 
 logger = logging.getLogger("FridayBrain")
 
@@ -191,13 +196,19 @@ class FridayBrain:
     def claude_client(self):
         """Lazy-init Claude client to avoid startup crashes."""
         if self._claude_client is None:
-            if ANTHROPIC_API_KEY:
-                self._claude_client = anthropic.AsyncAnthropic(
-                    api_key=ANTHROPIC_API_KEY
-                )
-                self.summarizer.brain_client = self._claude_client
-            else:
+            if not ANTHROPIC_API_KEY:
                 self.logger.warning("No ANTHROPIC_API_KEY set")
+                return None
+            if anthropic is None:
+                self.logger.warning(
+                    "anthropic package not installed — Claude unavailable. "
+                    "Install with: pip install anthropic"
+                )
+                return None
+            self._claude_client = anthropic.AsyncAnthropic(
+                api_key=ANTHROPIC_API_KEY
+            )
+            self.summarizer.brain_client = self._claude_client
         return self._claude_client
 
     # ------------------------------------------------------------------
@@ -668,14 +679,16 @@ class FridayBrain:
                 # Inject RAG context
                 rag_ctx = await self._inject_rag_context(message)
                 glm_message = f"{rag_ctx}\n\nUser's current message: {message}" if rag_ctx else message
+                full_response = ""
                 async for chunk in self.glm_brain.chat_stream(
                     glm_message, system_prompt=glm_system_prompt
                 ):
+                    full_response += chunk
                     yield chunk
-                # Store assistant response in memory
-                if self.memory:
+                # Store assistant response in memory (NOT the user message again)
+                if self.memory and full_response.strip():
                     try:
-                        self.memory.store_conversation("user", message)
+                        self.memory.store_conversation("assistant", full_response)
                     except Exception:
                         pass
                 return
@@ -807,11 +820,11 @@ class FridayBrain:
 
                 self.conversation_history.extend(tool_results)
 
-            except anthropic.RateLimitError:
+            except (anthropic.RateLimitError if anthropic else Exception) as e:
                 yield "\n[System: Rate limited, waiting...]\n"
                 await asyncio.sleep(2)
                 continue
-            except anthropic.APIError as e:
+            except (anthropic.APIError if anthropic else Exception) as e:
                 self.logger.error(f"API error: {e}")
                 yield f"\n[System: API error - {str(e)}]\n"
                 break

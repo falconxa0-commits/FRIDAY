@@ -1,21 +1,40 @@
 # =============================================================================
-# FRIDAY AI Assistant v5.0 — Optional Dependencies
+# FRIDAY AI Assistant — Optional Dependencies
 # =============================================================================
-# These packages require additional system libraries, hardware, or commercial
-# API keys. Install only if you need voice input/output or wake-word detection.
+# Install with:  pip install -r requirements-optional.txt
+# Or:            pip install -e .[full]
 # =============================================================================
 
-# --- Voice (requires PortAudio system library) ---
-pyaudio>=0.2.14
+# Voice (Whisper STT + pyttsx3 TTS)
+pyttsx3
+openai-whisper
+pyaudio
 
-# --- Speech-to-Text (very heavy — pulls PyTorch) ---
-openai-whisper>=20231117
+# Browser automation (Playwright for price comparison)
+playwright>=1.43.0
 
-# --- Wake-Word Detection (requires Picovoice access key) ---
-pvporcupine>=3.0.0
+# Paid LLM providers (optional — Friday works with GLM alone)
+anthropic>=0.25.0
+openai>=1.0.0
+google-genai>=1.0.0
 
-# --- Text-to-Speech (cloud) ---
-elevenlabs>=1.0.0
+# Persistent memory via Supabase
+supabase>=2.4.0
+pgvector>=0.2.4
 
-# --- Text-to-Speech (local) ---
-pyttsx3>=2.90
+# Vision / screen analysis
+pyautogui>=0.9.54
+mss>=9.0.1
+pytesseract>=0.3.10
+opencv-python-headless>=4.9.0
+
+# Google integrations (Calendar, Gmail)
+google-auth>=2.29.0
+google-auth-oauthlib>=1.2.0
+google-api-python-client>=2.127.0
+
+# Spotify
+spotipy>=2.23.0
+
+# Advanced TUI
+textual>=0.50.0

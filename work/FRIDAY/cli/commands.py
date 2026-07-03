@@ -486,8 +486,18 @@ def _plugin_list() -> int:
 
 
 def _plugin_install(name: str) -> int:
+    """Install a plugin from the marketplace into integrations/.
+
+    Security: Before copying, the plugin source is statically scanned
+    for dangerous top-level imports (os, subprocess, socket, shlex,
+    ctypes, etc.). Plugins that import these at module level are
+    refused — the user must explicitly review and copy them manually.
+    This prevents trivial supply-chain attacks via the marketplace.
+    """
     from pathlib import Path
     import shutil
+    import ast
+
     src_dir = Path(__file__).resolve().parent.parent / "marketplace" / "plugins" / name
     if not src_dir.is_dir():
         return _err(f"Plugin '{name}' not found in marketplace/")
@@ -499,11 +509,56 @@ def _plugin_install(name: str) -> int:
     if target.exists():
         console.print(f"[dim]{name} already installed.[/]")
         return 0
+
+    # ---- Security scan: refuse dangerous top-level imports ------------
+    # These imports at module top-level are refused because they grant
+    # the plugin full process privileges (file access, subprocess, network).
+    DANGEROUS_IMPORTS = {
+        "os", "subprocess", "socket", "shlex", "ctypes", "sys",
+        "importlib", "builtins", "pty", "multiprocessing",
+    }
+    src_text = plugin_files[0].read_text()
+    try:
+        tree = ast.parse(src_text)
+    except SyntaxError as exc:
+        return _err(f"Plugin '{name}' has a syntax error: {exc}")
+
+    found_dangerous = []
+    for node in ast.iter_child_nodes(tree):
+        # Direct `import os` / `import subprocess as sp`
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                root = alias.name.split(".")[0]
+                if root in DANGEROUS_IMPORTS:
+                    found_dangerous.append(f"import {alias.name}")
+        # `from os import ...` / `from subprocess import ...`
+        elif isinstance(node, ast.ImportFrom):
+            if node.module:
+                root = node.module.split(".")[0]
+                if root in DANGEROUS_IMPORTS:
+                    found_dangerous.append(f"from {node.module} import ...")
+
+    if found_dangerous:
+        console.print(
+            Panel(
+                f"[{COL_DANGER}]REFUSED: Plugin '{name}' has dangerous top-level imports:[/]\n\n"
+                + "\n".join(f"  • {imp}" for imp in found_dangerous)
+                + "\n\nPlugins that import os/subprocess/socket/etc at module level "
+                "can execute arbitrary code with full process privileges. "
+                "If you trust this plugin, copy it manually:\n"
+                f"  cp {plugin_files[0]} {target}",
+                title="⚠ Plugin Security Refusal",
+                border_style=COL_DANGER,
+            )
+        )
+        return 1
+
     shutil.copy(plugin_files[0], target)
     console.print(
         Panel(
             f"Installed {name} → {target.name}\n"
-            "Friday will auto-discover it on next start.",
+            "Friday will auto-discover it on next start.\n\n"
+            "(Passed security scan: no dangerous top-level imports.)",
             border_style=COL_SUCCESS,
         )
     )
