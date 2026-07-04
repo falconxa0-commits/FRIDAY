@@ -1,0 +1,679 @@
+     1→This audit is gold — it does the most valuable thing possible: tells you exactly where the gap is between what's built and what's actually reachable. The answer is clear: **~100 lines of wiring unlocks 6 orphaned modules, 3 hidden agents, and a full identity system.** That's the fastest path to genuinely more powerful. Then we build the 10 missing capabilities and add the next tier of features that nobody else has.
+     2→
+     3→Here's the complete prompt:
+     4→
+     5→---
+     6→
+     7→# Task: FRIDAY v3.0 — Wire the Hidden, Fix the Broken, Build the Missing
+     8→
+     9→The capability audit confirmed 68 capabilities, 15 hidden and unreachable, 6 orphaned, and 10 genuinely missing. This prompt covers four phases: (1) wire everything that's built but unreachable, (2) fix what's confirmed broken, (3) build the 10 missing capabilities, (4) add the next tier of genuinely differentiating features. Work through all four phases completely. Same standing constitution as always.
+    10→
+    11→---
+    12→
+    13→## Standing Constitution — unchanged
+    14→
+    15→1. Real output or honest `not_implemented` — never a hardcoded success string.
+    16→2. Re-verify fresh — never carry forward a number from an earlier run.
+    17→3. Output must depend on input — run every function twice with different inputs, confirm different outputs.
+    18→4. Physical-world, financial, and code-execution actions never auto-approve — hardcoded in ledger.
+    19→5. Zero theatrical naming — grep confirms zero hits before each phase closes.
+    20→6. Grep your own diff: commented-out calls next to success returns, missing await, eager construction without guard.
+    21→7. `hellfire_audit.py` clean before every phase is marked complete.
+    22→8. Full test suite passes fresh after every phase — count pasted.
+    23→
+    24→---
+    25→
+    26→## PHASE 0 — Wire the orphaned and hidden (fast wins, ~100 lines total)
+    27→
+    28→The audit identified these as built but unreachable. Wire every one of them.
+    29→
+    30→### 0a. Expose the 5 Identity Modes via API and CLI
+    31→
+    32→`config/identities.py` has 5 complete modes (General, Strategist, Creative, Debugger, Guardian) and an `apply_identity()` function. Zero users can access this today.
+    33→
+    34→Add:
+    35→- `POST /api/identity/{mode}` — applies the identity mode to the current brain instance
+    36→- `GET /api/identity` — returns current mode and available modes
+    37→- `friday identity ode]` CLI command — switches mode with a confirmation display showing what changed
+    38→
+    39→Verify by switching to Debugger mode and sending a question, confirming the system prompt and personality traits actually changed. Paste before/after comparison.
+    40→
+    41→### 0b. Wire Subconscious Mind into the RAG pipeline
+    42→
+    43→`database/subconscious.py` has `surface_patterns()` and `get_intuition()`. The audit found it's not wired to anything. Add 5 lines to `core/brain.py`'s `_inject_rag_context()`:
+    44→
+    45→```python
+    46→# Before generating a response, surface subconscious patterns
+    47→if self.subconscious:
+    48→    intuition = self.subconscious.get_intuition(message)
+    49→    if intuition:
+    50→        context_parts.append(f"[Subconscious insight: {intuition}]")
+    51→```
+    52→
+    53→Also add `GET /api/subconscious/patterns` — returns what patterns the subconscious has surfaced recently.
+    54→
+    55→Verify: store 10+ interactions with a clear theme, call `/api/subconscious/patterns`, confirm relevant patterns appear in the response. Paste real output.
+    56→
+    57→### 0c. Wire Memory Compression as a scheduled task
+    58→
+    59→`database/compression.py` has `compress_memories()` and `retrieve_relevant_wisdom()`. Wire it:
+    60→- Add a scheduled task (via `core/scheduler.py`) that runs daily at 3am, compresses memories older than 7 days into wisdom tokens
+    61→- Add `GET /api/memory/wisdom` — returns current wisdom tokens
+    62→- Surface wisdom tokens in the RAG pipeline alongside regular memories
+    63→
+    64→Verify by manually compressing a set of old memories and confirming the wisdom token is retrievable. Paste real output.
+    65→
+    66→### 0d. Expose Tactical Manager via API
+    67→
+    68→`agents/tactical_manager.py` has `coordinate()`. Add `POST /api/agents/tactical` — 10 lines max. Wire it into `api/routes/agents.py`. Verify with a real task that triggers tactical coordination. Paste real output.
+    69→
+    70→### 0e. Expose Coding Orchestrator via API
+    71→
+    72→`agents/coding_orchestrator.py` has `generate_project()` that writes real files to `friday_workspace/generated_project/`. Add `POST /api/agents/generate-project` with input: project description, target directory name. Verify by generating a real 3-file project and confirming the files exist with real content. Paste the real file tree and one file's content.
+    73→
+    74→### 0f. Wire Persona Export/Import as API endpoints
+    75→
+    76→`core/persona.py` has complete export/import. Add:
+    77→- `GET /api/persona/export` — exports current persona as downloadable JSON
+    78→- `POST /api/persona/import` — imports a previously exported persona
+    79→
+    80→Verify with a real round-trip: export → delete memories → import → confirm restored. Paste the before/after comparison.
+    81→
+    82→### 0g. Wire Predictor to actually preload
+    83→
+    84→`core/predictor.py` has the preload schedule but is orphaned. Wire it:
+    85→- Start the predictor when Friday boots
+    86→- Connect it to real integration calls (weather at 7am, calendar at 7am, news at 9am)
+    87→- Cache results so when a user asks "what's my morning look like?" at 7:05am, the answer is instant
+    88→- Add `GET /api/predictor/cache` — shows what's been pre-loaded and when
+    89→
+    90→Verify by setting the predictor to preload "in 5 seconds" in test mode, confirming the cache is populated, then confirming a related query returns cached data instantly. Paste real output.
+    91→
+    92→### 0h. Wire Cost Tracker to the stats endpoint
+    93→
+    94→`core/cost_tracker.py` has `record_usage()` and `get_cost_report()` but is orphaned. Wire it:
+    95→- Record every brain API call in the cost tracker
+    96→- Surface the real cost report in `GET /api/stats`
+    97→- Add cost tracking to the CLI status pane (updates live)
+    98→
+    99→Verify by making 5 real API calls and confirming the cost report reflects them accurately. Paste real output.
+   100→
+   101→---
+   102→
+   103→## PHASE 1 — Fix the confirmed broken items
+   104→
+   105→### 1a. Fix broken rate limiting
+   106→
+   107→The audit confirmed rate limiting exists as a decorator but doesn't enforce anything. Fix it properly using `slowapi` (already in requirements):
+   108→
+   109→```python
+   110→from slowapi import Limiter
+   111→from slowapi.util import get_remote_address
+   112→
+   113→limiter = Limiter(key_func=get_remote_address)
+   114→
+   115→@app.get("/api/chat")
+   116→@limiter.limit("60/minute")  # real enforcement
+   117→async def chat(...):
+   118→```
+   119→
+   120→Apply real rate limits: 60/minute on chat, 10/minute on image generation, 5/minute on video generation, unlimited on health checks. Verify by hitting the chat endpoint 61 times in a minute and confirming the 61st returns a real 429 with a real Retry-After header. Paste real output.
+   121→
+   122→### 1b. Fix 3 MCP tools that bypass the ledger
+   123→
+   124→The audit found `friday.chat`, `friday.vision`, and `friday.search` route directly to brain/connector without going through the ledger. Fix: all MCP tool calls must pass through `core/ledger.py`'s approval flow for anything with side effects. Read-only calls (chat, search, vision analysis) can auto-approve at the STANDARD level but must still be logged in the audit trail.
+   125→
+   126→Verify: make a real MCP call to each of the 3 tools, confirm each appears in `GET /api/actions/verify`'s audit log. Paste real output.
+   127→
+   128→### 1c. Fix the smoke test route introspection
+   129→
+   130→The smoke test still can't find `/api/chat` because it doesn't traverse `include_router` prefixes correctly. This has been flagged since the original GLM branch audit. Fix it now — the app has 15+ real routes, the smoke test should find all of them. Verify: run the smoke test, confirm zero route-not-found failures. Paste real output.
+   131→
+   132→### 1d. Add race condition protection to Team Mode
+   133→
+   134→The audit flagged potential race conditions in team mode. Add proper async locking around shared memory operations:
+   135→
+   136→```python
+   137→import asyncio
+   138→self._lock = asyncio.Lock()
+   139→
+   140→async def store_memory(self, user_id, content, shared=False):
+   141→    async with self._lock:
+   142→        # existing implementation
+   143→```
+   144→
+   145→Verify with a concurrent write test: 10 simultaneous memory writes from 2 different users, confirm no data corruption. Paste real output.
+   146→
+   147→---
+   148→
+   149→## PHASE 2 — Build the 10 missing capabilities
+   150→
+   151→### 2a. Push notifications (Telegram bot + desktop)
+   152→
+   153→Friday can speak notifications but can't push them. Add two real notification channels:
+   154→
+   155→**Telegram:**
+   156→```python
+   157→# integrations/notifications.py
+   158→class TelegramNotifier(BaseIntegration):
+   159→    name = "Telegram"
+   160→    
+   161→    async def send(self, message: str, chat_id: str = None):
+   162→        # Real Telegram Bot API call
+   163→        # TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID from env
+   164→```
+   165→
+   166→**Desktop (cross-platform):**
+   167→```python
+   168→# Use plyer for cross-platform desktop notifications
+   169→from plyer import notification
+   170→notification.notify(title="Friday", message=message)
+   171→```
+   172→
+   173→Add `POST /api/notify` — sends to all configured notification channels. Wire into the proactive engine so important events (meetings in 10min, action approved, research complete) push to Telegram automatically. Verify with a real Telegram notification sent and received. Paste the real Telegram message ID returned.
+   174→
+   175→### 2b. File upload to chat
+   176→
+   177→Users can't attach files to conversations — only via the visual-memory API. Add real file attachment support to the chat endpoint:
+   178→
+   179→```python
+   180→@router.post("/api/chat/with-file")
+   181→async def chat_with_file(
+   182→    message: str = Form(...),
+   183→    file: UploadFile = File(None),
+   184→    ...
+   185→):
+   186→    # Handle: PDF (extract text), images (send to GLM-4V),
+   187→    # code files (attach as context), CSV (summarize)
+   188→```
+   189→
+   190→Support: PDF (extract real text via `pypdf`), images (send to `GLM-4V.vision_analyze()`), code files (attach as context), CSV (summarize with real statistics). Verify with a real PDF upload — confirm the response references real content from the PDF. Paste real output.
+   191→
+   192→### 2c. Streaming voice output
+   193→
+   194→Current TTS is full-text, blocking. Add streaming TTS so Friday starts speaking before generation is complete:
+   195→
+   196→```python
+   197→# voice/speaker.py
+   198→async def speak_streaming(self, text_generator):
+   199→    """Speak tokens as they arrive — start speaking before generation completes."""
+   200→    buffer = ""
+   201→    async for token in text_generator:
+   202→        buffer += token
+   203→        # Speak when buffer hits a natural break (sentence end, comma)
+   204→        if any(buffer.endswith(p) for p in ['. ', '! ', '? ', ', ']):
+   205→            await self._speak_chunk(buffer.strip())
+   206→            buffer = ""
+   207→    if buffer:
+   208→        await self._speak_chunk(buffer)
+   209→```
+   210→
+   211→Wire this to the main chat_stream loop so voice and text output happen simultaneously. Verify with a real streaming response — confirm first audio chunk plays before the full response is generated. Paste real timing evidence.
+   212→
+   213→### 2d. Conversation branching (explore multiple paths)
+   214→
+   215→Add the ability to fork a conversation at any point and explore a different direction:
+   216→
+   217→```python
+   218→# core/brain.py
+   219→async def branch_conversation(self, branch_point_id: str, new_message: str) -> str:
+   220→    """Fork conversation at a specific message, explore different direction."""
+   221→    # Load history up to branch_point_id
+   222→    # Create a new conversation branch
+   223→    # Return branch_id for future reference
+   224→```
+   225→
+   226→Add:
+   227→- `POST /api/chat/branch` — creates a fork from a specified message ID
+   228→- `GET /api/chat/branches` — lists all active branches
+   229→- `DELETE /api/chat/branch/{id}` — closes a branch
+   230→- CLI: `friday branch essage_id]` — forks conversation at that point
+   231→
+   232→Verify by creating a branch, sending different messages on each branch, confirming the histories are independent. Paste real output.
+   233→
+   234→### 2e. Webhook receiver (external triggers)
+   235→
+   236→Friday can't receive external triggers today. Add a real webhook receiver:
+   237→
+   238→```python
+   239→# api/routes/webhooks.py
+   240→@router.post("/api/webhooks/{source}")
+   241→async def receive_webhook(
+   242→    source: str,  # github, stripe, linear, custom
+   243→    payload: dict,
+   244→    signature: str = Header(None)
+   245→):
+   246→    # Verify signature (HMAC for GitHub, etc.)
+   247→    # Route to appropriate handler
+   248→    # Log in audit trail
+   249→    # Trigger Friday action based on event type
+   250→```
+   251→
+   252→Built-in handlers:
+   253→- **GitHub**: PR opened → Friday reviews the code; issue created → Friday triages and suggests assignee
+   254→- **Stripe**: payment received → Friday logs to finance tracker and sends Telegram notification
+   255→- **Custom**: generic webhook → Friday processes payload with the brain and takes configured action
+   256→
+   257→Each webhook handler must verify the signature (real HMAC check) before processing — never trust unsigned webhooks. Verify with a real simulated GitHub webhook payload. Paste real output.
+   258→
+   259→### 2f. Code diff/preview before writing
+   260→
+   261→Currently the coding agent writes files without showing a diff first. Add a preview step:
+   262→
+   263→```python
+   264→# agents/coding_agent.py
+   265→async def preview_changes(self, file_path: str, new_content: str) -> dict:
+   266→    """Show a real unified diff before writing."""
+   267→    existing = read_file_if_exists(file_path)
+   268→    diff = unified_diff(existing, new_content, file_path)
+   269→    return {
+   270→        "file": file_path,
+   271→        "diff": diff,
+   272→        "additions": count_additions(diff),
+   273→        "deletions": count_deletions(diff),
+   274→        "preview_id": generate_id()  # approve this to actually write
+   275→    }
+   276→```
+   277→
+   278→Wire into the ledger: coding agent changes go through `preview_changes()` first, the diff is shown in the approval prompt, then writing only happens after explicit approval. Verify with a real file edit showing the diff before and after approval. Paste real unified diff output.
+   279→
+   280→### 2g. Multi-language response (Pidgin generation)
+   281→
+   282→The audit confirmed Pidgin transcription works. Add Pidgin generation — when Friday detects you're speaking Pidgin, it responds in Pidgin:
+   283→
+   284→```python
+   285→# core/personality.py
+   286→RESPONSE_LANGUAGES = {
+   287→    "english": "Respond in standard English.",
+   288→    "pidgin": "Respond in Nigerian Pidgin English. Use natural Pidgin expressions like 'abeg', 'na wa o', 'e don do', 'wetin', 'wahala', etc. Sound natural, not like a translation.",
+   289→    "yoruba_mix": "Mix English and Yoruba naturally, the way Lagos professionals speak.",
+   290→}
+   291→
+   292→async def detect_and_set_language(self, transcribed_text: str):
+   293→    """Detect if user is speaking Pidgin and set response language accordingly."""
+   294→```
+   295→
+   296→Wire into the voice pipeline: when a voice message is transcribed, detect language and set the response language before generating. Verify by sending a Pidgin input and confirming the response is genuinely in Pidgin (not English). Paste real before/after. Also add `friday --pidgin` flag to force Pidgin mode for the whole session.
+   297→
+   298→### 2h. Streaming video generation progress
+   299→
+   300→Video generation is currently fire-and-poll with no progress feedback. Add real WebSocket progress updates:
+   301→
+   302→```python
+   303→# integrations/video_gen.py
+   304→async def execute_with_progress(self, action: str, params: dict, ws_callback=None):
+   305→    """Submit job, poll with real progress callbacks."""
+   306→    job_id = await self.submit_job(params["prompt"])
+   307→    
+   308→    for attempt in range(30):
+   309→        await asyncio.sleep(10)
+   310→        status = await self.check_status(job_id)
+   311→        
+   312→        if ws_callback:
+   313→            await ws_callback({
+   314→                "job_id": job_id,
+   315→                "progress": status.progress_percent,  # real progress from API
+   316→                "elapsed": attempt * 10,
+   317→                "status": status.task_status
+   318→            })
+   319→        
+   320→        if status.task_status == "SUCCESS":
+   321→            return self.build_receipt(status.video_url, job_id, params)
+   322→```
+   323→
+   324→Wire progress updates to the WebSocket stream and the CLI progress bar. Verify with a real job submission showing real progress updates arriving over time. Paste real progress event sequence.
+   325→
+   326→### 2i. Goal tracking system
+   327→
+   328→New file `core/goals.py`. Friday tracks your goals and nudges progress:
+   329→
+   330→```python
+   331→class GoalTracker:
+   332→    """
+   333→    Set goals, Friday tracks progress and nudges without being asked.
+   334→    
+   335→    Supported goal types:
+   336→    - Learning goal: "Learn Rust in 30 days" → tracks coding sessions, quizzes you
+   337→    - Project goal: "Launch Friday v3.0 by July" → tracks commits, reminds about deadlines
+   338→    - Habit goal: "Research AI news daily" → tracks research sessions, reports streaks
+   339→    - Financial goal: "Save 500k NGN by December" → tracks via FinanceIntegration
+   340→    """
+   341→    
+   342→    async def set_goal(self, description: str, target_date: str, type: str) -> dict:
+   343→    async def update_progress(self, goal_id: str, progress_note: str) -> dict:
+   344→    async def get_nudge(self, goal_id: str) -> str:  # Friday suggests next action
+   345→    async def get_streak(self, goal_id: str) -> dict:  # days of consistent progress
+   346→```
+   347→
+   348→Add:
+   349→- `POST /api/goals` — set a new goal
+   350→- `GET /api/goals` — list all active goals with real progress
+   351→- `PATCH /api/goals/{id}/progress` — update progress
+   352→- `GET /api/goals/{id}/nudge` — get Friday's suggestion for next action
+   353→- Wire into the morning briefing skill — briefing includes goal progress and today's nudge
+   354→
+   355→Verify by setting a real goal, logging 3 progress updates, and confirming the nudge is relevant to the actual goal and progress. Paste real output.
+   356→
+   357→### 2j. Daily journal with automated summaries
+   358→
+   359→New skill `skills/journal.py`. Friday auto-generates a daily summary of what happened:
+   360→
+   361→```python
+   362→class DailyJournalSkill(BaseSkill):
+   363→    """
+   364→    Generates a real daily summary from actual Friday interaction logs.
+   365→    
+   366→    Includes:
+   367→    - Actions taken today (from ledger audit log)
+   368→    - Research done (from research agent logs)
+   369→    - Goals progressed (from goal tracker)
+   370→    - Patterns noticed today (from pattern engine)
+   371→    - Cost summary ($0.00 for GLM calls, etc.)
+   372→    - Tomorrow's preparation (calendar + predicted needs)
+   373→    """
+   374→    
+   375→    async def run(self, brain, params: dict) -> dict:
+   376→        # Pull from real data sources — not fabricated
+   377→        actions = ledger.get_todays_actions()
+   378→        research = get_todays_research_log()
+   379→        goals = goal_tracker.get_todays_progress()
+   380→        patterns = pattern_engine.get_todays_patterns()
+   381→        cost = cost_tracker.get_todays_cost()
+   382→        # Synthesize via brain
+   383→        # Store in memory with tag "journal"
+   384→```
+   385→
+   386→Schedule automatically at 10pm. Add `friday journal` CLI command to generate on demand. Verify by running `friday journal` and confirming the summary references real activities from the ledger. Paste real output.
+   387→
+   388→---
+   389→
+   390→## PHASE 3 — Next tier of genuinely differentiating features
+   391→
+   392→### 3a. Friday API SDK for developers
+   393→
+   394→New directory `sdk/`. A clean Python SDK so other developers can build on Friday:
+   395→
+   396→```python
+   397→# sdk/friday_sdk.py
+   398→from friday_sdk import FridayClient
+   399→
+   400→client = FridayClient(
+   401→    base_url="http://localhost:8000",
+   402→    api_token="your_friday_token"
+   403→)
+   404→
+   405→# Chat
+   406→response = await client.chat("research quantum computing and summarize")
+   407→
+   408→# Generate image
+   409→image = await client.generate_image("Lagos skyline at sunset")
+   410→print(image.url)
+   411→
+   412→# Run a skill
+   413→briefing = await client.run_skill("morning_briefing")
+   414→
+   415→# Set and track a goal
+   416→goal = await client.goals.set("Learn Rust", target_date="2026-12-31")
+   417→await client.goals.progress(goal.id, "Completed chapter 1")
+   418→```
+   419→
+   420→Include real examples, real tests for the SDK itself, and a `sdk/README.md` with a 5-minute quickstart. Verify by using the SDK to make a real chat call and a real image generation call from outside the Friday codebase. Paste real output.
+   421→
+   422→### 3b. Conversation graph (tree-of-thought UI)
+   423→
+   424→New file `apps/web/conversation_graph.html`. A visual representation of branched conversations as a real node graph:
+   425→
+   426→- Uses D3.js for real interactive visualization
+   427→- Each conversation branch is a node, connections show branching points
+   428→- Click a node to resume that branch
+   429→- Color-coded by sentiment (emotions engine output)
+   430→- Shows real token cost per branch
+   431→
+   432→Wire to `GET /api/chat/branches` for real data. Verify by creating 3 branches and confirming they appear as distinct nodes in the graph. Paste a description of what you actually see in the browser.
+   433→
+   434→### 3c. Friday's self-improvement loop
+   435→
+   436→New file `core/self_improvement.py`. Friday analyzes its own performance and proposes improvements:
+   437→
+   438→```python
+   439→class SelfImprovementEngine:
+   440→    """
+   441→    Friday analyzes its own performance and proposes concrete improvements.
+   442→    
+   443→    What it analyzes:
+   444→    - Failed tool calls (what went wrong, what would have worked better)
+   445→    - User corrections (when user says "no that's wrong, it should be...")
+   446→    - Slow responses (what took longest, what could be cached)
+   447→    - Repeated questions (what does the user keep asking that Friday should proactively handle)
+   448→    - Skill gaps (what did Friday say "I can't do that" to that it should be able to do)
+   449→    
+   450→    What it proposes:
+   451→    - New skills to build (based on unanswered requests)
+   452→    - New patterns to track (based on repeated behavior)
+   453→    - New integrations to add (based on failed tool calls)
+   454→    - Config changes (based on performance data)
+   455→    
+   456→    It does NOT self-modify. It proposes. The human approves via the ledger.
+   457→    """
+   458→    
+   459→    async def analyze_performance(self, days: int = 7) -> dict:
+   460→    async def propose_improvements(self) -> list:  # list of specific, actionable proposals
+   461→    async def submit_proposal(self, proposal: dict) -> str:  # goes through ledger for approval
+   462→```
+   463→
+   464→Add `GET /api/self-improvement/proposals` and `POST /api/self-improvement/approve/{id}`. Add to weekly journal. Verify with a real analysis of actual interaction logs, paste real proposals generated. Confirm proposals go through the ledger and don't self-apply.
+   465→
+   466→### 3d. Real-time collaboration mode
+   467→
+   468→New file `core/collab.py`. Multiple people can interact with the same Friday instance simultaneously with live presence:
+   469→
+   470→```python
+   471→class CollaborationSession:
+   472→    """
+   473→    Real-time multi-user Friday session.
+   474→    
+   475→    Features:
+   476→    - All users see each other's messages live via WebSocket
+   477→    - Presence indicators ("Alice is typing...")
+   478→    - Shared context — Friday responds to the group, not just one person
+   479→    - Per-user private sidebar — whisper a message only Friday and you see
+   480→    - Session recording — full transcript saved to shared memory
+   481→    - Voting on Friday's suggestions — majority vote triggers action
+   482→    """
+   483→```
+   484→
+   485→Add `POST /api/collab/create` (creates a session with a shareable link) and `GET /api/collab/{session_id}` (WebSocket for real-time updates). Verify with two simulated users sending messages to the same session and confirming both see each other's messages in real time. Paste real output.
+   486→
+   487→### 3e. Friday for mobile (React Native)
+   488→
+   489→New directory `apps/mobile/`. A real React Native app:
+   490→
+   491→- Real chat interface wired to Friday's API
+   492→- Voice activation using the device's microphone
+   493→- Push notifications via the Telegram integration (device native push requires app store deployment — document this honestly)
+   494→- Widget for home screen showing current mode and last Friday message
+   495→- All data stays on your own Friday server — no cloud middleman
+   496→
+   497→Ship real working React Native code that connects to a local Friday server. Verify by actually running it in the Expo simulator and sending a real chat message. If the simulator isn't available, mark the verification as `manual-required` with exact steps. Don't claim it works if it hasn't been run.
+   498→
+   499→### 3f. Privacy audit mode
+   500→
+   501→New file `core/privacy_audit.py`. A real audit of what Friday knows about you and what data has left the device:
+   502→
+   503→```python
+   504→class PrivacyAuditEngine:
+   505→    """
+   506→    Answers honestly: what does Friday know about you, and where did your data go?
+   507→    
+   508→    Reports:
+   509→    - All facts extracted from your conversations (name, location, preferences, etc.)
+   510→    - Every API call made and what data was sent (from real audit log)
+   511→    - Which providers received your messages (GLM, Claude, etc.)
+   512→    - What's stored locally vs. in Supabase
+   513→    - Estimated data volume sent to each provider
+   514→    - Option to purge everything from a specific provider's context
+   515→    """
+   516→    
+   517→    async def generate_privacy_report(self) -> dict:
+   518→    async def get_data_sent_to_provider(self, provider: str) -> list:
+   519→    async def purge_provider_history(self, provider: str) -> dict:
+   520→```
+   521→
+   522→Add `GET /api/privacy/report` and `DELETE /api/privacy/purge/{provider}`. Show in web dashboard. Verify with a real privacy report showing actual data from the audit log. Paste real output.
+   523→
+   524→### 3g. Nigerian fintech integration
+   525→
+   526→Building on the Nigerian context already in place, add real Nigerian financial services:
+   527→
+   528→```python
+   529→# integrations/nigerian_fintech.py
+   530→class NigerianFintechIntegration(BaseIntegration):
+   531→    """
+   532→    Real Nigerian financial integrations.
+   533→    
+   534→    Paystack: initiate payments, verify transactions, check balance
+   535→    Flutterwave: send money, check rates, currency conversion
+   536→    NIBSS: bank account verification (real API)
+   537→    CBN rate: real Central Bank of Nigeria official exchange rates
+   538→    """
+   539→```
+   540→
+   541→Also add:
+   542→- Real-time NEPA/DISCO power outage tracking from actual utility APIs
+   543→- MTN/Airtel airtime purchase via their APIs (these exist and are real)
+   544→- Lagos/Abuja traffic via Google Maps API
+   545→
+   546→Verify each with a real API call. For payment APIs, use their test/sandbox mode — never fabricate a transaction. Paste real sandbox responses.
+   547→
+   548→### 3h. Friday's learning system (not just teaching)
+   549→
+   550→Friday should learn when it's wrong. Add a real correction tracking system:
+   551→
+   552→```python
+   553→# core/learning.py
+   554→class FridayLearningSystem:
+   555→    """
+   556→    Friday learns from its mistakes and from your corrections.
+   557→    
+   558→    When user says "no, that's wrong" or "actually it's..." Friday:
+   559→    1. Records the correction in memory with high importance score
+   560→    2. Identifies the pattern of the mistake (wrong fact, wrong tool, wrong approach)
+   561→    3. Updates its confidence on similar future queries
+   562→    4. Surfaces the correction when a similar topic comes up
+   563→    
+   564→    This is NOT self-modification — it's memory-based correction.
+   565→    Friday remembers being wrong; it doesn't change its code.
+   566→    """
+   567→    
+   568→    async def record_correction(self, original: str, correction: str, context: dict):
+   569→    async def get_confidence(self, topic: str) -> float:  # 0-1, based on correction history
+   570→    async def check_similar_corrections(self, query: str) -> list:
+   571→```
+   572→
+   573→Wire into the brain: before answering, check if similar topics have been corrected before and include that context. Verify by recording a correction and then asking a similar question — confirm Friday's response reflects the correction. Paste real before/after comparison.
+   574→
+   575→---
+   576→
+   577→## PHASE 4 — Infrastructure and production hardening
+   578→
+   579→### 4a. Redis-backed session state
+   580→
+   581→Current conversation history is in-memory, lost on restart. Add optional Redis backing:
+   582→
+   583→```python
+   584→# core/session_store.py
+   585→class SessionStore:
+   586→    """
+   587→    Conversation sessions with Redis backing when available.
+   588→    Falls back to in-memory when Redis isn't configured.
+   589→    Transparent to the brain — same interface either way.
+   590→    """
+   591→```
+   592→
+   593→Add `REDIS_URL` to `.env.example`. Verify by starting with Redis configured, having a conversation, restarting Friday, and confirming history is preserved. Paste real output.
+   594→
+   595→### 4b. Real deployment configuration
+   596→
+   597→New directory `deploy/`:
+   598→- `deploy/nginx.conf` — real production Nginx config with TLS termination
+   599→- `deploy/systemd/friday.service` — real systemd service file for auto-start
+   600→- `deploy/kubernetes/` — real Kubernetes manifests (Deployment, Service, ConfigMap)
+   601→- `docs/DEPLOY.md` — real step-by-step deployment guide for a Ubuntu VPS
+   602→
+   603→Verify the systemd service file by actually running `systemd-analyze verify` against it. Paste real output.
+   604→
+   605→### 4c. Comprehensive API documentation
+   606→
+   607→Auto-generate real API docs beyond FastAPI's default Swagger:
+   608→
+   609→```python
+   610→# docs/generate_api_docs.py
+   611→# Uses FastAPI's OpenAPI schema to generate:
+   612→# 1. A real Postman collection (importable)
+   613→# 2. A real curl examples file for every endpoint
+   614→# 3. A real Markdown API reference
+   615→```
+   616→
+   617→Verify the generated Postman collection actually imports into Postman without errors. Paste the real endpoint count and a sample of the generated curl examples.
+   618→
+   619→### 4d. Automated integration testing
+   620→
+   621→New directory `tests/integration/`. Real integration tests that actually call external APIs (against real sandbox/test environments):
+   622→
+   623→- `test_glm_integration.py` — real GLM API call if `GLM_API_KEY` is set, skip if not
+   624→- `test_stripe_sandbox.py` — real Stripe test mode transaction
+   625→- `test_webhook_receiver.py` — real webhook delivery to Friday's endpoint
+   626→- `test_mcp_client.py` — real MCP client call to Friday's MCP server
+   627→
+   628→These tests require real credentials to run — mark them `@pytest.mark.integration` and skip by default. Document how to run them. Verify by running the integration suite with real credentials and pasting the real output (or "skipped 4 integration tests — no credentials configured" as an honest skip).
+   629→
+   630→---
+   631→
+   632→## DEFINITION OF DONE — v3.0
+   633→
+   634→**Phase 0 (Wire the orphaned):**
+   635→- [ ] All 5 Identity Modes accessible via `POST /api/identity/{mode}` — real mode switch demonstrated
+   636→- [ ] Subconscious patterns surface in real chat responses — before/after pasted
+   637→- [ ] Memory compression runs and produces real wisdom tokens — retrievable via API
+   638→- [ ] Tactical Manager accessible via API — real coordination task pasted
+   639→- [ ] Coding Orchestrator generates a real 3-file project via API — file tree pasted
+   640→- [ ] Persona export/import round-trip verified — before/after comparison pasted
+   641→- [ ] Predictor actually preloads real data — cache contents pasted
+   642→- [ ] Cost Tracker records real API calls — real cost report pasted
+   643→
+   644→**Phase 1 (Fix broken):**
+   645→- [ ] Rate limiting enforces real 429 on 61st request — real response pasted
+   646→- [ ] All MCP tools appear in audit log — real log entries pasted
+   647→- [ ] Smoke test finds all 15+ routes — zero route-not-found failures
+   648→- [ ] Team mode passes concurrent write test — no data corruption demonstrated
+   649→
+   650→**Phase 2 (Missing capabilities):**
+   651→- [ ] Real Telegram notification sent and received — real message ID pasted
+   652→- [ ] PDF upload to chat works — real PDF content referenced in response
+   653→- [ ] Streaming voice starts before full response generated — real timing evidence
+   654→- [ ] Conversation branching: 3 independent branches with independent histories
+   655→- [ ] Webhook receiver verifies real HMAC and processes real GitHub payload
+   656→- [ ] Code diff shown before write — real unified diff pasted
+   657→- [ ] Pidgin response generated from Pidgin input — real Pidgin output pasted
+   658→- [ ] Video progress updates arrive over WebSocket — real event sequence pasted
+   659→- [ ] Goal set, 3 progress updates logged, real nudge generated
+   660→- [ ] Daily journal references real ledger actions from today
+   661→
+   662→**Phase 3 (New tier):**
+   663→- [ ] SDK makes real chat + image gen calls from outside Friday codebase
+   664→- [ ] Self-improvement proposals generated from real interaction logs
+   665→- [ ] Privacy report shows real data sent to each provider
+   666→- [ ] Nigerian fintech: real Paystack sandbox response pasted
+   667→- [ ] Correction recorded, similar question asked, correction reflected in response
+   668→
+   669→**Phase 4 (Infrastructure):**
+   670→- [ ] Redis session persistence: history survives restart
+   671→- [ ] `systemd-analyze verify` passes on the service file
+   672→- [ ] Integration test suite runs cleanly with skip for missing credentials
+   673→
+   674→**All phases:**
+   675→- [ ] Test count has grown (242+ expected) — exact count pasted
+   676→- [ ] `hellfire_audit.py` clean after every phase
+   677→- [ ] Zero theatrical naming — grep confirms
+   678→- [ ] README updated with complete, honest capability table
+   679→- [ ] A developer who clones this and adds a free GLM key gets a working v3.0 Friday in under 5 minutes

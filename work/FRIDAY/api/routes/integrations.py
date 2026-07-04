@@ -161,9 +161,19 @@ async def list_categories():
 # POST /api/integrations/execute  — execute an integration action
 # ---------------------------------------------------------------------------
 
-@router.post("/execute")
-@_rate_limited("20/minute")
-async def execute_integration(request: IntegrationActionRequest, http_request: Request):
+if limiter is not None:
+    @router.post("/execute")
+    @limiter.limit("20/minute")
+    async def execute_integration(int_req: IntegrationActionRequest, request: Request):
+        return await _do_execute(int_req)
+else:
+    @router.post("/execute")
+    async def execute_integration(int_req: IntegrationActionRequest, request: Request):
+        return await _do_execute(int_req)
+
+
+async def _do_execute(int_req: IntegrationActionRequest):
+    """Shared execution logic for integration actions."""
     connector = _get_connector()
     if not connector:
         raise HTTPException(status_code=503, detail="Universal connector unavailable.")
@@ -175,12 +185,12 @@ async def execute_integration(request: IntegrationActionRequest, http_request: R
         # re-issue this request (the action will already be approved
         # and execute_action returns immediately).
         result = await connector.execute_action(
-            request.service, request.action, request.params,
+            int_req.service, int_req.action, int_req.params,
             approval_timeout=5,
         )
 
         # Build a receipt from the real integration result
-        receipt = _build_receipt(request.service, request.action, result)
+        receipt = _build_receipt(int_req.service, int_req.action, result)
 
         return {
             "status": result.get("status", "unknown"),

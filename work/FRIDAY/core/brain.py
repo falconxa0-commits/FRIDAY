@@ -543,8 +543,19 @@ class FridayBrain:
         return prompt
 
     async def _inject_rag_context(self, message: str) -> str:
-        """Inject RAG-retrieved memories into the conversation."""
+        """Inject RAG-retrieved memories + subconscious patterns into the conversation."""
         rag_context = await self.rag_pipeline.retrieve_context(message)
+
+        # Surface subconscious patterns relevant to the current message
+        try:
+            from database.subconscious import SubconsciousMind
+            sub = SubconsciousMind()
+            intuition = sub.get_intuition()
+            if intuition and len(intuition) > 10:
+                rag_context += f"\n\n[Subconscious insight: {intuition[:300]}]"
+        except Exception:
+            pass  # Subconscious mind is optional
+
         return rag_context
 
     # ------------------------------------------------------------------

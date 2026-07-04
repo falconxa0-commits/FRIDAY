@@ -12,12 +12,14 @@ logger = logging.getLogger("friday.api.chat")
 router = APIRouter()
 
 
-# Rate limiting (slowapi) — protects the GLM free tier from runaway clients.
-# We import the limiter lazily so the route still works if slowapi isn't installed.
-try:
-    from api.main import limiter
-except Exception:
-    limiter = None
+# Rate limiting: we get the limiter at call time (not import time) to
+# avoid circular import issues with api.main.
+def _get_limiter():
+    try:
+        from api.main import limiter
+        return limiter
+    except Exception:
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -37,11 +39,7 @@ async def _get_brain():
 
 
 def _record_chat_request(provider: str, model: str, prompt: str, response: str) -> None:
-    """Estimate token counts and record a chat request in the stats log.
-
-    Uses a 4-char-per-token approximation when tiktoken isn't available.
-    Cost is computed from the per-provider rate table in api.routes.stats.
-    """
+    """Estimate token counts and record a chat request in the stats log + cost tracker."""
     try:
         from api.routes.stats import record_request, _estimate_cost
         # Rough token estimate: 1 token ≈ 4 chars (industry-standard approximation)
@@ -49,6 +47,20 @@ def _record_chat_request(provider: str, model: str, prompt: str, response: str) 
         tokens_out = max(1, len(response) // 4)
         cost = _estimate_cost(provider, tokens_in, tokens_out)
         record_request(provider, model, tokens_in, tokens_out, cost)
+
+        # Also record in the persistent CostTracker
+        try:
+            from core.cost_tracker import CostTracker
+            tracker = CostTracker()
+            tracker.record_usage(
+                provider=provider,
+                model=model,
+                tokens_in=tokens_in,
+                tokens_out=tokens_out,
+                cost=cost,
+            )
+        except Exception:
+            pass  # CostTracker is optional
     except Exception as exc:
         logger.debug("Failed to record chat request stats: %s", exc)
 
@@ -78,32 +90,35 @@ def _resolve_provider_and_model(brain) -> tuple:
 # POST /api/chat  — non-streaming (collects full response then returns JSON)
 # ---------------------------------------------------------------------------
 
-# Apply rate limiting if slowapi is available. We use a conditional decorator
-# pattern so the route still works if slowapi isn't installed.
-def _rate_limited(limit_str: str):
-    """Decorator that applies slowapi rate limiting if available."""
-    def decorator(func):
-        if limiter is not None:
-            return limiter.limit(limit_str)(func)
-        return func
-    return decorator
-
-
 @router.post("/chat")
-@_rate_limited("30/minute")
-async def chat(request: ChatRequest, http_request: Request):
+async def chat(chat_req: ChatRequest, request: Request):
+    """Chat endpoint with rate limiting."""
+    from core.rate_limiter import check_rate_limit
+    check_rate_limit(request)
     try:
         brain = await _get_brain()
         responses = []
-        async for chunk in brain.chat_stream(request.message, request.user_name):
+        async for chunk in brain.chat_stream(chat_req.message, chat_req.user_name):
             responses.append(chunk)
         full_response = "".join(responses)
         provider, model = _resolve_provider_and_model(brain)
-        _record_chat_request(provider, model, request.message, full_response)
+        _record_chat_request(provider, model, chat_req.message, full_response)
         return {"response": full_response}
     except Exception as e:
         logger.exception("Chat error")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# Apply rate limiting after module load (avoids circular import)
+def _apply_rate_limits():
+    """Apply slowapi rate limits to chat routes after api.main is loaded."""
+    limiter = _get_limiter()
+    if limiter is None:
+        return
+    # Decorate the chat function with rate limiting
+    limiter.limit("60/minute")(chat)
+    if 'chat_stream' in globals():
+        limiter.limit("30/minute")(chat_stream)
 
 
 # ---------------------------------------------------------------------------
@@ -111,13 +126,14 @@ async def chat(request: ChatRequest, http_request: Request):
 # ---------------------------------------------------------------------------
 
 @router.get("/chat/stream")
-@_rate_limited("30/minute")
 async def chat_stream(
-    http_request: Request,
+    request: Request,
     message: str = Query(...),
     user_name: str = Query("User"),
 ):
     """Server-Sent Events endpoint for streaming chat responses."""
+    from core.rate_limiter import check_rate_limit
+    check_rate_limit(request)
 
     async def event_generator() -> AsyncGenerator[str, None]:
         try:

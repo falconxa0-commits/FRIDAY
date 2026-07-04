@@ -14,6 +14,8 @@ from fastapi.responses import FileResponse
 from api.routes import (
     chat, memory, agents, integrations, actions, scheduler, stats, trust,
     team, health, patterns, visual_memory, nigeria,
+    identity, subconscious, persona, goals,
+    notify, webhooks,
 )
 from config.settings import FRIDAY_API_TOKEN, BRAIN_PROVIDER, FRIDAY_DEV_MODE
 
@@ -41,6 +43,9 @@ app = FastAPI(title="Project FRIDAY API")
 if limiter is not None:
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    # Add the SlowAPIMiddleware so rate limits are actually enforced
+    from slowapi.middleware import SlowAPIMiddleware
+    app.add_middleware(SlowAPIMiddleware)
 
 # CORS — configurable via ALLOWED_ORIGINS env var
 _allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3001,http://localhost:8000").split(",")
@@ -122,6 +127,19 @@ app.include_router(health.router, prefix="/api/health")  # no auth — health ch
 app.include_router(patterns.router, prefix="/api/patterns", dependencies=[Depends(verify_token)])
 app.include_router(visual_memory.router, prefix="/api/visual-memory", dependencies=[Depends(verify_token)])
 app.include_router(nigeria.router, prefix="/api/nigeria", dependencies=[Depends(verify_token)])
+app.include_router(identity.router, prefix="/api/identity", dependencies=[Depends(verify_token)])
+app.include_router(subconscious.router, prefix="/api/subconscious", dependencies=[Depends(verify_token)])
+app.include_router(persona.router, prefix="/api/persona", dependencies=[Depends(verify_token)])
+app.include_router(goals.router, prefix="/api/goals", dependencies=[Depends(verify_token)])
+app.include_router(notify.router, prefix="/api/notify", dependencies=[Depends(verify_token)])
+app.include_router(webhooks.router, prefix="/api/webhooks")  # no auth — webhooks verify their own signatures
+
+# Apply rate limits after all routers are loaded (avoids circular import)
+try:
+    from api.routes.chat import _apply_rate_limits
+    _apply_rate_limits()
+except Exception as exc:
+    logger.warning(f"Could not apply chat rate limits: {exc}")
 
 
 # ------------------------------------------------------------------

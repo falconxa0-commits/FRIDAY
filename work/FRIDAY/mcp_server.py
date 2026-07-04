@@ -223,10 +223,24 @@ class FridayMCPServer:
     # ─── Tool handlers ──────────────────────────────────────────────────
 
     async def handle_chat(self, params: dict) -> dict:
-        """Handle the 'chat' tool."""
+        """Handle the 'chat' tool — logged in audit trail (read-only, no ledger gate needed)."""
         message = params.get("message", "")
         if not message:
             return {"status": "error", "message": "No message provided."}
+
+        # Log in audit trail (read-only calls don't need approval gate,
+        # but must be logged for transparency)
+        ledger = self._get_ledger()
+        if ledger:
+            try:
+                action_id = ledger.queue_action(
+                    "MCPChat", "chat", {"message_length": len(message)},
+                    risk_level="low",
+                )
+                # Read-only calls auto-approve at STANDARD+ profile
+                ledger.approve_action(action_id)
+            except Exception:
+                pass
 
         glm = self._get_glm_brain()
         if glm and glm.available():
@@ -261,12 +275,24 @@ class FridayMCPServer:
             return {"status": "error", "message": str(exc)}
 
     async def handle_vision(self, params: dict) -> dict:
-        """Handle the 'vision' tool."""
+        """Handle the 'vision' tool — logged in audit trail."""
         image_base64 = params.get("image_base64", "")
         prompt = params.get("prompt", "Describe this image in detail.")
 
         if not image_base64:
             return {"status": "error", "message": "No image provided."}
+
+        # Log in audit trail
+        ledger = self._get_ledger()
+        if ledger:
+            try:
+                action_id = ledger.queue_action(
+                    "MCPVision", "vision_analyze", {"prompt": prompt[:100]},
+                    risk_level="low",
+                )
+                ledger.approve_action(action_id)
+            except Exception:
+                pass
 
         glm = self._get_glm_brain()
         if not glm or not glm.available():
@@ -283,12 +309,24 @@ class FridayMCPServer:
         }
 
     async def handle_web_search(self, params: dict) -> dict:
-        """Handle the 'web_search' tool."""
+        """Handle the 'web_search' tool — logged in audit trail."""
         query = params.get("query", "")
         max_results = params.get("max_results", 5)
 
         if not query:
             return {"status": "error", "message": "No search query provided."}
+
+        # Log in audit trail
+        ledger = self._get_ledger()
+        if ledger:
+            try:
+                action_id = ledger.queue_action(
+                    "MCPSearch", "web_search", {"query": query[:100]},
+                    risk_level="low",
+                )
+                ledger.approve_action(action_id)
+            except Exception:
+                pass
 
         glm = self._get_glm_brain()
         if not glm or not glm.available():

@@ -52,3 +52,49 @@ async def get_agent_status():
 @router.get("/types")
 async def get_agent_types():
     return {"agent_types": [at.value for at in AgentType]}
+
+
+# ---------------------------------------------------------------------------
+# Tactical Manager — coordinates multiple agents for complex tasks
+# ---------------------------------------------------------------------------
+
+class TacticalRequest(BaseModel):
+    task: str
+    context: Optional[Dict[str, Any]] = None
+
+
+@router.post("/tactical")
+async def run_tactical(request: TacticalRequest):
+    """Run tactical coordination — plans agents, dispatches, synthesizes."""
+    try:
+        from agents.tactical_manager import TacticalManager
+        from api.main import _get_brain
+        brain = await _get_brain()
+        manager = TacticalManager(brain=brain, agent_manager=get_agent_manager())
+        result = await manager.coordinate(request.task, request.context)
+        return {"status": "success", "result": result}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+# ---------------------------------------------------------------------------
+# Coding Orchestrator — generates multi-file projects
+# ---------------------------------------------------------------------------
+
+class GenerateProjectRequest(BaseModel):
+    description: str
+    context: Optional[Dict[str, Any]] = None
+
+
+@router.post("/generate-project")
+async def generate_project(request: GenerateProjectRequest):
+    """Generate a multi-file project from a description."""
+    try:
+        from agents.coding_orchestrator import CodingOrchestrator
+        from api.main import _get_brain
+        brain = await _get_brain()
+        orchestrator = CodingOrchestrator(brain=brain)
+        result = await orchestrator.generate_project(request.description, request.context)
+        return {"status": "success", "result": result}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))

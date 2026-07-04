@@ -43,6 +43,7 @@ class TeamMode:
         self._user_memories: Dict[str, List[dict]] = {}  # user_id → memories
         self._shared_memories: List[dict] = []
         self._invites: List[dict] = []
+        self._lock = asyncio.Lock()  # protects all shared state mutations
 
     # ------------------------------------------------------------------
     # User management
@@ -100,31 +101,33 @@ class TeamMode:
         """Store a private memory for a specific user. Only that user can retrieve it."""
         if user_id not in self._user_memories:
             raise ValueError(f"Unknown user_id: {user_id}")
-        mem = {
-            "id": f"pm_{secrets.token_hex(6)}",
-            "user_id": user_id,
-            "content": content,
-            "metadata": metadata or {},
-            "timestamp": _now_iso(),
-            "scope": "private",
-        }
-        self._user_memories[user_id].append(mem)
-        return mem
+        async with self._lock:
+            mem = {
+                "id": f"pm_{secrets.token_hex(6)}",
+                "user_id": user_id,
+                "content": content,
+                "metadata": metadata or {},
+                "timestamp": _now_iso(),
+                "scope": "private",
+            }
+            self._user_memories[user_id].append(mem)
+            return mem
 
     async def store_shared_memory(self, content: str,
                                    metadata: Optional[dict] = None,
                                    author_user_id: Optional[str] = None) -> dict:
         """Store a shared memory visible to all team members."""
-        mem = {
-            "id": f"sm_{secrets.token_hex(6)}",
-            "content": content,
-            "metadata": metadata or {},
-            "author_user_id": author_user_id,
-            "timestamp": _now_iso(),
-            "scope": "shared",
-        }
-        self._shared_memories.append(mem)
-        return mem
+        async with self._lock:
+            mem = {
+                "id": f"sm_{secrets.token_hex(6)}",
+                "content": content,
+                "metadata": metadata or {},
+                "author_user_id": author_user_id,
+                "timestamp": _now_iso(),
+                "scope": "shared",
+            }
+            self._shared_memories.append(mem)
+            return mem
 
     async def get_user_memories(self, user_id: str) -> List[dict]:
         """Get a user's private memories. Only returns memories for that user."""

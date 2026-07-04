@@ -232,3 +232,56 @@ async def import_memories(request: MemoryImportRequest):
     except Exception as e:
         logger.exception("Memory import failed")
         raise HTTPException(status_code=500, detail=f"Import failed: {e}")
+
+
+# ---------------------------------------------------------------------------
+# GET /api/memory/wisdom — return compressed wisdom tokens
+# ---------------------------------------------------------------------------
+
+@router.get("/wisdom")
+async def get_wisdom_tokens():
+    """Return current wisdom tokens from memory compression."""
+    try:
+        from database.compression import MemoryCompressor
+        comp = MemoryCompressor()
+        tokens = comp.get_wisdom_tokens()
+        ratio = comp.get_compression_ratio(len(tokens))
+        return {
+            "wisdom_tokens": tokens,
+            "count": len(tokens),
+            "compression_ratio": ratio,
+        }
+    except Exception as e:
+        logger.warning(f"Wisdom token retrieval failed: {e}")
+        return {"wisdom_tokens": [], "count": 0, "message": str(e)}
+
+
+# ---------------------------------------------------------------------------
+# POST /api/memory/compress — manually trigger memory compression
+# ---------------------------------------------------------------------------
+
+@router.post("/compress")
+async def compress_memories():
+    """Manually trigger compression of old memories into wisdom tokens."""
+    try:
+        from database.compression import MemoryCompressor
+        mem = get_memory()
+        if not mem:
+            raise HTTPException(status_code=503, detail="Memory service unavailable.")
+        comp = MemoryCompressor(memory=mem._memories if hasattr(mem, '_memories') else [])
+        # Get memories older than 7 days
+        import datetime
+        cutoff = (datetime.datetime.now() - datetime.timedelta(days=7)).isoformat()
+        old_memories = [m for m in mem._memories if m.get("timestamp", "") < cutoff]
+        if not old_memories:
+            return {"status": "success", "message": "No memories older than 7 days to compress.", "compressed": 0}
+        wisdom = await comp.compress_memories(old_memories)
+        return {
+            "status": "success",
+            "message": f"Compressed {len(old_memories)} memories into wisdom token.",
+            "compressed_count": len(old_memories),
+            "wisdom_token": wisdom[:500],
+        }
+    except Exception as e:
+        logger.exception("Memory compression failed")
+        raise HTTPException(status_code=500, detail=str(e))

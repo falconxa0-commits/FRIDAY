@@ -156,13 +156,17 @@ def check_auth_rejection():
             "/api/team/memory/private", "/api/team/memory/shared",
             "/api/team/memories",
         }
+        # Webhook routes verify their own HMAC signatures — skip in global auth check
+        webhook_paths = {
+            "/api/webhooks/{source}",
+        }
 
         failed_routes = []
         for route in app.routes:
             path = getattr(route, "path", "")
             methods = getattr(route, "methods", set())
 
-            if path in public_routes or path in team_paths or not methods:
+            if path in public_routes or path in team_paths or path in webhook_paths or not methods:
                 continue
             # Skip routes that re-run this audit (would recurse).
             if path == "/api/trust/report":

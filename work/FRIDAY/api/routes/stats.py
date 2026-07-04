@@ -228,3 +228,31 @@ def _generate_optimization_suggestions(provider_stats: Dict[str, Dict]) -> List[
     # (This would need a separate per-action log; skipped for now.)
 
     return suggestions
+
+
+# ---------------------------------------------------------------------------
+# GET /api/predictor/cache — show what's been pre-loaded
+# ---------------------------------------------------------------------------
+
+@router.get("/predictor/cache")
+async def get_predictor_cache():
+    """Return what the predictor has pre-loaded."""
+    try:
+        from core.predictor import Predictor
+        pred = Predictor()
+        # Return the preload schedule + any cached data
+        schedule = pred.get_preload_schedule()
+        cache_contents = {}
+        for entry in schedule:
+            key = entry["key"]
+            cached = pred.get_cached(key, max_age_seconds=3600)
+            cache_contents[key] = {
+                "fetched": cached is not None,
+                "data": str(cached)[:200] if cached else None,
+            }
+        return {
+            "schedule": schedule,
+            "cache": cache_contents,
+        }
+    except Exception as exc:
+        return {"error": str(exc), "cache": {}}
