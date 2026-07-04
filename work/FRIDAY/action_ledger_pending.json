@@ -1,26 +1,4 @@
 {
-  "cbf628c3-7468-492d-a0f3-387a61458ce3": {
-    "id": "cbf628c3-7468-492d-a0f3-387a61458ce3",
-    "component": "MCPChat",
-    "action": "chat",
-    "params": {
-      "message_length": 4
-    },
-    "risk_level": "low",
-    "status": "approved",
-    "timestamp": "2026-07-04T11:47:24.461611"
-  },
-  "005bd545-6dd0-4ccc-84fd-cada134b07c6": {
-    "id": "005bd545-6dd0-4ccc-84fd-cada134b07c6",
-    "component": "MCPChat",
-    "action": "chat",
-    "params": {
-      "message_length": 4
-    },
-    "risk_level": "low",
-    "status": "approved",
-    "timestamp": "2026-07-04T11:47:24.651236"
-  },
   "7a5b2079-e690-46fe-9de4-65f87405773d": {
     "id": "7a5b2079-e690-46fe-9de4-65f87405773d",
     "component": "Test",
@@ -38,5 +16,45 @@
     "risk_level": "high",
     "status": "pending",
     "timestamp": "2026-07-04T11:47:25.668521"
+  },
+  "b8110788-ec9d-47b5-b39e-382c322e1baa": {
+    "id": "b8110788-ec9d-47b5-b39e-382c322e1baa",
+    "component": "MCPChat",
+    "action": "chat",
+    "params": {
+      "message_length": 4
+    },
+    "risk_level": "low",
+    "status": "approved",
+    "timestamp": "2026-07-04T13:02:14.808130"
+  },
+  "c9aff0c0-3c18-4819-bb40-1548f92b690b": {
+    "id": "c9aff0c0-3c18-4819-bb40-1548f92b690b",
+    "component": "MCPChat",
+    "action": "chat",
+    "params": {
+      "message_length": 4
+    },
+    "risk_level": "low",
+    "status": "approved",
+    "timestamp": "2026-07-04T13:02:14.986571"
+  },
+  "25bc40cb-6851-4ed3-b99e-5cdef656e68a": {
+    "id": "25bc40cb-6851-4ed3-b99e-5cdef656e68a",
+    "component": "Test",
+    "action": "test_action",
+    "params": {},
+    "risk_level": "high",
+    "status": "pending",
+    "timestamp": "2026-07-04T13:02:14.997124"
+  },
+  "0942f6af-2508-4ee0-bdb8-729196147a31": {
+    "id": "0942f6af-2508-4ee0-bdb8-729196147a31",
+    "component": "Test",
+    "action": "test",
+    "params": {},
+    "risk_level": "high",
+    "status": "pending",
+    "timestamp": "2026-07-04T13:02:16.001784"
   }
 }
