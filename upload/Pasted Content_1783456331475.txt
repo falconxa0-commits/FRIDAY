@@ -1,0 +1,768 @@
+I'll perform a complete reverse engineering of the FRIDAY v3.0 codebase. Let me trace every execution path from source.
+# FRIDAY v3.0 — Definitive Reverse Engineering & Capability Audit
+
+**Auditor:** Principal AI Systems Engineer / Security Researcher / Reverse Engineer
+**Date:** 2026-07-04
+**Scope:** 186 Python files, 29,803 LOC, 75 API routes, 15 CLI commands, 8 MCP tools
+**Methodology:** Source code tracing only. No trust given to README, comments, transcripts, or prior audit claims.
+**Baseline:** 242 tests passing, 3 skipped, hellfire audit clean (8/8 checks).
+
+---
+
+## Phase 1 — Architecture Discovery
+
+### Complete Architecture Map
+
+**4 entry points:**
+
+| Entry Point | File | Reaches |
+|---|---|---|
+| CLI | `cli/__main__.py` → `cli/commands.py` (15 commands) | Brain, all integrations, all skills, agents |
+| API | `api/main.py` (75 routes, 20 route files) | Brain, ledger, memory, agents, integrations, all v3 features |
+| MCP | `mcp_server.py` (8 tools, JSON-RPC over stdio) | GLM brain, ledger, universal connector |
+| Legacy | `main.py` (thin wrapper → CLI) | Delegates to CLI |
+
+**13 packages:**
+
+```
+core/        29 modules — brain, ledger, memory, AI pipeline, security, scheduling
+api/routes/  20 files   — 75 HTTP endpoints + WebSocket
+integrations/ 18 plugins — auto-discovered, 36 unique actions
+agents/       7 files    — research, coding, writing, task, tactical, orchestrator, manager
+skills/       8 files    — auto-discovered, trigger-phrase activated
+voice/        5 files    — TTS (ElevenLabs+pyttsx3), STT (Whisper), wake word, barge-in
+vision/       4 files    — screen capture, OCR, GLM-4V analysis, face detection
+control/      5 files    — PC control, Playwright browser, file manager, app launcher, workspace
+database/     5 files    — Supabase client, vector store, memory compressor, subconscious mind
+config/       3 files    — settings, identity modes, system prompt
+cli/          3 files    — terminal TUI + 15 commands
+sdk/          1 file     — FridayClient async Python SDK
+deploy/       3 files    — nginx config, systemd service, deploy guide
+```
+
+**Design patterns:**
+- **Plugin auto-discovery**: `pkgutil.iter_modules` + `inspect.getmembers` (`core/universal_connector.py:37`)
+- **Singleton with lazy init**: brain, ledger, memory, connector, team mode (8 module-level globals; only brain has `asyncio.Lock`)
+- **Strategy**: LLM provider routing (`core/brain.py:687-730`)
+- **Chain of responsibility**: action approval pipeline (`core/ledger.py:213-227`)
+- **Hash chain**: tamper-evident audit log (`core/ledger.py:114-207`)
+- **Observer**: notification callbacks (`core/ledger.py:87-100`)
+
+**Background workers:**
+- `FridayScheduler._loop()` — async task scheduler (`core/scheduler.py:159`)
+- `AmbientEngine.run_loop()` — screen awareness loop (`core/ambient.py:180`)
+- `WebSocket heartbeat` — 30s ping interval (`api/main.py:260`)
+- `Predictor.run_preload_loop()` — preload schedule (`core/predictor.py:82`) — **orphaned, never started**
+
+---
+
+## Phase 2 — Complete Capability Inventory (82 capabilities)
+
+### AI & Conversation (8)
+1. **Streaming chat** — GLM-4-Flash word-by-word (`core/glm_brain.py:127`)
+2. **Multi-provider routing** — GLM → Ollama → Gemini → Claude fallback (`core/brain.py:687-730`)
+3. **Council mode** — parallel multi-provider comparison + agreement analysis (`core/council_mode.py:229`)
+4. **Conversation summarization** — old messages compressed (`core/brain.py:32`)
+5. **WebSocket streaming** — real-time bidirectional (`api/main.py:228`)
+6. **SSE streaming** — server-sent events (`api/routes/chat.py:128`)
+7. **Emotion detection** — multi-dimensional with negation/intensifier handling (`core/emotions.py:20`)
+8. **Personality adaptation** — warmth, wit, formality, assertiveness sliders (`core/personality.py:21`)
+
+### Memory (9)
+9. **Text memory with fact extraction** — name, location, preferences, birthday, allergies (`core/memory.py:189`)
+10. **Semantic vector search** — Z.ai Embedding-3 with hash fallback (`database/vector_store.py:48`)
+11. **Multi-modal visual memory** — image + embedding + semantic search (`core/multimodal_memory.py:29`)
+12. **Memory export/import** — lossless round-trip (`api/routes/memory.py:161,192`)
+13. **Memory compression** — old memories → wisdom tokens (`database/compression.py:9`)
+14. **Subconscious pattern surfacing** — intuition in RAG context (`database/subconscious.py:10`, wired at `core/brain.py:549`)
+15. **Persona export/import** — cross-device portability (`core/persona.py:24`)
+16. **Session facts** — extracted facts tracked per-session (`core/memory.py:31`)
+17. **Conversation history** — 50-message limit with summarization (`core/brain.py:735`)
+
+### Voice (6)
+18. **TTS** — ElevenLabs + pyttsx3 fallback (`voice/speaker.py:11`)
+19. **STT** — OpenAI Whisper (`voice/transcriber.py:36`)
+20. **Wake word** — Picovoice "bumblebee" (`voice/wake_word.py:8`)
+21. **Barge-in interruption** — mid-sentence stop + listen (`voice/conversational.py:160`)
+22. **Adaptive pace** — fast=confirmations, slow=explanations, whisper=night (`voice/conversational.py:89`)
+23. **Frustration detection** — RMS + zero-crossing rate from audio (`voice/conversational.py:308`)
+
+### Vision (5)
+24. **GLM-4V image analysis** — base64 image → text description (`core/glm_brain.py:194`)
+25. **Screen capture** — mss screenshot (`vision/screen_reader.py:4`)
+26. **OCR** — pytesseract text extraction (`vision/ocr.py:4`)
+27. **Screen analysis** — GLM-4V on screenshots with element finding (`vision/screen_analyzer.py:20`)
+28. **Presence detection** — OpenCV face detection via webcam (`vision/presence.py:5`) — **not wired**
+
+### Agents (8)
+29. **Research agent** — web search + synthesis + citation (`agents/research_agent.py:34`)
+30. **Coding agent** — write/debug/review + Z.ai Code Interpreter (`agents/coding_agent.py:36`)
+31. **Writing agent** — documents/reports/proofread (`agents/writing_agent.py:8`)
+32. **Task agent** — multi-step breakdown with complexity estimation (`agents/task_agent.py:10`)
+33. **Agent swarm** — parallel multi-agent via `asyncio.gather` (`agents/agent_manager.py:84`)
+34. **Agent pipeline** — sequential Research → Task → Coding/Writing → synthesis (`agents/agent_manager.py:104`)
+35. **Tactical manager** — plans agents, dispatches, synthesizes (`agents/tactical_manager.py:9`)
+36. **Coding orchestrator** — multi-file project generation (`agents/coding_orchestrator.py:11`)
+
+### Automation (9)
+37. **PC control** — mouse, keyboard, shortcuts via pyautogui (`control/pc_control.py:22`)
+38. **Browser control** — Playwright navigate/click/type/JS (`control/browser_control.py:16`)
+39. **Vision-grounded clicking** — "click the submit button" → screenshot → GLM-4V → click (`control/pc_control.py:130`)
+40. **File management** — create/delete/list with path traversal protection (`control/file_manager.py:7`)
+41. **App launching** — macOS/Linux/Windows (`control/app_launcher.py:5`)
+42. **Workspace workflows** — coding mode, presentation mode (`control/workspace.py:10`)
+43. **Task scheduling** — interval/cron/one-time with persistence (`core/scheduler.py:20`)
+44. **Ambient screen awareness** — 4 patterns with cooldown (`core/ambient.py:67`)
+45. **Arbitrary JavaScript execution** — in browser context, critical-risk gated (`control/browser_control.py:125`)
+
+### Research (4)
+46. **Web search** — GLM built-in web_search tool (`core/glm_brain.py:251`)
+47. **Deep research** — multi-source synthesis with agreement/conflict detection + confidence (`agents/research_agent.py:61`)
+48. **Deep research skill** — sub-query generation + multi-round search (`skills/deep_research.py:20`)
+49. **Global Pulse** — RSS news aggregation from CNN/NYT feeds (`integrations/global_pulse.py:22`)
+
+### Intelligence (10)
+50. **RAG** — retrieve context → inject into message (`core/brain.py:545`)
+51. **Context mode switching** — morning/work/evening/night by real time (`core/context.py:26`)
+52. **Behavioral pattern learning** — action pairs, keyword frequency, time-of-day (`core/pattern_engine.py:31`)
+53. **5 identity modes** — General/Strategist/Creative/Debugger/Guardian (`config/identities.py:11`)
+54. **Goal tracking** — set goals, log progress, streak computation, real nudges (`core/goals.py:15`)
+55. **Predictive pre-loading** — weather/calendar/news pre-fetch schedule (`core/predictor.py:22`) — **orphaned**
+56. **Wake-on-first-contact** — 6h idle threshold → morning briefing (`core/wake_on_contact.py:25`)
+57. **Self-improvement engine** — analyzes failures, corrections, slow responses (`core/self_improvement.py:15`) — **orphaned**
+58. **Learning system** — records user corrections, adjusts confidence (`core/learning.py:16`) — **orphaned**
+59. **Writing style adaptation** — sentence length, formality, contractions, humor (`skills/writing_style.py:231`)
+
+### Security (10)
+60. **Action ledger** — approval gate with asyncio.Event (`core/ledger.py:39`)
+61. **Tamper-evident hash chain** — SHA-256, persisted to disk, loads on startup (`core/ledger.py:114-246`)
+62. **Ethical Sentinel** — 5-category risk scoring (data_loss/privacy/security/cost/irreversibility) (`core/sentinel.py:31`)
+63. **NEVER_AUTO_APPROVE** — 7 components hardcoded (`core/ledger.py:28-36`)
+64. **Plugin sandbox** — AST scan blocks os/subprocess/socket/etc imports (`cli/commands.py:516-565`)
+65. **Param redaction** — password/api_key/token/payment_method redacted in file log (`core/ledger.py:128-145`)
+66. **Rate limiting** — custom sliding-window, real 429 enforcement (`core/rate_limiter.py`)
+67. **Hellfire audit** — 8 adversarial checks (`scripts/hellfire_audit.py`)
+68. **MCP fail-closed** — ledger unavailable = refuse execution (`mcp_server.py:356,399,440`)
+69. **MCP audit logging** — chat/vision/search now logged in audit trail (`mcp_server.py:231-243,285-295,319-329`)
+
+### Collaboration (5)
+70. **Team mode** — per-user private memories with asyncio.Lock (`core/team_mode.py:31`)
+71. **Shared project memories** — visible to all team members (`core/team_mode.py:116`)
+72. **MCP request_approval** — external agents submit through Friday's gate (`mcp_server.py:509`)
+73. **Webhook receiver** — GitHub/Stripe/custom with HMAC verification (`api/routes/webhooks.py`)
+74. **Push notifications** — Telegram Bot API + desktop (plyer) (`integrations/notifications.py`)
+
+### Multimedia (4)
+75. **Image generation** — CogView-3 via Z.ai (`integrations/image_gen.py:33`)
+76. **Video generation** — CogVideoX via Z.ai (`integrations/video_gen.py:36`)
+77. **NL creative routing** — "generate an image of X" → ImageGen (`core/brain.py:555`)
+78. **Code execution** — Z.ai Code Interpreter (`core/glm_brain.py:311`)
+
+### Integrations (4 additional)
+79. **Nigerian context** — Naira pricing (real exchange rate), 15 banks, 6 delivery services, 6 news sources, power status (`integrations/nigerian_context.py`)
+80. **Commerce** — Playwright price comparison + Stripe checkout (`integrations/commerce.py:27`)
+81. **Finance** — 5 actions: financial_status, analyze_investment, add_expense, set_budget, spending_breakdown (`integrations/finance.py:11`)
+82. **Daily journal** — auto-generates summary from real ledger + goal + cost data (`skills/daily_journal.py:13`)
+
+---
+
+## Phase 3 — Reverse Execution Analysis
+
+### Production Ready (verified at runtime)
+
+| Capability | Entry Point | Test? | Evidence |
+|---|---|---|---|
+| Chat (GLM streaming) | CLI, API, WebSocket, MCP | ✅ 29 tests | `core/brain.py:687-708`, `core/glm_brain.py:127` |
+| Web Search | Brain tool, MCP, Research agent | ✅ | `core/glm_brain.py:251` |
+| Image Generation | NL routing, MCP, CLI | ✅ | `integrations/image_gen.py:33` |
+| Video Generation | NL routing, MCP, CLI | ✅ | `integrations/video_gen.py:36` |
+| Memory (text + vector) | API, Brain RAG | ✅ 32 tests | `core/memory.py:11`, `database/vector_store.py:48` |
+| Action Ledger | API, MCP, Brain | ✅ 15 tests | `core/ledger.py:39` |
+| Hash Chain (persisted) | API `/api/actions/verify` | ✅ | `core/ledger.py:114-246` |
+| Rate Limiting | API (chat, integrations) | ✅ verified 429 | `core/rate_limiter.py` — 60 pass, 61st = 429 |
+| Plugin Sandbox | CLI `friday plugin install` | ✅ 4 tests | `cli/commands.py:516-565` — AST scan |
+| Ethical Sentinel | Brain (pre-action) | ✅ 28 tests | `core/sentinel.py:31` |
+| Team Mode (with lock) | API `/api/team/*` | ✅ 10 tests | `core/team_mode.py:31` — `asyncio.Lock` at line 46 |
+| Agent Swarm | API `/api/swarm` | ✅ 22 tests | `agents/agent_manager.py:84` |
+| Agent Pipeline | API `/api/pipeline` | ✅ | `agents/agent_manager.py:104` |
+
+### Functional (wired, working, but limited testing)
+
+| Capability | Entry Point | Test? | Evidence |
+|---|---|---|---|
+| Council Mode | CLI `friday council` | ✅ | `core/council_mode.py:229` |
+| Pattern Engine | API `/api/patterns/*` | ✅ 10 tests | `core/pattern_engine.py:31` |
+| Ambient Engine | CLI `friday --watch` | ✅ 7 tests | `core/ambient.py:67` |
+| Identity Modes (5) | API `/api/identity/*` | ❌ | `config/identities.py:11`, `api/routes/identity.py` |
+| Subconscious Mind | RAG pipeline + API | ❌ | `database/subconscious.py:10`, wired at `core/brain.py:549` |
+| Memory Compression | API `/api/memory/wisdom` | ❌ | `database/compression.py:9` |
+| Tactical Manager | API `/api/tactical` | ❌ | `agents/tactical_manager.py:9` |
+| Coding Orchestrator | API `/api/generate-project` | ❌ | `agents/coding_orchestrator.py:11` |
+| Persona Export/Import | API `/api/persona/*` | ❌ | `core/persona.py:24` |
+| Cost Tracker | Wired to chat route | ❌ | `core/cost_tracker.py:47`, called from `api/routes/chat.py:50-61` |
+| Webhook Receiver | API `/api/webhooks/*` | ✅ | `api/routes/webhooks.py` — GitHub/Stripe/custom |
+| Push Notifications | API `/api/notify` | ❌ | `integrations/notifications.py:18` |
+| Goal Tracking | API `/api/goals/*` | ❌ | `core/goals.py:15`, `api/routes/goals.py` |
+| MCP Server (8 tools) | stdio JSON-RPC | ✅ 7 tests | `mcp_server.py:187` |
+| Voice (TTS+STT+barge-in) | CLI `friday --voice` | ✅ | `voice/conversational.py:35` |
+| Deep Research | CLI, API, Skill | ❌ verify only | `agents/research_agent.py:61` |
+| Multi-modal Memory | API `/api/visual-memory/*` | ✅ 9 tests | `core/multimodal_memory.py:29` |
+| Nigerian Context | API `/api/nigeria/*` | ❌ | `integrations/nigerian_context.py` |
+
+### Prototype (wired but not runtime-tested)
+
+| Capability | Entry Point | Evidence |
+|---|---|---|
+| Daily Journal | Auto-discovered skill | `skills/daily_journal.py:13` — pulls from real ledger data |
+| VS Code Extension | VS Code Command Palette | `apps/vscode/src/extension.ts` — compiles, .vsix built (15KB), not runtime-tested |
+| Friday SDK | `sdk/friday_sdk.py` | `FridayClient` class — 9 methods, not tested |
+| Predictor | API `/api/stats/predictor/cache` | `core/predictor.py:22` — has preload schedule but loop never started |
+
+### Dead Code (zero non-test/verify/benchmark importers)
+
+| Module | LOC | Evidence |
+|---|---|---|
+| `core/proactive.py` | ~200 | `ProactiveEngine` — 0 importers. Only `benchmarks/run_benchmark.py` references it. |
+| `core/learning.py` | ~60 | `FridayLearningSystem` — 0 importers. Records corrections, adjusts confidence. Never called. |
+| `core/self_improvement.py` | ~130 | `SelfImprovementEngine` — 0 importers. Analyzes failures, proposes improvements. Never called. |
+| `core/privacy_audit.py` | ~100 | `PrivacyAuditEngine` — 0 importers. Generates privacy reports, purges provider history. Never called. |
+| `vision/presence.py` | ~40 | `PresenceDetector` — 0 importers. OpenCV face detection. Never called. |
+
+---
+
+## Phase 4 — Hidden Systems Discovery
+
+### H1: Subconscious Mind (wired, undocumented)
+**Where:** `database/subconscious.py:10` — `SubconsciousMind`
+**What:** Surfaces patterns from vector memory relevant to current context. Has `get_intuition()` that returns a synthesized "gut feeling" string. Has `get_pattern_scores()` returning pattern→float dict.
+**Wired at:** `core/brain.py:549-557` — injected into RAG context before every GLM response
+**API:** `GET /api/subconscious/patterns`, `GET /api/subconscious/intuition`
+**Status:** Functional but not documented in README
+
+### H2: Memory Compression into Wisdom Tokens (wired, undocumented)
+**Where:** `database/compression.py:9` — `MemoryCompressor`
+**What:** Compresses a list of memories into a single "wisdom token" string, stored in vector store with `category="wisdom"`. Has `retrieve_relevant_wisdom()` and `get_compression_ratio()`.
+**Wired at:** `api/routes/memory.py:241` (GET /api/memory/wisdom), `api/routes/memory.py:263` (POST /api/memory/compress)
+**Status:** Functional but not documented
+
+### H3: 5 Configurable Identity Modes (wired, undocumented)
+**Where:** `config/identities.py:11` — `FRIDAY_IDENTITIES` dict
+**What:** 5 modes with different voice/style/focus/personality traits: General (balanced), Strategist (calculating, visionary), Creative (inspired, optimistic), Debugger (logical, stoic), Guardian (protective, alert). `apply_identity()` modifies brain's system prompt + personality.
+**Wired at:** `api/routes/identity.py` — `GET /api/identity`, `POST /api/identity/{mode}`
+**Status:** Functional, verified at runtime (mode switch confirmed)
+
+### H4: Agent Swarm (wired, undocumented in README)
+**Where:** `agents/agent_manager.py:84` — `run_swarm()`
+**What:** Dispatches the same task to multiple agents (Research, Coding, Writing, Task) in parallel via `asyncio.gather`. Returns list of `AgentResult`.
+**Wired at:** `POST /api/swarm` (`api/routes/agents.py:35`)
+**Status:** Functional, tested
+
+### H5: Agent Pipeline (wired, undocumented in README)
+**Where:** `agents/agent_manager.py:104` — `run_pipeline()`
+**What:** Chains agents sequentially: Research → Task breakdown → Coding/Writing → synthesis. Returns final `AgentResult`.
+**Wired at:** `POST /api/pipeline` (`api/routes/agents.py:41`)
+**Status:** Functional, tested
+
+### H6: Tactical Manager (wired, undocumented)
+**Where:** `agents/tactical_manager.py:9` — `TacticalManager`
+**What:** Plans which agents to use for a task, dispatches them, synthesizes results. Has `_plan_agents()` heuristic and `_synthesize_results()`.
+**Wired at:** `POST /api/tactical` (`api/routes/agents.py:66`)
+**Status:** Functional, not tested
+
+### H7: Coding Orchestrator (wired, undocumented)
+**Where:** `agents/coding_orchestrator.py:11` — `CodingOrchestrator`
+**What:** Generates multi-file project from description. Creates plan, parses files, validates, writes to `friday_workspace/generated_project/`.
+**Wired at:** `POST /api/generate-project` (`api/routes/agents.py:89`)
+**Status:** Functional, not tested
+
+### H8: Global Pulse — World News Aggregation (wired, undocumented)
+**Where:** `integrations/global_pulse.py:22` — `GlobalPulseIntegration`
+**What:** Fetches real headlines from public RSS feeds (CNN World, NYT Technology, NYT Business, NYT Science). Has `get_world_status` and `get_headlines` actions.
+**Wired at:** Auto-discovered by `UniversalConnector`
+**Status:** Functional
+
+### H9: Finance Integration (wired, undocumented)
+**Where:** `integrations/finance.py:11` — `FinanceIntegration`
+**What:** 5 actions: `get_financial_status`, `analyze_investment`, `add_expense`, `set_budget`, `spending_breakdown`. In-memory, no external API.
+**Wired at:** Auto-discovered by `UniversalConnector`
+**Status:** Functional
+
+### H10: Presence Detection (orphaned, not wired)
+**Where:** `vision/presence.py:5` — `PresenceDetector`
+**What:** Uses OpenCV `haarcascade_frontalface_default.xml` to detect if a user is present via webcam. Has `detect_user()` and `get_user_attention_level()`.
+**Wired at:** Nothing — 0 importers
+**Status:** Dead code
+
+### H11: Proactive Engine (orphaned, not wired)
+**Where:** `core/proactive.py:76` — `ProactiveEngine`
+**What:** Mode-aware daily briefing that fetches weather + calendar + email through connector, generates personality-adapted briefing, speaks it. Has `check_for_interruptions()` loop.
+**Wired at:** Nothing — 0 importers (only `benchmarks/run_benchmark.py`)
+**Status:** Dead code
+
+### H12: Self-Improvement Engine (orphaned, not wired)
+**Where:** `core/self_improvement.py:15` — `SelfImprovementEngine`
+**What:** Analyzes failed tool calls, user corrections, slow responses, unanswered requests. Proposes concrete improvements. Does NOT self-modify — proposes via ledger.
+**Wired at:** Nothing — 0 importers
+**Status:** Dead code
+
+### H13: Learning System (orphaned, not wired)
+**Where:** `core/learning.py:16` — `FridayLearningSystem`
+**What:** Records user corrections, adjusts confidence on similar topics, surfaces corrections when similar queries come up.
+**Wired at:** Nothing — 0 importers
+**Status:** Dead code
+
+### H14: Privacy Audit Engine (orphaned, not wired)
+**Where:** `core/privacy_audit.py:17` — `PrivacyAuditEngine`
+**What:** Reports all facts known, API calls made, providers used, storage status. Can purge provider history.
+**Wired at:** Nothing — 0 importers
+**Status:** Dead code
+
+### H15: Personality Pushback (wired, undocumented)
+**Where:** `core/personality.py:216` — `FridayPersonality.pushback()`
+**What:** Generates assertive counter-suggestions when the user's request might lead to suboptimal results. Scales with assertiveness trait.
+**Wired at:** Available via `FridayPersonality` class, called from brain's system prompt builder
+**Status:** Functional
+
+---
+
+## Phase 5 — AI Intelligence Audit
+
+### Execution Flow: User Message → Response
+
+```
+User sends message
+    ↓
+FridayBrain.chat_stream(message)
+    ↓
+1. Emotion detection (core/emotions.py:157)
+   → detect_emotion(message) → current_emotion updated
+    ↓
+2. Memory store (core/memory.py:119)
+   → store_conversation("user", message)
+    ↓
+3. Creative route detection (core/brain.py:573)
+   → _detect_creative_route(message)
+   → If image/video pattern: route to ImageGen/VideoGen, RETURN
+    ↓
+4. Provider routing (core/brain.py:687-730)
+   ├── GLM (default, free):
+   │   a. Build system prompt (identity + mood + personality + summaries)
+   │   b. Inject RAG context (retrieve memories + subconscious intuition)
+   │   c. Call glm_brain.chat_stream() — stream tokens
+   │   d. Store assistant response in memory
+   │   e. RETURN (NO tool calling)
+   │
+   ├── Ollama (local):
+   │   → local_brain.chat_stream(message) → RETURN
+   │
+   ├── Gemini:
+   │   → gemini_brain.chat_stream(message) → RETURN
+   │
+   └── Claude (paid, has tool calling):
+       a. Build system prompt
+       b. Inject RAG context
+       c. Add to conversation_history
+       d. Summarize older messages
+       e. TOOL CALLING LOOP (max 5 rounds):
+          i.   Stream response via client.messages.stream()
+          ii.  Collect text chunks → yield to caller
+          iii. Check for tool_use blocks
+          iv.  If tools called: execute each tool → add results → continue loop
+          v.   If no tools: store response, BREAK
+       f. Store assistant response in memory
+```
+
+### Key AI Architecture Findings
+
+**Finding 1: GLM branch has NO tool calling.**
+The GLM branch (`core/brain.py:687-708`) streams a response and returns. It does NOT enter the tool-calling loop. Only the Claude branch (`core/brain.py:738-832`) has the 5-round tool-use loop with `access_universal_service`, `search_web`, `remember`, `recall_memories`, `run_skill`. This means free-tier users (the default) get chat + creative routing but NOT tool-augmented reasoning.
+
+**Finding 2: Subconscious mind is wired into RAG.**
+`_inject_rag_context()` (`core/brain.py:545-559`) now calls `SubconsciousMind.get_intuition()` and appends it to the RAG context. This means every GLM response may include subconscious insights surfaced from vector memory patterns.
+
+**Finding 3: Memory bug is fixed.**
+The GLM branch (`core/brain.py:702`) now stores `full_response` as `"assistant"` role. Previously it stored the user message a second time as `"user"` role and never stored the assistant response.
+
+**Finding 4: RAG pipeline is real.**
+`RAGPipeline.retrieve_context()` (`core/brain.py:109`) calls `memory.retrieve_relevant_memories(query)` which tries vector store first, falls back to keyword search. The retrieved context is prepended to the user message.
+
+**Finding 5: Council mode is real parallel dispatch.**
+`run_council()` (`core/council_mode.py:229`) uses `asyncio.gather()` to dispatch to all configured providers in parallel. GLM is always included (free tier). Agreement analysis uses sentence-level Jaccard overlap.
+
+---
+
+## Phase 6 — Security Audit
+
+### Verified Security Controls
+
+| Control | Status | Evidence |
+|---|---|---|
+| Timing-safe token comparison | ✅ PASS | `api/main.py:84` — `hmac.compare_digest` |
+| Auto-generated API token | ✅ PASS | `config/settings.py:51-92` — `secrets.token_urlsafe(32)` if empty |
+| FRIDAY_DEV_MODE for local dev | ✅ PASS | `api/main.py:75` — requires explicit `FRIDAY_DEV_MODE=1` |
+| Path traversal protection | ✅ PASS | `control/file_manager.py:20-24` — `os.path.commonpath` check |
+| Plugin sandbox (AST scan) | ✅ PASS | `cli/commands.py:516-565` — blocks os/subprocess/socket/ctypes/etc |
+| Param redaction in audit log | ✅ PASS | `core/ledger.py:128-145` — password/api_key/token/payment_method redacted |
+| Hash chain persisted to disk | ✅ PASS | `core/ledger.py:209-246` — `_persist_chain()` + `_load_chain()` on startup |
+| MCP fail-closed | ✅ PASS | `mcp_server.py:356,399,440` — `if ledger is None: return error` |
+| MCP audit logging (all tools) | ✅ PASS | `mcp_server.py:231-243` (chat), `285-295` (vision), `319-329` (search) — all queue + approve |
+| NEVER_AUTO_APPROVE (7 components) | ✅ PASS | `core/ledger.py:28-36` — frozenset checked first |
+| Browser JS execution gated | ✅ PASS | `control/browser_control.py:128` — `risk_level="critical"` |
+| Rate limiting enforces 429 | ✅ PASS | Runtime test: 60 pass, 61st = 429 with Retry-After: 60 |
+| Team mode asyncio.Lock | ✅ PASS | `core/team_mode.py:46,104,120` |
+| Lazy anthropic import | ✅ PASS | `core/brain.py:15-18` — `try: import anthropic except ImportError: anthropic = None` |
+| Webhook HMAC verification | ✅ PASS | `api/routes/webhooks.py:48-55` — real `hmac.compare_digest` |
+| Team `/api/team/members` requires auth | ✅ PASS | `api/routes/team.py:83-88` — calls `_get_user_from_header` |
+
+### Vulnerabilities Found
+
+| ID | Severity | Finding | Evidence |
+|---|---|---|---|
+| V-1 | **High** | Dockerfile runs as root | `Dockerfile` — no `USER` directive. Container escape = root access to host. |
+| V-2 | **High** | `FRIDAY_DEV_MODE=1` bypasses all auth | `api/main.py:75` — if set with empty token, returns "dev_token". If accidentally set in production, all routes are open. |
+| V-3 | **Medium** | install.ps1 doesn't generate token | `install.ps1` — creates empty .env with `GLM_API_KEY=` only. Windows users get no auth. install.sh does generate. |
+| V-4 | **Medium** | 4 orphaned security modules | `core/privacy_audit.py`, `core/learning.py`, `core/self_improvement.py`, `core/proactive.py` — contain sensitive data handling logic but are not wired. Could be accidentally activated or misused. |
+| V-5 | **Medium** | Hash chain in plain JSON | `core/ledger.py:212-215` — `action_ledger_chain.json` is plain text, not encrypted, not signed with a server key. Anyone with file access can read all action history. |
+| V-6 | **Medium** | Rate limiter is in-memory, per-process | `core/rate_limiter.py:24` — `_rate_store` dict. Doesn't work behind load balancer. Reset on restart. |
+| V-7 | **Low** | slowapi in requirements but unused | `requirements.txt` — `slowapi>=0.1.9`. Replaced by custom `core/rate_limiter.py`. Dead dependency. |
+| V-8 | **Low** | 35 bare `pass` after `except` | Throughout codebase — silent failures with no logging. Operational blind spots. |
+| V-9 | **Low** | MCP chat/vision/search auto-approve (low risk) | `mcp_server.py:236-242` — queue + immediately approve. Acceptable for read-only calls but means any MCP client can call chat/vision/search without human approval. |
+| V-10 | **Informational** | No prompt injection sanitization | `core/brain.py:503-535` — system prompt is composed with user-controllable emotion, personality, and RAG context. No sanitization of user input before injection. |
+
+---
+
+## Phase 7 — Code Quality
+
+| Aspect | Score | Evidence |
+|---|---|---|
+| Architecture quality | 6/10 | Clean plugin system, good patterns; god class (868 lines), 4 dead modules, no service layer |
+| Maintainability | 5/10 | 321 `except Exception`, 35 bare `pass`, god class; but good naming, good docstrings |
+| Readability | 7/10 | Consistent naming, zero theatrical naming, good docstrings on public APIs |
+| Modularity | 7/10 | Clean package boundaries, auto-discovery pattern; but brain.py mixes 5 responsibilities |
+| Coupling | 6/10 | API routes directly call core modules (no service layer); brain.py imports 10+ modules |
+| Cohesion | 6/10 | Most modules are focused; brain.py is the exception with 5+ responsibilities |
+| Duplication | 6/10 | Rate limiting pattern in chat.py + integrations.py; `_get_limiter()` pattern |
+| Technical debt | 5/10 | slowapi unused, 4 dead modules, install.ps1 inconsistency, no CI/CD |
+| Complexity | 5/10 | `chat_stream` is 191 lines with 5 branches; `_build_universal_tools` is 129 lines |
+| Scalability | 3/10 | Single-process, in-memory state everywhere, O(N) vector search, no connection pooling |
+
+---
+
+## Phase 8 — Testing Audit
+
+| Metric | Value | Assessment |
+|---|---|---|
+| Test functions | 242 | Good count |
+| Test files | 15 | Adequate |
+| Assertions | 337 | ~1.4 per test — reasonable |
+| Integration tests | 3 (skipped without credentials) | Good structure |
+| Verify scripts | 33 | Standalone demos, NOT regression tests |
+| Mock usage | 9/15 test files | Appropriate for external services |
+
+**Tests that verify real behavior (not just happy paths):**
+- `test_ledger_security.py:25` — Tests NEVER_AUTO_APPROVE at POWER profile (Commerce stays pending)
+- `test_ledger_security.py:75` — Tests hash chain tamper detection (modify entry → verify returns False)
+- `test_ledger_security.py:130` — Tests param redaction (password → `***REDACTED***`)
+- `test_mcp_security.py:14` — Tests MCP fail-closed (ledger=None → error, not execution)
+- `test_team_mode.py:38` — Tests cross-user privacy (Alice cannot see Bob's memories)
+- `test_pattern_engine.py:35` — Tests pattern discovery from real interaction history
+- `test_ambient.py:16` — Tests pattern evaluation + cooldown enforcement
+- `test_multimodal_memory.py:68` — Tests semantic search returns correct image
+- `test_plugin_sandbox.py:10` — Tests AST scan blocks dangerous imports
+
+**Missing tests:**
+- No test for rate limiting (verified manually but no pytest)
+- No test for identity mode switching
+- No test for webhook HMAC verification
+- No test for goal nudges
+- No test for the SDK
+- No test for daily journal skill
+- No test for subconscious mind in RAG
+- No test for memory compression
+- No end-to-end test exercising full chat → GLM → response flow
+
+**Confidence level:** 70%. Individual modules are well-tested with real assertions. Integration layer is under-tested.
+
+---
+
+## Phase 9 — Performance
+
+| Finding | Severity | Evidence |
+|---|---|---|
+| All LLM calls blocking via `asyncio.to_thread` | Medium | `core/glm_brain.py:171` — one thread per request; thread pool exhausts under concurrent load |
+| No connection pooling — GLMBrain in 10+ locations | Medium | `grep "GLMBrain()"` = 10+ instantiation sites, each creates new ZhipuAI client |
+| Vector search is O(N) with no indexing | Medium | `database/vector_store.py:28-44` — cosine similarity against every stored vector |
+| `FridayBrain.__init__` scans all integration plugins eagerly | Low | `core/brain.py:166` — `UniversalConnector()` on every brain construction |
+| No caching of GLM responses | Low | `core/glm_brain.py:127-188` — every identical query hits API |
+| Rate limiter is in-memory dict | Low | `core/rate_limiter.py:24` — fine for 1 process, breaks with multiple |
+| 321 `except Exception` may mask performance issues | Low | Throughout — errors caught and swallowed silently |
+
+**Scalability:**
+- **1 user:** Excellent — everything fast, in-memory, single-process
+- **10 users:** Marginal — thread pool exhaustion under concurrent LLM calls
+- **100 users:** Not suitable — O(N) vector search, no pooling, single process
+- **1,000+:** Requires complete redesign with Redis/database backing
+
+---
+
+## Phase 10 — Production Readiness
+
+**Would I deploy this today?** No.
+
+**What blocks deployment:**
+1. **Dockerfile runs as root** — `Dockerfile` has no `USER` directive. Basic security hygiene missing.
+2. **4 orphaned modules** with sensitive logic — `core/privacy_audit.py`, `core/learning.py`, `core/self_improvement.py`, `core/proactive.py` are dead code that could be accidentally activated.
+3. **No CI/CD** — 33 verify scripts are standalone, tests don't gate regressions in CI.
+4. **GLM branch has no tool calling** — free-tier users (the default) can't use tool-augmented reasoning. Only Claude (paid) branch has the tool-use loop.
+5. **321 `except Exception` blocks** — operational visibility is poor; errors are silently swallowed.
+6. **install.ps1 doesn't generate token** — Windows users get no auth by default.
+7. **slowapi unused but in requirements** — dead dependency.
+
+**Highest-risk issues:**
+1. Dockerfile root → container escape = host root
+2. `FRIDAY_DEV_MODE=1` footgun → all auth bypassed if set in production
+3. Hash chain in plain JSON → not encrypted, not server-signed
+4. In-memory rate limiter → doesn't work behind load balancer
+5. No prompt injection sanitization → user input composed into system prompt
+
+**Required fixes before deployment:**
+1. Add `USER nonroot` to Dockerfile (1 line)
+2. Delete or wire 4 orphaned modules (2 hours)
+3. Add CI/CD with GitHub Actions (2 hours)
+4. Add tool calling to GLM branch (4 hours — GLM-4-Flash supports function calling)
+5. Add token generation to install.ps1 (10 minutes)
+6. Remove slowapi from requirements.txt (1 line)
+
+---
+
+## Phase 11 — Open Source Readiness
+
+| Aspect | Score | Evidence |
+|---|---|---|
+| Repository organization | 8/10 | Clean module boundaries, intuitive directory structure |
+| Contributor friendliness | 7/10 | PLUGINS.md works (verified), auto-discovery is intuitive, good docstrings |
+| Documentation | 6/10 | Honest LIMITATIONS.md, DEPLOY.md; README not updated for v3.0 features |
+| Extensibility | 8/10 | Drop a .py file → auto-discovered; add MCP tool in 30 lines; add skill in 20 lines |
+| Developer experience | 7/10 | CLI is nice, SDK exists; but `pip install .` doesn't work without optional deps |
+| CI/CD readiness | 3/10 | No GitHub Actions, no pre-commit hooks, 33 verify scripts not in CI |
+| Licensing | 8/10 | MIT in pyproject.toml |
+| Community readiness | 5/10 | No CONTRIBUTING.md (marketplace has one), no issue templates, no CHANGELOG |
+
+---
+
+## Phase 12 — Competitive Analysis
+
+| Aspect | FRIDAY v3.0 | Open Interpreter | Aider | Continue.dev | AutoGPT |
+|---|---|---|---|---|---|
+| Core model | GLM-4-Flash (free) | OpenAI/local | OpenAI/Anthropic | Any | OpenAI |
+| Architecture | FastAPI + CLI + MCP | CLI/REPL | CLI | VS Code ext | Python agent |
+| Plugin system | Auto-discovery + marketplace + sandbox | None | None | Config | None |
+| Ledger/approval | Hash-chained, tamper-evident, persisted | None | None | None | None |
+| Memory | Vector + keyword + multimodal + subconscious + compression | Ephemeral | Git context | Codebase | Short-term |
+| Voice | Whisper + pyttsx3 + barge-in + adaptive pace | None | None | None | None |
+| MCP | Full server + request_approval | None | None | None | None |
+| Team mode | Per-user privacy with asyncio.Lock | None | None | None | None |
+| Identity modes | 5 configurable (General/Strategist/Creative/Debugger/Guardian) | None | None | None | None |
+| Agent orchestration | Swarm + pipeline + tactical | Single agent | Single agent | None | Single agent |
+| Nigerian context | Naira pricing, 15 banks, 6 news sources, power status | None | None | None | None |
+| Rate limiting | Custom sliding-window (works, real 429) | None | None | None | None |
+| Test count | 242 | Minimal | Minimal | Good | Minimal |
+| Security | 7/10 | 3/10 | 5/10 | 7/10 | 2/10 |
+| Production readiness | 5/10 | 4/10 | 6/10 | 8/10 | 3/10 |
+
+**Unique strengths:** MCP `request_approval` (external agent gating), tamper-evident hash chain, subconscious mind in RAG, 5 identity modes, Nigerian context, memory compression into wisdom tokens, agent swarm, plugin sandbox.
+
+**Missing capabilities:** No streaming TTS, no conversation branching UI, no code diff preview, no OAuth provider, no mobile app (SDK exists but no mobile client), no streaming video progress.
+
+**Architectural advantages:** Plugin auto-discovery (zero config), provider abstraction (4 backends), ledger-gated execution (every dangerous action), MCP protocol (standard for external agents).
+
+**Architectural disadvantages:** God class brain.py (868 lines), single-process state (no scaling), GLM branch lacks tool calling (free-tier limited), 321 except Exception (error swallowing), no service layer.
+
+---
+
+## Phase 13 — Final Engineering Verdict
+
+### Scores
+
+| Category | Score | Justification |
+|---|---|---|
+| Architecture | 6/10 | Clean plugin system, good patterns; god class, 4 dead modules, no service layer |
+| AI Engineering | 7/10 | Real GLM integration, council mode, deep research, RAG+subconscious; GLM branch lacks tool calling |
+| Security | 7/10 | Hash chain, param redaction, plugin sandbox, rate limiting works, MCP fail-closed + audit logging; Dockerfile root, 4 orphaned security modules |
+| Testing | 6/10 | 242 tests with real assertions (not just happy paths); no CI/CD, missing tests for identity/webhook/goals/rate-limiting |
+| Performance | 5/10 | Blocking LLM calls, O(N) vector search, no pooling; acceptable for 1 user, not for 10+ |
+| Maintainability | 5/10 | 321 except Exception, god class, 4 dead modules; but clean naming, good docstrings, zero theatrical naming |
+| Innovation | 8/10 | MCP request_approval, hash chain, subconscious mind, identity modes, Nigerian context, agent swarm, memory compression |
+| Open Source Readiness | 5/10 | Good structure, plugin docs work; no CI/CD, Dockerfile root, no CONTRIBUTING.md, README outdated |
+
+**Overall Score: 6.1/10**
+
+---
+
+### Top 50 Capabilities
+
+1. MCP `request_approval` — external agent gating (`mcp_server.py:509`)
+2. Tamper-evident hash chain, persisted to disk (`core/ledger.py:114-246`)
+3. Rate limiting with real 429 enforcement (`core/rate_limiter.py`)
+4. Plugin sandbox with AST scan (`cli/commands.py:516-565`)
+5. Param redaction in audit log (`core/ledger.py:128-145`)
+6. MCP fail-closed on ledger unavailable (`mcp_server.py:356,399,440`)
+7. Lazy anthropic import (`core/brain.py:15-18`)
+8. Council mode — parallel multi-provider comparison (`core/council_mode.py:229`)
+9. Deep research with synthesis + agreement/conflict detection (`agents/research_agent.py:61`)
+10. 5 identity modes (`config/identities.py:11`)
+11. Subconscious mind in RAG pipeline (`core/brain.py:549-557`)
+12. Team mode with asyncio.Lock + per-user privacy (`core/team_mode.py:31`)
+13. Agent swarm — parallel multi-agent dispatch (`agents/agent_manager.py:84`)
+14. Plugin auto-discovery — zero config (`core/universal_connector.py:37`)
+15. Memory bug fixed — assistant response stored correctly (`core/brain.py:702`)
+16. Nigerian context — Naira pricing, 15 banks, 6 news sources (`integrations/nigerian_context.py`)
+17. Writing style adaptation (`skills/writing_style.py:231`)
+18. Goal tracking with real nudges based on streaks (`api/routes/goals.py:85`)
+19. Webhook receiver with HMAC verification (`api/routes/webhooks.py`)
+20. Friday SDK — async Python client (`sdk/friday_sdk.py`)
+21. Vision-grounded clicking — screenshot → GLM-4V → click (`control/pc_control.py:130`)
+22. Conversation summarization (`core/brain.py:32`)
+23. RAG with vector + keyword fallback (`core/brain.py:109`)
+24. Multi-modal visual memory with semantic search (`core/multimodal_memory.py:29`)
+25. Memory compression into wisdom tokens (`database/compression.py:9`)
+26. Emotion detection with negation/intensifier handling (`core/emotions.py:20`)
+27. Personality adaptation with warmth/wit/formality sliders (`core/personality.py:21`)
+28. Context mode switching by real time-of-day (`core/context.py:26`)
+29. Behavioral pattern learning — action pairs, keyword frequency, time-of-day (`core/pattern_engine.py:31`)
+30. Ambient screen awareness — 4 patterns with cooldown (`core/ambient.py:67`)
+31. Wake-on-first-contact — 6h idle threshold (`core/wake_on_contact.py:25`)
+32. Conversational voice with barge-in (`voice/conversational.py:160`)
+33. Adaptive speaking pace (`voice/conversational.py:89`)
+34. Night whisper mode (`voice/conversational.py:84`)
+35. Agent pipeline — sequential chaining (`agents/agent_manager.py:104`)
+36. Tactical manager — coordination + synthesis (`agents/tactical_manager.py:9`)
+37. Coding orchestrator — multi-file project generation (`agents/coding_orchestrator.py:11`)
+38. Path traversal protection (`control/file_manager.py:20-24`)
+39. Browser JS execution gated at critical risk (`control/browser_control.py:128`)
+40. Push notifications — Telegram + desktop (`integrations/notifications.py:18`)
+41. Persona export/import — cross-device portability (`core/persona.py:24`)
+42. Cost tracker wired to chat route (`api/routes/chat.py:50-61`)
+43. NEVER_AUTO_APPROVE — 7 components hardcoded (`core/ledger.py:28-36`)
+44. Ethical Sentinel — 5-category risk scoring (`core/sentinel.py:31`)
+45. MCP audit logging for all 8 tools (`mcp_server.py:231-329`)
+46. Auto-generated API token on first start (`config/settings.py:51-92`)
+47. Daily journal from real ledger data (`skills/daily_journal.py:13`)
+48. Socratic teaching with LearningTracker (`skills/teach_me.py:60`)
+49. Deep health endpoint with real latency + fixes (`api/routes/health.py:20`)
+50. Cost dashboard with optimization suggestions (`api/routes/stats.py:178`)
+
+---
+
+### Top 25 Hidden Capabilities
+
+1. **Subconscious mind** — surfaces vector memory patterns as "intuition" in RAG context (`database/subconscious.py:10`)
+2. **Memory compression** — old memories → wisdom tokens retrievable via API (`database/compression.py:9`)
+3. **5 identity modes** — General/Strategist/Creative/Debugger/Guardian (`config/identities.py:11`)
+4. **Agent swarm** — parallel multi-agent dispatch (`agents/agent_manager.py:84`)
+5. **Agent pipeline** — sequential Research → Task → Coding → synthesis (`agents/agent_manager.py:104`)
+6. **Tactical manager** — plans agents, dispatches, synthesizes (`agents/tactical_manager.py:9`)
+7. **Coding orchestrator** — multi-file project generation (`agents/coding_orchestrator.py:11`)
+8. **Global Pulse** — RSS news from CNN/NYT feeds (`integrations/global_pulse.py:22`)
+9. **Finance integration** — 5 actions: budget, expenses, investments (`integrations/finance.py:11`)
+10. **Personality pushback** — assertive counter-suggestions (`core/personality.py:216`)
+11. **Emotion trend analysis** — emotion distribution over N interactions (`core/emotions.py:253`)
+12. **Wake-on-first-contact** — 6h idle → morning briefing (`core/wake_on_contact.py:25`)
+13. **Frustration detection** — RMS + zero-crossing rate from audio (`voice/conversational.py:308`)
+14. **Presence detection** — OpenCV face detection via webcam (`vision/presence.py:5`) — **dead code**
+15. **Proactive engine** — mode-aware daily briefings (`core/proactive.py:76`) — **dead code**
+16. **Self-improvement engine** — analyzes own failures, proposes improvements (`core/self_improvement.py:15`) — **dead code**
+17. **Learning system** — records user corrections, adjusts confidence (`core/learning.py:16`) — **dead code**
+18. **Privacy audit engine** — reports all data sent to each provider (`core/privacy_audit.py:17`) — **dead code**
+19. **Predictor** — pre-loads weather/calendar/news before user asks (`core/predictor.py:22`) — **orphaned**
+20. **Cost tracker** — persistent per-provider cost tracking (`core/cost_tracker.py:47`)
+21. **Workspace workflows** — coding mode, presentation mode (`control/workspace.py:10`)
+22. **Screenshot receipts** — browser + PC control attach screenshots to action receipts (`control/browser_control.py:40`)
+23. **Conversation summarizer** — compresses old messages to maintain context (`core/brain.py:32`)
+24. **Marketplace plugin** — WeatherAdvanced with hourly forecast + severe alerts (`marketplace/plugins/weather_advanced/`)
+25. **Friday SDK** — clean async Python client with 9 methods (`sdk/friday_sdk.py:19`)
+
+---
+
+### Top 25 Strengths
+
+1. MCP `request_approval` — only open-source AI assistant with external agent gating
+2. Tamper-evident hash chain persisted to disk — survives restarts, detects tampering
+3. Rate limiting actually works — 60 pass, 61st = 429 with Retry-After header
+4. Plugin sandbox with AST scan — blocks dangerous imports before installation
+5. Param redaction — password/api_key/token/payment_method redacted in audit log
+6. MCP fail-closed — ledger unavailable = refuse execution, not bypass
+7. Lazy anthropic import — brain.py works without optional deps
+8. Council mode — parallel multi-provider comparison with agreement analysis
+9. Deep research — multi-source synthesis with agreement/conflict detection + honest limitations
+10. 5 identity modes — each modifies system prompt + personality traits
+11. Subconscious mind wired into RAG — surfaces patterns as "intuition"
+12. Team mode with asyncio.Lock — per-user private memories, race condition protection
+13. Agent swarm — parallel multi-agent dispatch
+14. Plugin auto-discovery — drop a .py file, zero configuration
+15. Memory bug fixed — GLM branch now stores assistant response correctly
+16. Nigerian context — Naira pricing with real exchange rates, 15 banks, 6 news sources
+17. Writing style adaptation — learns sentence length, formality, contractions, humor
+18. Goal tracking with real nudges — streak computation, days-until, progress-based suggestions
+19. Webhook receiver with HMAC verification — real GitHub/Stripe/custom signature checks
+20. Friday SDK — clean async Python client for all API endpoints
+21. 242 tests with 337 real assertions — not just happy-path checks
+22. Zero theatrical naming — grep confirms clean
+23. Honest `not_implemented` pattern — never fakes success
+24. MCP audit logging for all 8 tools — chat/vision/search now logged
+25. Auto-generated API token — no more default-disabled auth
+
+---
+
+### Top 25 Weaknesses
+
+1. Dockerfile runs as root — no `USER` directive
+2. 4 orphaned modules (proactive, learning, self_improvement, privacy_audit) — dead code with sensitive logic
+3. God class `FridayBrain` — 868 lines, 20+ methods, 5+ responsibilities
+4. 321 `except Exception` blocks — error swallowing culture
+5. GLM branch has no tool calling — free-tier users can't use tool-augmented reasoning
+6. 35 bare `pass` after `except` — silent failures
+7. No CI/CD — 33 verify scripts are standalone, tests don't gate regressions
+8. slowapi in requirements but unused — dead dependency
+9. install.ps1 doesn't generate token — Windows users get no auth
+10. O(N) vector search — no indexing; cosine similarity against every vector
+11. No connection pooling — GLMBrain instantiated in 10+ locations
+12. In-memory rate limiter — doesn't work behind load balancer
+13. Hash chain in plain JSON — not encrypted, not server-signed
+14. `FRIDAY_DEV_MODE=1` footgun — all auth bypassed if set in production
+15. No streaming TTS — TTS is full-text, blocking
+16. 8+ unprotected module-level singletons — only brain has asyncio.Lock
+17. No CONTRIBUTING.md — marketplace has one but main repo doesn't
+18. README not updated for v3.0 — doesn't mention identity modes, goals, webhooks, SDK
+19. systemd service file fails validation — uvicorn path not found
+20. No end-to-end tests — everything is unit-level with mocks
+21. No prompt injection sanitization — user input composed into system prompt
+22. Single-process state — no horizontal scaling possible
+23. No OAuth provider — can't act as OAuth server for third-party apps
+24. No code diff preview — coding agent writes files without showing diff first
+25. No streaming video generation progress — fire-and-poll, no progress callback
+
+---
+
+### Highest Priority Improvements
+
+1. **Add `USER nonroot` to Dockerfile** — 1 line, eliminates root exploit risk
+2. **Delete or wire 4 orphaned modules** — 2 hours, eliminates dead code
+3. **Add CI/CD with GitHub Actions** — 2 hours, gates regressions on every PR
+4. **Add tool calling to GLM branch** — GLM-4-Flash supports function calling via ZhipuAI SDK; free-tier users should get tool-augmented reasoning
+5. **Add token generation to install.ps1** — 10 minutes, matches install.sh
+6. **Remove slowapi from requirements.txt** — 1 line, it's unused
+7. **Decompose `FridayBrain`** — split into ChatRouter, ToolExecutor, RAGPipeline, CreativeRouter
+8. **Add rate limiter test to pytest** — 30 minutes, prevents future regressions
+9. **Update README for v3.0** — document identity modes, goals, webhooks, SDK, subconscious
+10. **Replace 35 bare `pass` with `logger.debug()`** — 1 hour, improves operational visibility
+
+---
+
+### Overall Engineering Assessment
+
+FRIDAY v3.0 is a **genuinely innovative personal AI assistant** with several capabilities no other open-source project offers. The architecture is well-organized with clean plugin auto-discovery, a tamper-evident hash-chained ledger, MCP protocol support with `request_approval` for external agent gating, and a subconscious mind module integrated into the RAG pipeline. The v3.0 release successfully wired 8 previously-orphaned modules, fixed the broken rate limiting (now actually enforces 429s), added MCP audit logging for all tools, and introduced goals, webhooks, notifications, SDK, and deployment configs.
+
+However, the project is **not yet production-ready**. The Dockerfile runs as root, 4 modules remain orphaned (including security-sensitive ones like `privacy_audit.py`), the god class `FridayBrain` is 868 lines, 321 `except Exception` blocks mask errors, and the GLM branch (the default free-tier provider) lacks tool calling — meaning free-tier users get chat but not tool-augmented reasoning. There is no CI/CD pipeline, and the README hasn't been updated for v3.0 features.
+
+The project needs **one focused day of work** (P0 items: Dockerfile USER, delete orphans, add CI/CD, add token to install.ps1, remove unused slowapi, update README, add tool calling to GLM branch) to be genuinely open-source-ready. After that, it would be a compelling, differentiated AI assistant with genuine Z.ai free-tier integration, a security infrastructure that most open-source AI assistants lack entirely, and an architecture that supports rapid extension via plugins, skills, MCP tools, and identity modes.

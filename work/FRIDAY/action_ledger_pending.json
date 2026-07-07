@@ -1,24 +1,6 @@
 {
-  "7a5b2079-e690-46fe-9de4-65f87405773d": {
-    "id": "7a5b2079-e690-46fe-9de4-65f87405773d",
-    "component": "Test",
-    "action": "test_action",
-    "params": {},
-    "risk_level": "high",
-    "status": "pending",
-    "timestamp": "2026-07-04T11:47:24.662403"
-  },
-  "c839f9ef-af15-49c4-9396-b87987f0178a": {
-    "id": "c839f9ef-af15-49c4-9396-b87987f0178a",
-    "component": "Test",
-    "action": "test",
-    "params": {},
-    "risk_level": "high",
-    "status": "pending",
-    "timestamp": "2026-07-04T11:47:25.668521"
-  },
-  "b8110788-ec9d-47b5-b39e-382c322e1baa": {
-    "id": "b8110788-ec9d-47b5-b39e-382c322e1baa",
+  "f4d341c2-a81d-4ebc-bb5e-12583920c3c3": {
+    "id": "f4d341c2-a81d-4ebc-bb5e-12583920c3c3",
     "component": "MCPChat",
     "action": "chat",
     "params": {
@@ -26,10 +8,10 @@
     },
     "risk_level": "low",
     "status": "approved",
-    "timestamp": "2026-07-04T13:02:14.808130"
+    "timestamp": "2026-07-07T20:37:24.054659"
   },
-  "c9aff0c0-3c18-4819-bb40-1548f92b690b": {
-    "id": "c9aff0c0-3c18-4819-bb40-1548f92b690b",
+  "07380a3a-c008-4a11-a3c8-da730c176014": {
+    "id": "07380a3a-c008-4a11-a3c8-da730c176014",
     "component": "MCPChat",
     "action": "chat",
     "params": {
@@ -37,24 +19,24 @@
     },
     "risk_level": "low",
     "status": "approved",
-    "timestamp": "2026-07-04T13:02:14.986571"
+    "timestamp": "2026-07-07T20:37:24.207292"
   },
-  "25bc40cb-6851-4ed3-b99e-5cdef656e68a": {
-    "id": "25bc40cb-6851-4ed3-b99e-5cdef656e68a",
+  "9877a09d-58b6-434e-b59c-dc3b63ab0e20": {
+    "id": "9877a09d-58b6-434e-b59c-dc3b63ab0e20",
     "component": "Test",
     "action": "test_action",
     "params": {},
     "risk_level": "high",
     "status": "pending",
-    "timestamp": "2026-07-04T13:02:14.997124"
+    "timestamp": "2026-07-07T20:37:24.219499"
   },
-  "0942f6af-2508-4ee0-bdb8-729196147a31": {
-    "id": "0942f6af-2508-4ee0-bdb8-729196147a31",
+  "5f93e7f6-3c2e-4ca0-88ba-cdc7545b0345": {
+    "id": "5f93e7f6-3c2e-4ca0-88ba-cdc7545b0345",
     "component": "Test",
     "action": "test",
     "params": {},
     "risk_level": "high",
     "status": "pending",
-    "timestamp": "2026-07-04T13:02:16.001784"
+    "timestamp": "2026-07-07T20:37:25.225206"
   }
 }
