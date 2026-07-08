@@ -224,8 +224,8 @@ class PriceComparison(BaseIntegration):
                     title_element = await page.query_selector(title_selector)
                     if title_element:
                         title_text = await title_element.inner_text()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Non-critical error: {e}")
 
             # Parse price from text
             price = self._parse_price(price_text)

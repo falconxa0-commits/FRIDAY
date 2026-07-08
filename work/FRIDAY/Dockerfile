@@ -18,6 +18,11 @@ COPY . .
 # Create workspace directory
 RUN mkdir -p /app/friday_workspace
 
+# Create non-root user for security (prevents container escape → host root)
+RUN addgroup --system friday && adduser --system --ingroup friday friday
+RUN chown -R friday:friday /app
+USER friday
+
 # Environment defaults
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \

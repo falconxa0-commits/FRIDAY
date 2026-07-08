@@ -53,8 +53,8 @@ class Printer3D(BaseIntegration):
                 self._backend = "octoprint"
                 logger.info("OctoPrint is reachable at %s", self.octoprint_url)
                 return True
-        except (httpx.ConnectError, httpx.TimeoutException):
-            pass
+        except (httpx.ConnectError, httpx.TimeoutException) as e:
+            logger.debug(f"Non-critical error: {e}")
         except Exception as exc:
             logger.debug(f"OctoPrint check error: {exc}")
 
@@ -68,8 +68,8 @@ class Printer3D(BaseIntegration):
                 self._backend = "moonraker"
                 logger.info("Moonraker is reachable at %s", self.moonraker_url)
                 return True
-        except (httpx.ConnectError, httpx.TimeoutException):
-            pass
+        except (httpx.ConnectError, httpx.TimeoutException) as e:
+            logger.debug(f"Non-critical error: {e}")
         except Exception as exc:
             logger.debug(f"Moonraker check error: {exc}")
 

@@ -454,8 +454,8 @@ class ActionLedger:
                     try:
                         speaker.speak(text)
                         return
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"Non-critical error: {e}")
             print(f"[VOICE APPROVAL] {text}")
 
         async def _listen_once() -> str:
@@ -505,8 +505,8 @@ class ActionLedger:
                 if tmp_path:
                     try:
                         _os.unlink(tmp_path)
-                    except OSError:
-                        pass
+                    except OSError as e:
+                        logger.debug(f"Non-critical error: {e}")
 
         # Step 1: Speak the action
         await _speak(description)

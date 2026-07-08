@@ -52,8 +52,8 @@ class FridayClient:
                             evt = json.loads(payload)
                             if evt.get("type") == "text":
                                 yield evt.get("content", "")
-                        except json.JSONDecodeError:
-                            pass
+                        except json.JSONDecodeError as e:
+                            logger.debug(f"Non-critical error: {e}")
 
     async def generate_image(self, prompt: str) -> dict:
         """Generate an image via CogView-3."""

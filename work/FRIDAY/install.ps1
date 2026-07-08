@@ -41,8 +41,15 @@ if (-not (Test-Path .env)) {
         Write-Host "  Created .env from .env.example"
     } else {
         "GLM_API_KEY=" | Out-File .env -Encoding ascii
-        Write-Host "  Created empty .env"
+        Write-Host "  Created .env"
     }
+    # Generate a secure random FRIDAY_API_TOKEN
+    $tokenBytes = New-Object byte[] 32
+    [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($tokenBytes)
+    $token = [System.Convert]::ToBase64String($tokenBytes) -replace '[+/=]', ''
+    "FRIDAY_API_TOKEN=$token" | Add-Content .env
+    Write-Host "  Secure auth token generated ($($token.Length) chars)." -ForegroundColor Green
+    Write-Host "  Keep your .env file private — it contains your Friday credentials." -ForegroundColor Yellow
 } else {
     Write-Host "  .env already exists — leaving it alone"
 }

@@ -141,13 +141,13 @@ class ScreenAnalyzer:
         if match:
             try:
                 return json.loads(match.group())
-            except (json.JSONDecodeError, ValueError):
-                pass
+            except (json.JSONDecodeError, ValueError) as e:
+                logger.debug(f"Non-critical error: {e}")
         # Try parsing the whole text as JSON
         try:
             data = json.loads(text)
             if isinstance(data, dict) and "x" in data and "y" in data:
                 return data
-        except (json.JSONDecodeError, ValueError):
-            pass
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.debug(f"Non-critical error: {e}")
         return None

@@ -1,0 +1,56 @@
+name: FRIDAY CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install dependencies
+      run: |
+        pip install --upgrade pip "setuptools<81" wheel
+        pip install --no-build-isolation -r requirements.txt
+        pip install pytest pytest-asyncio
+
+    - name: Boot smoke test
+      run: |
+        PYTHONPATH=. python3 -c "
+        from core.brain import FridayBrain
+        b = FridayBrain()
+        assert b.provider == 'glm', f'Expected glm, got {b.provider}'
+        print('PASS: FridayBrain boots with GLM as default provider')
+        "
+
+    - name: MockBrain regression guard
+      run: |
+        PYTHONPATH=. python3 -c "
+        src = open('benchmarks/run_benchmark.py').read()
+        assert 'MockBrain' not in src, 'REGRESSION: MockBrain found in benchmark runner'
+        assert 'FridayBrain' in src, 'REGRESSION: FridayBrain missing from benchmark runner'
+        print('PASS: Benchmark runner uses real FridayBrain')
+        "
+
+    - name: Full test suite
+      run: PYTHONPATH=. python3 -m pytest tests/ -q --tb=short
+
+    - name: Hellfire audit
+      run: PYTHONPATH=. FRIDAY_API_TOKEN=test python3 scripts/hellfire_audit.py
+
+    - name: Theatrical naming check
+      run: |
+        hits=$(grep -rn "Singularity\|God-Mode\|FridayApex\|Ghost-Mode\|SWAT\|4D timeline\|Nexus Cinema\|peer not a tool\|Recursive Modification" \
+          --include=*.py --include=*.md . \
+          | grep -v __pycache__ | grep -v "CHANGELOG\|verify_\|scripts/" | grep -v ".github" || true)
+        if [ -n "$hits" ]; then echo "FAIL: $hits"; exit 1; fi
+        echo "PASS: Zero theatrical naming"

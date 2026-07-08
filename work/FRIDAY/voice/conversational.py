@@ -276,8 +276,8 @@ class ConversationalVoice:
                 finally:
                     try:
                         os.unlink(tmp_path)
-                    except OSError:
-                        pass
+                    except OSError as e:
+                        logger.debug(f"Non-critical error: {e}")
         except (KeyboardInterrupt, asyncio.CancelledError):
             print("\nVoice mode stopped.")
 

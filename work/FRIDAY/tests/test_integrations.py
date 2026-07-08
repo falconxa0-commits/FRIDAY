@@ -140,8 +140,8 @@ class TestIntegrationDiscovery:
             second = reg.get_integration("Weather")
             if first is not None:
                 assert first is second
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"Non-critical error: {e}")
 
     def test_get_available_services(self):
         """Should return only services whose available() is True."""

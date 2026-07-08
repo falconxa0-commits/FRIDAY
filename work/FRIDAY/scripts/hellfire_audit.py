@@ -298,8 +298,8 @@ def check_no_hardcoded_secrets():
                             continue
                         fail(str(py.relative_to(ROOT)), f"line {i}: potential hardcoded secret")
                         found = True
-        except (UnicodeDecodeError, PermissionError):
-            pass
+        except (UnicodeDecodeError, PermissionError) as e:
+            logger.debug(f"Non-critical error: {e}")
     
     if not found:
         pass_("No hardcoded secrets found")

@@ -286,8 +286,8 @@ class GLMBrain:
                                     results.extend(data)
                                 elif isinstance(data, dict):
                                     results.append(data)
-                            except Exception:
-                                pass
+                            except Exception as e:
+                                logger.debug(f"Non-critical error: {e}")
 
                 # If no tool_calls, the response content itself may contain
                 # the synthesized answer — return it as a single result
@@ -355,8 +355,8 @@ class GLMBrain:
                                     "status": "success",
                                     "output": tool_call.function.arguments,
                                 }
-                            except Exception:
-                                pass
+                            except Exception as e:
+                                logger.debug(f"Non-critical error: {e}")
 
                 # Fallback: return the text content
                 content = msg.content if hasattr(msg, "content") else str(msg)

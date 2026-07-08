@@ -239,8 +239,8 @@ class FridayMCPServer:
                 )
                 # Read-only calls auto-approve at STANDARD+ profile
                 ledger.approve_action(action_id)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Non-critical error: {e}")
 
         glm = self._get_glm_brain()
         if glm and glm.available():
@@ -291,8 +291,8 @@ class FridayMCPServer:
                     risk_level="low",
                 )
                 ledger.approve_action(action_id)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Non-critical error: {e}")
 
         glm = self._get_glm_brain()
         if not glm or not glm.available():
@@ -325,8 +325,8 @@ class FridayMCPServer:
                     risk_level="low",
                 )
                 ledger.approve_action(action_id)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Non-critical error: {e}")
 
         glm = self._get_glm_brain()
         if not glm or not glm.available():
@@ -751,8 +751,8 @@ async def serve_stdio():
                 }
                 writer.write((json.dumps(error_response) + "\n").encode())
                 await writer.drain()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Non-critical error: {e}")
 
 
 # ──────────────────────────────────────────────────────────────────────────────

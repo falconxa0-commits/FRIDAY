@@ -150,8 +150,8 @@ class FridayMemory:
         if role == "user":
             try:
                 self.extract_and_store_facts(content)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Non-critical error: {e}")
 
     # ------------------------------------------------------------------
     # Memory retrieval
@@ -220,8 +220,8 @@ class FridayMemory:
                                 "type": pattern_def["type"],
                             },
                         )
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"Non-critical error: {e}")
 
                 facts_extracted.append(
                     f"{pattern_def['type']}: {fact_value}"
@@ -234,8 +234,8 @@ class FridayMemory:
                     self.vector_store.add_memory(
                         text, {"category": category}
                     )
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Non-critical error: {e}")
             self._session_facts[f"{category}:{text[:50]}"] = {
                 "value": text,
                 "category": category,

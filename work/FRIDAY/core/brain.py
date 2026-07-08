@@ -543,7 +543,7 @@ class FridayBrain:
         return prompt
 
     async def _inject_rag_context(self, message: str) -> str:
-        """Inject RAG-retrieved memories + subconscious patterns into the conversation."""
+        """Inject RAG-retrieved memories + subconscious patterns + learning corrections."""
         rag_context = await self.rag_pipeline.retrieve_context(message)
 
         # Surface subconscious patterns relevant to the current message
@@ -553,10 +553,133 @@ class FridayBrain:
             intuition = sub.get_intuition()
             if intuition and len(intuition) > 10:
                 rag_context += f"\n\n[Subconscious insight: {intuition[:300]}]"
-        except Exception:
-            pass  # Subconscious mind is optional
+        except Exception as e:
+            self.logger.debug(f"Subconscious mind unavailable: {e}")
+
+        # Check for relevant corrections from the learning system
+        try:
+            from core.learning import FridayLearningSystem
+            ls = FridayLearningSystem()
+            corrections = await ls.check_similar_corrections(message)
+            if corrections:
+                for c in corrections[:3]:
+                    rag_context += (
+                        f"\n\n[Correction from previous session: "
+                        f"you previously said '{c['original'][:100]}' "
+                        f"but were corrected to '{c['correction'][:100]}'. "
+                        f"Avoid repeating the mistake.]"
+                    )
+        except Exception as e:
+            self.logger.debug(f"Learning system unavailable: {e}")
 
         return rag_context
+
+    # ------------------------------------------------------------------
+    # GLM tool-calling loop — mirrors the Claude branch
+    # ------------------------------------------------------------------
+
+    async def _glm_stream_with_tools(
+        self,
+        messages: list,
+        tools: list,
+        system_prompt: str,
+    ) -> AsyncGenerator[str, None]:
+        """GLM tool-calling loop — mirrors the Claude branch.
+
+        GLM-4-Flash supports function calling via the ZhipuAI SDK
+        using OpenAI-compatible tools format.
+        Max 5 rounds to prevent infinite loops.
+        """
+        max_rounds = 5
+        glm_client = self.glm_brain._ensure_client()
+        if glm_client is None:
+            yield "Error: GLM client not initialised."
+            return
+
+        # Prepend system prompt if provided
+        if system_prompt and (not messages or messages[0].get("role") != "system"):
+            messages = [{"role": "system", "content": system_prompt}] + messages
+
+        for round_num in range(max_rounds):
+            try:
+                response = await asyncio.to_thread(
+                    glm_client.chat.completions.create,
+                    model=self.glm_brain._model_name,
+                    messages=messages,
+                    tools=tools if tools else None,
+                    stream=False,
+                )
+            except Exception as e:
+                self.logger.error(f"GLM tool call error (round {round_num}): {e}")
+                yield f"Error in GLM tool calling: {e}"
+                return
+
+            choice = response.choices[0]
+            finish_reason = getattr(choice, "finish_reason", "stop")
+            message = choice.message
+            tool_calls = getattr(message, "tool_calls", None)
+
+            # Model wants to call tools
+            if finish_reason == "tool_calls" and tool_calls:
+                # Add assistant message with tool_calls to history
+                messages.append({
+                    "role": "assistant",
+                    "content": getattr(message, "content", "") or "",
+                    "tool_calls": [
+                        {
+                            "id": tc.id,
+                            "type": "function",
+                            "function": {
+                                "name": tc.function.name,
+                                "arguments": tc.function.arguments,
+                            },
+                        }
+                        for tc in tool_calls
+                    ],
+                })
+
+                # Execute each tool and collect results
+                for tool_call in tool_calls:
+                    tool_name = tool_call.function.name
+                    try:
+                        tool_input = json.loads(tool_call.function.arguments)
+                    except (json.JSONDecodeError, TypeError):
+                        tool_input = {}
+
+                    self.logger.info(f"GLM tool call: {tool_name}({tool_input})")
+                    yield f"\n[System: {tool_name}(...)]\n"
+
+                    tool_result = await self._execute_tool(tool_name, tool_input)
+
+                    messages.append({
+                        "role": "tool",
+                        "tool_call_id": tool_call.id,
+                        "content": str(tool_result),
+                    })
+
+                # Continue to next round with tool results injected
+                continue
+
+            # No more tool calls — stream the final text response
+            final_content = getattr(message, "content", "") or ""
+            # Store assistant response in memory
+            if self.memory and final_content.strip():
+                try:
+                    self.memory.store_conversation("assistant", final_content)
+                except Exception as e:
+                    self.logger.warning(f"Memory store failed: {e}")
+            # Stream word by word for natural feel
+            words = final_content.split(" ")
+            for i, word in enumerate(words):
+                if i < len(words) - 1:
+                    yield word + " "
+                else:
+                    yield word
+            return
+
+        # Max rounds reached — yield what we have
+        self.logger.warning("GLM tool calling reached max rounds (5)")
+        yield "I reached the maximum reasoning steps. Please try rephrasing your request."
 
     # ------------------------------------------------------------------
     # Creative suite routing — image / video generation
@@ -663,15 +786,15 @@ class FridayBrain:
             try:
                 detected_mood = self.emotions.detect_emotion(message)
                 self.logger.info(f"Detected mood: {detected_mood}")
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Non-critical error: {e}")
 
         # Store user message in memory
         if self.memory:
             try:
                 self.memory.store_conversation("user", message)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Non-critical error: {e}")
 
         # ------------------------------------------------------------------
         # Creative suite routing — detect image/video generation requests
@@ -690,18 +813,28 @@ class FridayBrain:
                 # Inject RAG context
                 rag_ctx = await self._inject_rag_context(message)
                 glm_message = f"{rag_ctx}\n\nUser's current message: {message}" if rag_ctx else message
-                full_response = ""
-                async for chunk in self.glm_brain.chat_stream(
-                    glm_message, system_prompt=glm_system_prompt
-                ):
-                    full_response += chunk
-                    yield chunk
-                # Store assistant response in memory (NOT the user message again)
-                if self.memory and full_response.strip():
-                    try:
-                        self.memory.store_conversation("assistant", full_response)
-                    except Exception:
-                        pass
+
+                # Use tool-calling loop when tools are configured
+                if self.tools:
+                    messages = [{"role": "user", "content": glm_message}]
+                    async for chunk in self._glm_stream_with_tools(
+                        messages, self.tools, glm_system_prompt
+                    ):
+                        yield chunk
+                else:
+                    # No tools — simple streaming
+                    full_response = ""
+                    async for chunk in self.glm_brain.chat_stream(
+                        glm_message, system_prompt=glm_system_prompt
+                    ):
+                        full_response += chunk
+                        yield chunk
+                    # Store assistant response in memory
+                    if self.memory and full_response.strip():
+                        try:
+                            self.memory.store_conversation("assistant", full_response)
+                        except Exception as e:
+                            self.logger.warning(f"Memory store failed: {e}")
                 return
             # GLM not available — fall through to other providers
             self.logger.info("GLM not available, trying fallback providers")
@@ -805,8 +938,8 @@ class FridayBrain:
                             self.memory.store_conversation(
                                 "assistant", full_response
                             )
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.debug(f"Non-critical error: {e}")
 
                     break
 

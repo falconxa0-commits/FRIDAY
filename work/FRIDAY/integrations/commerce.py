@@ -213,15 +213,15 @@ class Commerce(BaseIntegration):
                 el = await page.query_selector(price_selector)
                 if el:
                     price_text = await el.inner_text()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Non-critical error: {e}")
             try:
                 if title_selector:
                     el = await page.query_selector(title_selector)
                     if el:
                         title_text = await el.inner_text()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Non-critical error: {e}")
 
             price = self._parse_price(price_text)
             return {

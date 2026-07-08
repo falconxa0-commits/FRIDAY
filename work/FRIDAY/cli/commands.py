@@ -652,8 +652,8 @@ async def _run_tui_default() -> int:
     from cli.terminal import run_tui
     try:
         await run_tui(status)
-    except KeyboardInterrupt:
-        pass
+    except KeyboardInterrupt as e:
+        logger.debug(f"Non-critical error: {e}")
     return 0
 
 

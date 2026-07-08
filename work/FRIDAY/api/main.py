@@ -15,7 +15,7 @@ from api.routes import (
     chat, memory, agents, integrations, actions, scheduler, stats, trust,
     team, health, patterns, visual_memory, nigeria,
     identity, subconscious, persona, goals,
-    notify, webhooks,
+    notify, webhooks, learning, self_improvement, privacy, proactive,
 )
 from config.settings import FRIDAY_API_TOKEN, BRAIN_PROVIDER, FRIDAY_DEV_MODE
 
@@ -133,6 +133,10 @@ app.include_router(persona.router, prefix="/api/persona", dependencies=[Depends(
 app.include_router(goals.router, prefix="/api/goals", dependencies=[Depends(verify_token)])
 app.include_router(notify.router, prefix="/api/notify", dependencies=[Depends(verify_token)])
 app.include_router(webhooks.router, prefix="/api/webhooks")  # no auth — webhooks verify their own signatures
+app.include_router(learning.router, prefix="/api/learning", dependencies=[Depends(verify_token)])
+app.include_router(self_improvement.router, prefix="/api/self-improvement", dependencies=[Depends(verify_token)])
+app.include_router(privacy.router, prefix="/api/privacy", dependencies=[Depends(verify_token)])
+app.include_router(proactive.router, prefix="/api/proactive", dependencies=[Depends(verify_token)])
 
 # Apply rate limits after all routers are loaded (avoids circular import)
 try:
@@ -317,5 +321,5 @@ async def websocket_endpoint(websocket: WebSocket):
             hb_task.cancel()
         try:
             await websocket.close()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"Non-critical error: {e}")

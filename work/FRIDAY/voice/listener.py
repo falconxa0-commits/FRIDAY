@@ -225,5 +225,5 @@ class FridayListener:
         if self.pa is not None:
             try:
                 self.pa.terminate()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Non-critical error: {e}")
