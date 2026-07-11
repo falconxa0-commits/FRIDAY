@@ -180,6 +180,10 @@ class FridayBrain:
         self.summarizer = ConversationSummarizer()
         self.rag_pipeline = RAGPipeline(memory=self.memory)
 
+        # Conversation branching
+        self._branches: Dict[str, dict] = {}  # branch_id → {history, parent_message_id, created_at}
+        self._active_branch_id: Optional[str] = None  # None = main conversation
+
         # Build tools
         self.tools = self._build_universal_tools()
 
@@ -976,6 +980,169 @@ class FridayBrain:
                 self.logger.error(f"Error in chat_stream: {e}", exc_info=True)
                 yield f"\n[System error: {str(e)}]\n"
                 break
+
+    # ------------------------------------------------------------------
+    # Conversation branching
+    # ------------------------------------------------------------------
+
+    async def branch_conversation(self, branch_point_message_id: str, new_message: str = "") -> dict:
+        """Fork the conversation at a specific message index.
+
+        Creates an independent branch with its own history.
+        The original conversation is unchanged.
+        """
+        import uuid as _uuid
+
+        # Find the branch point in conversation history
+        # message_id is the index as a string
+        try:
+            idx = int(branch_point_message_id)
+        except (ValueError, TypeError):
+            idx = len(self.conversation_history) - 1
+
+        # Clamp to valid range
+        idx = max(0, min(idx, len(self.conversation_history) - 1))
+
+        # Copy history up to and including the branch point
+        branch_history = list(self.conversation_history[:idx + 1])
+
+        branch_id = f"branch_{_uuid.uuid4().hex[:8]}"
+        self._branches[branch_id] = {
+            "history": branch_history,
+            "parent_message_id": branch_point_message_id,
+            "created_at": datetime.now().isoformat(),
+            "summaries": list(self.summarizer.summaries),
+        }
+
+        # Save main history before switching
+        if self._active_branch_id is None:
+            self._main_history = list(self.conversation_history)
+            self._main_summaries = list(self.summarizer.summaries)
+
+        # Switch to the new branch
+        self._active_branch_id = branch_id
+        self.conversation_history = branch_history
+        self.summarizer.summaries = list(self._branches[branch_id]["summaries"])
+
+        self.logger.info(
+            f"Created branch {branch_id} at message {idx} "
+            f"({len(branch_history)} messages copied)"
+        )
+
+        return {
+            "branch_id": branch_id,
+            "parent_message_id": branch_point_message_id,
+            "created_at": self._branches[branch_id]["created_at"],
+            "message_count": len(branch_history),
+        }
+
+    async def get_branches(self) -> list:
+        """List all active conversation branches with message counts."""
+        result = []
+        for bid, bdata in self._branches.items():
+            result.append({
+                "branch_id": bid,
+                "parent_message_id": bdata["parent_message_id"],
+                "created_at": bdata["created_at"],
+                "message_count": len(bdata["history"]),
+                "is_active": bid == self._active_branch_id,
+            })
+        # Include main conversation
+        result.append({
+            "branch_id": "main",
+            "parent_message_id": None,
+            "created_at": None,
+            "message_count": len(self.conversation_history) if self._active_branch_id is None else len(self._branches.get(self._active_branch_id, {}).get("history", [])),
+            "is_active": self._active_branch_id is None,
+        })
+        return result
+
+    async def switch_branch(self, branch_id: str) -> bool:
+        """Switch the active conversation to a different branch."""
+        if branch_id == "main":
+            # Save current branch state
+            if self._active_branch_id and self._active_branch_id in self._branches:
+                self._branches[self._active_branch_id]["history"] = list(self.conversation_history)
+                self._branches[self._active_branch_id]["summaries"] = list(self.summarizer.summaries)
+            self._active_branch_id = None
+            # Restore main history (stored separately)
+            if hasattr(self, "_main_history"):
+                self.conversation_history = list(self._main_history)
+                self.summarizer.summaries = list(getattr(self, "_main_summaries", []))
+            return True
+
+        if branch_id not in self._branches:
+            return False
+
+        # Save current state
+        if self._active_branch_id is None:
+            self._main_history = list(self.conversation_history)
+            self._main_summaries = list(self.summarizer.summaries)
+        elif self._active_branch_id in self._branches:
+            self._branches[self._active_branch_id]["history"] = list(self.conversation_history)
+            self._branches[self._active_branch_id]["summaries"] = list(self.summarizer.summaries)
+
+        # Switch to target branch
+        self._active_branch_id = branch_id
+        self.conversation_history = list(self._branches[branch_id]["history"])
+        self.summarizer.summaries = list(self._branches[branch_id].get("summaries", []))
+        self.logger.info(f"Switched to branch {branch_id}")
+        return True
+
+    async def merge_branch_insight(self, branch_id: str) -> str:
+        """Summarize what was learned in a branch and bring it back to main."""
+        if branch_id not in self._branches:
+            return "Branch not found."
+
+        branch_history = self._branches[branch_id]["history"]
+        if not branch_history:
+            return "Branch has no messages."
+
+        # Summarize the branch's key content
+        user_messages = [
+            m["content"] for m in branch_history
+            if m.get("role") == "user" and isinstance(m.get("content"), str)
+        ]
+        assistant_messages = [
+            m["content"] for m in branch_history
+            if m.get("role") == "assistant" and isinstance(m.get("content"), str)
+        ]
+
+        summary_parts = []
+        if user_messages:
+            summary_parts.append(f"User explored: {' | '.join(m[:100] for m in user_messages[-3:])}")
+        if assistant_messages:
+            summary_parts.append(f"Key findings: {' | '.join(m[:100] for m in assistant_messages[-3:])}")
+
+        insight = f"[Branch {branch_id} insight] " + " ".join(summary_parts)
+
+        # Add to main conversation as context
+        was_in_branch = self._active_branch_id == branch_id
+        if was_in_branch:
+            await self.switch_branch("main")
+        elif self._active_branch_id is not None:
+            # Save current, switch to main, add insight, switch back
+            await self.switch_branch("main")
+
+        self.conversation_history.append({
+            "role": "system",
+            "content": insight,
+        })
+
+        if was_in_branch:
+            await self.switch_branch(branch_id)
+
+        return insight
+
+    async def delete_branch(self, branch_id: str) -> bool:
+        """Delete a conversation branch."""
+        if branch_id == "main" or branch_id not in self._branches:
+            return False
+        if self._active_branch_id == branch_id:
+            await self.switch_branch("main")
+        del self._branches[branch_id]
+        self.logger.info(f"Deleted branch {branch_id}")
+        return True
 
     # ------------------------------------------------------------------
     # Utility methods

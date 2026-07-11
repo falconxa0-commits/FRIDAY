@@ -291,3 +291,45 @@ class FridayPersonality:
     def record_interaction(self):
         """Record that an interaction occurred."""
         self.interaction_count += 1
+
+
+# Response language system
+RESPONSE_LANGUAGES = {
+    "english": "Respond in clear, standard English.",
+    "pidgin": """Respond in natural Nigerian Pidgin English.
+        Use genuine Pidgin expressions naturally — not forced or over-done.
+        Examples of natural Pidgin: 'abeg', 'na wa o', 'e don do', 'wetin',
+        'wahala', 'oya', 'no wahala', 'e be like say', 'make I tell you'.
+        Sound like a real Lagos person talking to a friend — not a textbook.
+        For technical topics, mix English and Pidgin the way real Lagos
+        tech people actually talk.""",
+    "yoruba_mix": """Mix English and Yoruba naturally, the way educated
+        Lagosians speak — code-switching comfortably between the two.""",
+}
+
+PIDGIN_MARKERS = ['abeg', 'na wa', 'wetin', 'wahala', 'oya', 'dey',
+                  'dem', 'una', 'im be', 'e don', 'no be', 'na him',
+                  'make i', 'how far', 'wey', 'chop']
+YORUBA_MARKERS = ['jare', 'abi', 'sha', 'ehen', 'o wa', 'bawo']
+
+
+async def detect_input_language(text: str) -> str:
+    """Detect if input is Pidgin, Yoruba-mix, or English.
+
+    Uses keyword patterns — not a full language model.
+    Conservative: defaults to English if uncertain.
+    """
+    text_lower = text.lower()
+    pidgin_hits = sum(1 for m in PIDGIN_MARKERS if m in text_lower)
+    yoruba_hits = sum(1 for m in YORUBA_MARKERS if m in text_lower)
+
+    if pidgin_hits >= 2:
+        return "pidgin"
+    elif yoruba_hits >= 2:
+        return "yoruba_mix"
+    return "english"
+
+
+def get_language_prompt(language: str) -> str:
+    """Get the system prompt addition for the specified language."""
+    return RESPONSE_LANGUAGES.get(language, RESPONSE_LANGUAGES["english"])

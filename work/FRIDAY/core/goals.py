@@ -116,3 +116,93 @@ class GoalTracker:
             return (target - datetime.date.today()).days
         except (ValueError, TypeError):
             return None
+
+    async def detect_progress_evidence(self, goal_id: str) -> list:
+        """Look for real evidence of progress in actual behavior."""
+        goal = self._goals.get(goal_id)
+        if not goal:
+            return []
+
+        description = goal.get("description", "").lower()
+        goal_type = goal.get("type", "project")
+        evidence = []
+
+        # Scan research logs for goal-related queries
+        try:
+            from api.routes.stats import _request_log
+            import datetime
+            today = datetime.date.today().isoformat()
+            today_logs = [r for r in _request_log if r.get("timestamp", "").startswith(today)]
+            # Check if any logs reference the goal description keywords
+            desc_words = [w for w in description.split() if len(w) > 3]
+            for log in today_logs:
+                # We can't see the actual query, but we can check the model used
+                # This is a heuristic — real implementation would scan brain memory
+                pass
+        except Exception:
+            pass
+
+        # Scan memory for goal-related facts
+        try:
+            from core.memory import FridayMemory
+            mem = FridayMemory()
+            for m in mem._memories:
+                content = m.get("content", "").lower()
+                if any(w in content for w in desc_words if len(w) > 3):
+                    evidence.append({
+                        "source": "memory",
+                        "content": m.get("content", "")[:200],
+                        "timestamp": m.get("timestamp", ""),
+                        "relevance": 0.8 if description in content else 0.6,
+                    })
+        except Exception:
+            pass
+
+        # Scan learning corrections for goal-related topics
+        try:
+            from core.learning import FridayLearningSystem
+            ls = FridayLearningSystem()
+            corrections = ls.get_all_corrections()
+            for c in corrections:
+                if any(w in c.get("original", "").lower() or w in c.get("correction", "").lower()
+                       for w in desc_words if len(w) > 3):
+                    evidence.append({
+                        "source": "correction",
+                        "content": c.get("correction", "")[:200],
+                        "timestamp": c.get("timestamp", ""),
+                        "relevance": 0.9,
+                    })
+        except Exception:
+            pass
+
+        return evidence
+
+    async def auto_update_from_evidence(self, goal_id: str) -> dict:
+        """Automatically log progress if strong evidence found (>0.8 relevance).
+        Weak evidence (0.5-0.8) surfaces as a suggestion.
+        Never silently logs progress — always tells you what it found.
+        """
+        evidence = await self.detect_progress_evidence(goal_id)
+        if not evidence:
+            return {"status": "no_evidence", "message": "No evidence of progress found."}
+
+        strong = [e for e in evidence if e["relevance"] >= 0.8]
+        weak = [e for e in evidence if 0.5 <= e["relevance"] < 0.8]
+
+        if strong:
+            # Auto-log but tell the user
+            note = f"Auto-detected: {strong[0]['source']} — {strong[0]['content'][:100]}"
+            await self.update_progress(goal_id, note)
+            return {
+                "status": "auto_logged",
+                "message": f"Logged progress based on {len(strong)} strong evidence item(s).",
+                "evidence": strong,
+            }
+        elif weak:
+            return {
+                "status": "suggestion",
+                "message": f"Found {len(weak)} possible evidence item(s). Want me to log this as progress?",
+                "evidence": weak,
+            }
+
+        return {"status": "no_evidence", "message": "No evidence of progress found."}

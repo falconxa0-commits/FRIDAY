@@ -226,3 +226,94 @@ class AmbientEngine:
 
     def stop(self) -> None:
         self.active = False
+
+
+# Active intervention patterns — when accepted, actually execute the action
+INTERVENTION_PATTERNS = [
+    {
+        "id": "stuck_on_bug",
+        "condition": lambda ctx: (
+            ctx.get("same_screen_duration_minutes", 0) > 25 and
+            ctx.get("app", "") in ["vscode", "terminal", "code"] and
+            not ctx.get("recent_activity", False)
+        ),
+        "message": "You've been on this code for {duration} minutes. Want me to look at what's on screen?",
+        "action": "offer_screen_analysis",
+        "cooldown_minutes": 30,
+    },
+    {
+        "id": "meeting_prep",
+        "condition": lambda ctx: ctx.get("minutes_until_next_meeting", 999) <= 10,
+        "message": "You have a meeting in {minutes} minutes. Want me to pull up your notes?",
+        "action": "fetch_meeting_context",
+        "cooldown_minutes": 60,
+    },
+    {
+        "id": "error_detected",
+        "condition": lambda ctx: ctx.get("error_visible_on_screen", False),
+        "message": "I see an error on screen. Want me to diagnose it?",
+        "action": "analyze_error",
+        "cooldown_minutes": 5,
+    },
+    {
+        "id": "long_document",
+        "condition": lambda ctx: (
+            ctx.get("app", "") in ["chrome", "firefox", "safari"] and
+            ctx.get("scroll_depth_percent", 100) < 20 and
+            ctx.get("content_length_estimate", 0) > 5000
+        ),
+        "message": "That looks like a long read. Want me to summarize it?",
+        "action": "summarize_page",
+        "cooldown_minutes": 20,
+    },
+]
+
+
+async def execute_intervention_action(action_id: str, context: dict) -> dict:
+    """Execute the real action when a user accepts an ambient suggestion."""
+    if action_id == "offer_screen_analysis":
+        try:
+            from vision.screen_analyzer import ScreenAnalyzer
+            analyzer = ScreenAnalyzer()
+            from vision.screen_reader import ScreenReader
+            reader = ScreenReader()
+            shot_path = reader.capture_screen()
+            analysis = analyzer.analyze_screen(shot_path)
+            return {"status": "success", "analysis": str(analysis)[:500]}
+        except Exception as e:
+            return {"status": "error", "message": f"Screen analysis failed: {e}"}
+
+    elif action_id == "fetch_meeting_context":
+        try:
+            from core.memory import FridayMemory
+            mem = FridayMemory()
+            memories = mem.retrieve_relevant_memories("meeting notes agenda")
+            return {"status": "success", "memories": memories[:5]}
+        except Exception as e:
+            return {"status": "error", "message": f"Context fetch failed: {e}"}
+
+    elif action_id == "analyze_error":
+        try:
+            from vision.screen_reader import ScreenReader
+            from vision.ocr import FridayOCR
+            reader = ScreenReader()
+            shot_path = reader.capture_screen()
+            ocr = FridayOCR()
+            error_text = ocr.extract_text(shot_path)
+            return {"status": "success", "error_text": error_text[:500]}
+        except Exception as e:
+            return {"status": "error", "message": f"Error analysis failed: {e}"}
+
+    elif action_id == "summarize_page":
+        try:
+            from control.browser_control import BrowserControl
+            bc = BrowserControl()
+            await bc.start(headless=True)
+            # Get current page content
+            content = await bc.page.evaluate("document.body.innerText")
+            await bc.close()
+            return {"status": "success", "summary": content[:500]}
+        except Exception as e:
+            return {"status": "error", "message": f"Page summary failed: {e}"}
+
+    return {"status": "not_implemented", "message": f"Unknown action: {action_id}"}

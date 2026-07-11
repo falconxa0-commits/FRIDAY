@@ -15,7 +15,7 @@ from api.routes import (
     chat, memory, agents, integrations, actions, scheduler, stats, trust,
     team, health, patterns, visual_memory, nigeria,
     identity, subconscious, persona, goals,
-    notify, webhooks, learning, self_improvement, privacy, proactive,
+    notify, webhooks, learning, self_improvement, privacy, proactive, branching,
 )
 from config.settings import FRIDAY_API_TOKEN, BRAIN_PROVIDER, FRIDAY_DEV_MODE
 
@@ -137,6 +137,7 @@ app.include_router(learning.router, prefix="/api/learning", dependencies=[Depend
 app.include_router(self_improvement.router, prefix="/api/self-improvement", dependencies=[Depends(verify_token)])
 app.include_router(privacy.router, prefix="/api/privacy", dependencies=[Depends(verify_token)])
 app.include_router(proactive.router, prefix="/api/proactive", dependencies=[Depends(verify_token)])
+app.include_router(branching.router, prefix="/api", dependencies=[Depends(verify_token)])
 
 # Apply rate limits after all routers are loaded (avoids circular import)
 try:

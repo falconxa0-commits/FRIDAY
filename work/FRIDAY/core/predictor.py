@@ -196,3 +196,50 @@ class Predictor:
         self._active = False
         for task in self._preload_tasks:
             task.cancel()
+
+    async def start(self):
+        """Start the preload loop — called when Friday boots."""
+        asyncio.create_task(self._run_preload_loop())
+        logger.info("Predictor preload loop started")
+
+    async def _run_preload_loop(self):
+        """Background loop that preloads data at scheduled times."""
+        import os as _os
+        import datetime as _dt
+
+        PRELOAD_SCHEDULE = [
+            {"hour": 7, "minute": 0, "key": "morning_weather",
+             "action": "weather", "ttl_minutes": 60},
+            {"hour": 7, "minute": 5, "key": "todays_events",
+             "action": "calendar", "ttl_minutes": 120},
+            {"hour": 7, "minute": 10, "key": "morning_emails",
+             "action": "emails", "ttl_minutes": 30},
+            {"hour": 8, "minute": 0, "key": "morning_news",
+             "action": "news", "ttl_minutes": 240},
+        ]
+
+        last_preloaded = {}  # key → date string
+
+        while True:
+            now = _dt.datetime.now()
+            today = now.date().isoformat()
+
+            for entry in PRELOAD_SCHEDULE:
+                if now.hour == entry["hour"] and now.minute >= entry["minute"]:
+                    last_key = f"{entry['key']}_{today}"
+                    if last_preloaded.get(last_key):
+                        continue
+                    try:
+                        data = await self._fetch(entry["action"])
+                        if data is not None:
+                            self.set_cached(entry["key"], data)
+                            last_preloaded[last_key] = True
+                            logger.info(f"Preloaded {entry['key']} at {now.strftime('%H:%M')}")
+                    except Exception as e:
+                        logger.debug(f"Preload {entry['key']} failed: {e}")
+
+            await asyncio.sleep(60)
+
+    async def is_preloaded(self, cache_key: str) -> bool:
+        """Check if a key has been preloaded and is still fresh."""
+        return self.get_cached(cache_key, max_age_seconds=3600) is not None

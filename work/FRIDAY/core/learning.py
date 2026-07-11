@@ -14,10 +14,11 @@ logger = logging.getLogger(__name__)
 
 
 class FridayLearningSystem:
+    _shared_corrections: list = []  # class-level shared state
     """Friday learns from its mistakes via memory-based correction."""
 
     def __init__(self):
-        self._corrections: List[dict] = []
+        self._corrections = FridayLearningSystem._shared_corrections  # class-level shared state
 
     async def record_correction(self, original: str, correction: str, context: Optional[dict] = None):
         """Record a user correction."""

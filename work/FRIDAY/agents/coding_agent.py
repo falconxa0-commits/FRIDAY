@@ -198,3 +198,86 @@ class CodingAgent:
             "review": full_response,
             "task_type": "review"
         }
+
+    async def preview_changes(self, file_path: str, new_content: str) -> dict:
+        """Show a real unified diff before writing.
+
+        Returns a preview_id that must be approved to actually write.
+        """
+        from pathlib import Path
+        from difflib import unified_diff
+        import uuid as _uuid
+        import datetime as _dt
+
+        existing_lines = []
+        if Path(file_path).exists():
+            existing_lines = Path(file_path).read_text().splitlines(keepends=True)
+
+        new_lines = new_content.splitlines(keepends=True)
+        diff = list(unified_diff(
+            existing_lines,
+            new_lines,
+            fromfile=f"a/{file_path}",
+            tofile=f"b/{file_path}"
+        ))
+
+        additions = sum(1 for line in diff if line.startswith('+') and not line.startswith('+++'))
+        deletions = sum(1 for line in diff if line.startswith('-') and not line.startswith('---'))
+
+        preview_id = f"preview_{_uuid.uuid4().hex[:8]}"
+        if not hasattr(self, '_pending_writes'):
+            self._pending_writes = {}
+        self._pending_writes[preview_id] = {
+            "file_path": file_path,
+            "new_content": new_content,
+            "diff": "".join(diff),
+            "additions": additions,
+            "deletions": deletions,
+            "created_at": _dt.datetime.now().isoformat(),
+        }
+
+        return {
+            "preview_id": preview_id,
+            "file": file_path,
+            "diff": "".join(diff),
+            "additions": additions,
+            "deletions": deletions,
+            "message": f"{additions} additions, {deletions} deletions — approve to write"
+        }
+
+    async def apply_preview(self, preview_id: str) -> dict:
+        """Actually write the file after human approval via ledger."""
+        if not hasattr(self, '_pending_writes') or preview_id not in self._pending_writes:
+            return {"status": "error", "message": f"Preview {preview_id} not found."}
+
+        preview = self._pending_writes[preview_id]
+        file_path = preview["file_path"]
+        new_content = preview["new_content"]
+
+        # Queue through ledger for approval
+        from core.ledger import get_ledger
+        ledger = get_ledger()
+        action_id = ledger.queue_action(
+            "CodingAgent", "write_file",
+            {"file_path": file_path, "preview_id": preview_id},
+            risk_level="medium",
+        )
+        approved = await ledger.wait_for_approval(action_id, timeout=300)
+
+        if not approved:
+            return {"status": "rejected", "message": "File write rejected by user."}
+
+        # Write the file
+        from pathlib import Path
+        Path(file_path).parent.mkdir(parents=True, exist_ok=True)
+        Path(file_path).write_text(new_content)
+
+        # Clean up
+        del self._pending_writes[preview_id]
+
+        return {
+            "status": "success",
+            "message": f"File written: {file_path}",
+            "additions": preview["additions"],
+            "deletions": preview["deletions"],
+        }

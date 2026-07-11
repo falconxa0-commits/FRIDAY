@@ -9,6 +9,7 @@ class TestLearningSystem:
     @pytest.mark.asyncio
     async def test_record_correction(self):
         from core.learning import FridayLearningSystem
+        FridayLearningSystem._shared_corrections.clear()
         ls = FridayLearningSystem()
         entry = await ls.record_correction("Paris is in Germany", "Paris is in France")
         assert entry["original"] == "Paris is in Germany"
@@ -18,6 +19,7 @@ class TestLearningSystem:
     @pytest.mark.asyncio
     async def test_check_similar_corrections(self):
         from core.learning import FridayLearningSystem
+        FridayLearningSystem._shared_corrections.clear()
         ls = FridayLearningSystem()
         await ls.record_correction("Python is compiled", "Python is interpreted")
         results = await ls.check_similar_corrections("Python programming")
@@ -27,6 +29,7 @@ class TestLearningSystem:
     @pytest.mark.asyncio
     async def test_confidence_decreases_with_corrections(self):
         from core.learning import FridayLearningSystem
+        FridayLearningSystem._shared_corrections.clear()
         ls = FridayLearningSystem()
         # No corrections → high confidence
         conf_before = await ls.get_confidence("Python")

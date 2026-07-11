@@ -46,6 +46,19 @@ class VideoGen(BaseIntegration):
     def name(self) -> str:
         return self._name
 
+    def _ensure_client(self):
+        """Lazy-init the ZhipuAI client."""
+        if self._client is not None:
+            return self._client
+        if not self._api_key:
+            return None
+        try:
+            from zhipuai import ZhipuAI
+            self._client = ZhipuAI(api_key=self._api_key)
+            return self._client
+        except Exception:
+            return None
+
     def available(self) -> bool:
         """Return True if CogVideoX video generation is ready to use."""
         return _ZHIPU_AVAILABLE and bool(GLM_API_KEY)
@@ -192,3 +205,109 @@ class VideoGen(BaseIntegration):
 
     def list_actions(self) -> list:
         return ["generate_video"]
+
+    async def execute_with_progress(
+        self,
+        action: str,
+        params: dict,
+        progress_callback=None
+    ) -> dict:
+        """Generate video with real progress callbacks.
+
+        progress_callback receives: {job_id, status, elapsed_seconds, estimated_remaining}
+        """
+        import time as _time
+
+        if action != "generate_video":
+            return await self.execute(action, params)
+
+        if not self.available():
+            return self._make_response(
+                "not_implemented",
+                "GLM_API_KEY not set — video generation unavailable."
+            )
+
+        prompt = params.get("prompt", "")
+        if not prompt:
+            return self._make_response("error", "Missing 'prompt' parameter")
+
+        try:
+            # Submit job
+            job_id = await self._submit_job(prompt)
+            start_time = _time.time()
+
+            for attempt in range(30):
+                await asyncio.sleep(10)
+                elapsed = int(_time.time() - start_time)
+                status = await self._check_status(job_id)
+
+                if progress_callback:
+                    try:
+                        await progress_callback({
+                            "job_id": job_id,
+                            "status": status.get("task_status", "PROCESSING"),
+                            "elapsed_seconds": elapsed,
+                            "estimated_remaining": max(0, 90 - elapsed),
+                            "attempt": attempt + 1,
+                        })
+                    except Exception as e:
+                        logger.debug(f"Progress callback error: {e}")
+
+                if status.get("task_status") == "SUCCESS":
+                    video_url = status.get("video_url", "")
+                    return self._make_response(
+                        "success",
+                        f"Video generated: {video_url}",
+                        receipt_data={
+                            "task_id": job_id,
+                            "video_url": video_url,
+                            "model": "cogvideox",
+                            "elapsed_seconds": elapsed,
+                        },
+                    )
+                elif status.get("task_status") == "FAIL":
+                    return self._make_response("error", f"Generation failed: {status}")
+
+            return self._make_response("error", f"Timed out after {30*10}s. Job ID: {job_id}")
+
+        except Exception as exc:
+            logger.error(f"Video generation with progress failed: {exc}")
+            return self._make_response("error", f"Generation failed: {exc}")
+
+    async def _submit_job(self, prompt: str) -> str:
+        """Submit a video generation job and return the task ID."""
+        client = self._ensure_client()
+        if client is None:
+            return ""
+
+        def _call():
+            response = client.videos.generations.create(
+                model="cogvideox",
+                prompt=prompt,
+            )
+            return response
+
+        response = await asyncio.to_thread(_call)
+        return getattr(response, "id", getattr(response, "task_id", "unknown"))
+
+    async def _check_status(self, job_id: str) -> dict:
+        """Check the status of a video generation job."""
+        client = self._ensure_client()
+        if client is None:
+            return {"task_status": "FAIL", "video_url": ""}
+
+        def _call():
+            return client.videos.retrieve_videos_result(id=job_id)
+
+        try:
+            response = await asyncio.to_thread(_call)
+            task_status = getattr(response, "task_status", "PROCESSING")
+            video_url = ""
+            if task_status == "SUCCESS":
+                video_result = getattr(response, "video_result", [])
+                if video_result:
+                    video_url = getattr(video_result[0], "url", "")
+            return {"task_status": task_status, "video_url": video_url}
+        except Exception as e:
+            logger.debug(f"Status check error: {e}")
+            return {"task_status": "PROCESSING", "video_url": ""}
