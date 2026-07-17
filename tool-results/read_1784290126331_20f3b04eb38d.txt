@@ -1,0 +1,764 @@
+     1→#!/usr/bin/env python3
+     2→"""FRIDAY MCP Server — Model Context Protocol wrapper.
+     3→
+     4→Exposes FRIDAY's action layer as an MCP server with tool descriptions
+     5→that include the Z.ai capability set.  All actions are gated through
+     6→the ledger/auth/receipt system.
+     7→
+     8→Supported capabilities:
+     9→  - chat           : Stream a conversation with FRIDAY
+    10→  - vision         : Analyze an image using GLM-4V
+    11→  - web_search     : Search the web via ZhipuAI
+    12→  - image_generation: Generate images via CogView-3
+    13→  - video_generation: Generate videos via CogVideoX
+    14→  - code_execution : Execute code via ZhipuAI Code Interpreter
+    15→
+    16→Every action returns a real receipt with timestamp, action details,
+    17→and response data.
+    18→
+    19→Run:  python mcp_server.py
+    20→"""
+    21→
+    22→import asyncio
+    23→import datetime
+    24→import json
+    25→import logging
+    26→import os
+    27→import sys
+    28→from typing import Any, Dict, List, Optional
+    29→
+    30→# Ensure project root is on path
+    31→PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+    32→sys.path.insert(0, PROJECT_ROOT)
+    33→
+    34→from dotenv import load_dotenv
+    35→load_dotenv(os.path.join(PROJECT_ROOT, ".env"))
+    36→
+    37→logger = logging.getLogger("friday_mcp")
+    38→logging.basicConfig(level=logging.INFO, format="%(name)s | %(levelname)s | %(message)s")
+    39→
+    40→
+    41→# ──────────────────────────────────────────────────────────────────────────────
+    42→# Tool definitions
+    43→# ──────────────────────────────────────────────────────────────────────────────
+    44→
+    45→TOOLS = [
+    46→    {
+    47→        "name": "chat",
+    48→        "description": (
+    49→            "Stream a conversation with FRIDAY AI assistant. "
+    50→            "Uses GLM-4 (Z.ai free tier) by default, with fallback to "
+    51→            "Claude, Gemini, or Ollama based on configuration. "
+    52→            "Returns the assistant's response and a receipt."
+    53→        ),
+    54→        "inputSchema": {
+    55→            "type": "object",
+    56→            "properties": {
+    57→                "message": {
+    58→                    "type": "string",
+    59→                    "description": "The user message to send to FRIDAY.",
+    60→                },
+    61→            },
+    62→            "required": ["message"],
+    63→        },
+    64→    },
+    65→    {
+    66→        "name": "vision",
+    67→        "description": (
+    68→            "Analyze an image using GLM-4V vision model. "
+    69→            "Provide a base64-encoded image and an optional prompt. "
+    70→            "Returns a textual description and receipt."
+    71→        ),
+    72→        "inputSchema": {
+    73→            "type": "object",
+    74→            "properties": {
+    75→                "image_base64": {
+    76→                    "type": "string",
+    77→                    "description": "Base64-encoded image (without data URI prefix).",
+    78→                },
+    79→                "prompt": {
+    80→                    "type": "string",
+    81→                    "description": "Question or instruction about the image.",
+    82→                    "default": "Describe this image in detail.",
+    83→                },
+    84→            },
+    85→            "required": ["image_base64"],
+    86→        },
+    87→    },
+    88→    {
+    89→        "name": "web_search",
+    90→        "description": (
+    91→            "Search the web using ZhipuAI's built-in web search tool. "
+    92→            "Returns real search results with titles, URLs, and snippets."
+    93→        ),
+    94→        "inputSchema": {
+    95→            "type": "object",
+    96→            "properties": {
+    97→                "query": {
+    98→                    "type": "string",
+    99→                    "description": "The search query.",
+   100→                },
+   101→                "max_results": {
+   102→                    "type": "integer",
+   103→                    "description": "Maximum number of results to return.",
+   104→                    "default": 5,
+   105→                },
+   106→            },
+   107→            "required": ["query"],
+   108→        },
+   109→    },
+   110→    {
+   111→        "name": "image_generation",
+   112→        "description": (
+   113→            "Generate an image from a text description using CogView-3 "
+   114→            "via Z.ai.  Returns the image URL and receipt. "
+   115→            "NOTE: This action is never auto-approved — requires explicit consent."
+   116→        ),
+   117→        "inputSchema": {
+   118→            "type": "object",
+   119→            "properties": {
+   120→                "prompt": {
+   121→                    "type": "string",
+   122→                    "description": "Text description of the desired image.",
+   123→                },
+   124→                "size": {
+   125→                    "type": "string",
+   126→                    "description": "Image size, e.g. '1024x1024'.",
+   127→                    "default": "1024x1024",
+   128→                },
+   129→            },
+   130→            "required": ["prompt"],
+   131→        },
+   132→    },
+   133→    {
+   134→        "name": "video_generation",
+   135→        "description": (
+   136→            "Generate a video from a text description using CogVideoX "
+   137→            "via Z.ai.  Video generation takes 1-3 minutes. "
+   138→            "Returns a task ID and receipt. "
+   139→            "NOTE: This action is never auto-approved — requires explicit consent."
+   140→        ),
+   141→        "inputSchema": {
+   142→            "type": "object",
+   143→            "properties": {
+   144→                "prompt": {
+   145→                    "type": "string",
+   146→                    "description": "Text description of the desired video.",
+   147→                },
+   148→                "quality": {
+   149→                    "type": "string",
+   150→                    "description": "'quality' or 'speed'.",
+   151→                    "default": "quality",
+   152→                },
+   153→            },
+   154→            "required": ["prompt"],
+   155→        },
+   156→    },
+   157→    {
+   158→        "name": "code_execution",
+   159→        "description": (
+   160→            "Execute code using the ZhipuAI Code Interpreter. "
+   161→            "Returns the code output and receipt. "
+   162→            "NOTE: This action is never auto-approved — requires explicit consent."
+   163→        ),
+   164→        "inputSchema": {
+   165→            "type": "object",
+   166→            "properties": {
+   167→                "code": {
+   168→                    "type": "string",
+   169→                    "description": "The source code to execute.",
+   170→                },
+   171→                "language": {
+   172→                    "type": "string",
+   173→                    "description": "Programming language (default: python).",
+   174→                    "default": "python",
+   175→                },
+   176→            },
+   177→            "required": ["code"],
+   178→        },
+   179→    },
+   180→]
+   181→
+   182→
+   183→# ──────────────────────────────────────────────────────────────────────────────
+   184→# MCP Server implementation (stdio transport)
+   185→# ──────────────────────────────────────────────────────────────────────────────
+   186→
+   187→class FridayMCPServer:
+   188→    """FRIDAY MCP Server — wraps the action layer with ledger/auth/receipt."""
+   189→
+   190→    def __init__(self):
+   191→        self._glm_brain = None
+   192→        self._ledger = None
+   193→
+   194→    def _get_glm_brain(self):
+   195→        """Lazy-initialize GLMBrain."""
+   196→        if self._glm_brain is None:
+   197→            try:
+   198→                from core.glm_brain import GLMBrain
+   199→                self._glm_brain = GLMBrain()
+   200→            except Exception as exc:
+   201→                logger.error(f"Failed to initialize GLMBrain: {exc}")
+   202→        return self._glm_brain
+   203→
+   204→    def _get_ledger(self):
+   205→        """Lazy-initialize the action ledger."""
+   206→        if self._ledger is None:
+   207→            try:
+   208→                from core.ledger import get_ledger
+   209→                self._ledger = get_ledger()
+   210→            except Exception as exc:
+   211→                logger.error(f"Failed to initialize ledger: {exc}")
+   212→        return self._ledger
+   213→
+   214→    def _make_receipt(self, action: str, result: dict) -> dict:
+   215→        """Create a receipt for an MCP tool call."""
+   216→        return {
+   217→            "action": action,
+   218→            "timestamp": datetime.datetime.now().isoformat(),
+   219→            "status": result.get("status", "unknown"),
+   220→            "data": result.get("receipt", result.get("message", "")),
+   221→        }
+   222→
+   223→    # ─── Tool handlers ──────────────────────────────────────────────────
+   224→
+   225→    async def handle_chat(self, params: dict) -> dict:
+   226→        """Handle the 'chat' tool — logged in audit trail (read-only, no ledger gate needed)."""
+   227→        message = params.get("message", "")
+   228→        if not message:
+   229→            return {"status": "error", "message": "No message provided."}
+   230→
+   231→        # Log in audit trail (read-only calls don't need approval gate,
+   232→        # but must be logged for transparency)
+   233→        ledger = self._get_ledger()
+   234→        if ledger:
+   235→            try:
+   236→                action_id = ledger.queue_action(
+   237→                    "MCPChat", "chat", {"message_length": len(message)},
+   238→                    risk_level="low",
+   239→                )
+   240→                # Read-only calls auto-approve at STANDARD+ profile
+   241→                ledger.approve_action(action_id)
+   242→            except Exception as e:
+   243→                logger.debug(f"Non-critical error: {e}")
+   244→
+   245→        glm = self._get_glm_brain()
+   246→        if glm and glm.available():
+   247→            full_response = ""
+   248→            async for chunk in glm.chat_stream(message):
+   249→                full_response += chunk
+   250→            return {
+   251→                "status": "success",
+   252→                "message": full_response,
+   253→                "receipt": self._make_receipt("chat", {"status": "success", "receipt": {
+   254→                    "provider": "glm",
+   255→                    "response_length": len(full_response),
+   256→                }}),
+   257→            }
+   258→
+   259→        # Fallback to FridayBrain
+   260→        try:
+   261→            from core.brain import FridayBrain
+   262→            brain = FridayBrain()
+   263→            full_response = ""
+   264→            async for chunk in brain.chat_stream(message):
+   265→                full_response += chunk
+   266→            return {
+   267→                "status": "success",
+   268→                "message": full_response,
+   269→                "receipt": self._make_receipt("chat", {"status": "success", "receipt": {
+   270→                    "provider": brain.get_stats().get("provider", "unknown"),
+   271→                    "response_length": len(full_response),
+   272→                }}),
+   273→            }
+   274→        except Exception as exc:
+   275→            return {"status": "error", "message": str(exc)}
+   276→
+   277→    async def handle_vision(self, params: dict) -> dict:
+   278→        """Handle the 'vision' tool — logged in audit trail."""
+   279→        image_base64 = params.get("image_base64", "")
+   280→        prompt = params.get("prompt", "Describe this image in detail.")
+   281→
+   282→        if not image_base64:
+   283→            return {"status": "error", "message": "No image provided."}
+   284→
+   285→        # Log in audit trail
+   286→        ledger = self._get_ledger()
+   287→        if ledger:
+   288→            try:
+   289→                action_id = ledger.queue_action(
+   290→                    "MCPVision", "vision_analyze", {"prompt": prompt[:100]},
+   291→                    risk_level="low",
+   292→                )
+   293→                ledger.approve_action(action_id)
+   294→            except Exception as e:
+   295→                logger.debug(f"Non-critical error: {e}")
+   296→
+   297→        glm = self._get_glm_brain()
+   298→        if not glm or not glm.available():
+   299→            return {"status": "error", "message": "GLM not available for vision analysis."}
+   300→
+   301→        result = await glm.vision_analyze(image_base64, prompt)
+   302→        return {
+   303→            "status": "success",
+   304→            "message": result,
+   305→            "receipt": self._make_receipt("vision", {"status": "success", "receipt": {
+   306→                "model": "glm-4v",
+   307→                "response_length": len(result),
+   308→            }}),
+   309→        }
+   310→
+   311→    async def handle_web_search(self, params: dict) -> dict:
+   312→        """Handle the 'web_search' tool — logged in audit trail."""
+   313→        query = params.get("query", "")
+   314→        max_results = params.get("max_results", 5)
+   315→
+   316→        if not query:
+   317→            return {"status": "error", "message": "No search query provided."}
+   318→
+   319→        # Log in audit trail
+   320→        ledger = self._get_ledger()
+   321→        if ledger:
+   322→            try:
+   323→                action_id = ledger.queue_action(
+   324→                    "MCPSearch", "web_search", {"query": query[:100]},
+   325→                    risk_level="low",
+   326→                )
+   327→                ledger.approve_action(action_id)
+   328→            except Exception as e:
+   329→                logger.debug(f"Non-critical error: {e}")
+   330→
+   331→        glm = self._get_glm_brain()
+   332→        if not glm or not glm.available():
+   333→            return {"status": "error", "message": "GLM not available for web search."}
+   334→
+   335→        results = await glm.web_search(query, max_results=max_results)
+   336→        return {
+   337→            "status": "success",
+   338→            "message": f"Found {len(results)} results for: {query}",
+   339→            "results": results,
+   340→            "receipt": self._make_receipt("web_search", {"status": "success", "receipt": {
+   341→                "query": query,
+   342→                "result_count": len(results),
+   343→            }}),
+   344→        }
+   345→
+   346→    async def handle_image_generation(self, params: dict) -> dict:
+   347→        """Handle the 'image_generation' tool — gated through ledger."""
+   348→        prompt = params.get("prompt", "")
+   349→        size = params.get("size", "1024x1024")
+   350→
+   351→        if not prompt:
+   352→            return {"status": "error", "message": "No prompt provided."}
+   353→
+   354→        # Gate through ledger — FAIL CLOSED if ledger unavailable
+   355→        ledger = self._get_ledger()
+   356→        if ledger is None:
+   357→            return {
+   358→                "status": "error",
+   359→                "message": "Ledger unavailable — refusing to execute without approval gate.",
+   360→                "receipt": self._make_receipt("image_generation", {"status": "error"}),
+   361→            }
+   362→        action_id = ledger.queue_action(
+   363→            "ImageGen", "generate_image",
+   364→            {"prompt": prompt, "size": size},
+   365→            risk_level="high",
+   366→        )
+   367→        # In MCP context, auto-approve is blocked by NEVER_AUTO_APPROVE_COMPONENTS
+   368→        # We need explicit approval — for now, reject if not approved
+   369→        approved = await ledger.wait_for_approval(action_id, timeout=30)
+   370→        if not approved:
+   371→            return {
+   372→                "status": "error",
+   373→                "message": "Image generation requires explicit approval. Action queued but not approved within timeout.",
+   374→                "receipt": self._make_receipt("image_generation", {"status": "rejected"}),
+   375→            }
+   376→
+   377→        try:
+   378→            from integrations.image_gen import ImageGen
+   379→            ig = ImageGen()
+   380→            result = await ig.execute("generate_image", {"prompt": prompt, "size": size})
+   381→            return {
+   382→                "status": result.get("status", "unknown"),
+   383→                "message": result.get("message", ""),
+   384→                "receipt": self._make_receipt("image_generation", result),
+   385→            }
+   386→        except Exception as exc:
+   387→            return {"status": "error", "message": str(exc)}
+   388→
+   389→    async def handle_video_generation(self, params: dict) -> dict:
+   390→        """Handle the 'video_generation' tool — gated through ledger."""
+   391→        prompt = params.get("prompt", "")
+   392→        quality = params.get("quality", "quality")
+   393→
+   394→        if not prompt:
+   395→            return {"status": "error", "message": "No prompt provided."}
+   396→
+   397→        # Gate through ledger — FAIL CLOSED if ledger unavailable
+   398→        ledger = self._get_ledger()
+   399→        if ledger is None:
+   400→            return {
+   401→                "status": "error",
+   402→                "message": "Ledger unavailable — refusing to execute without approval gate.",
+   403→                "receipt": self._make_receipt("video_generation", {"status": "error"}),
+   404→            }
+   405→        action_id = ledger.queue_action(
+   406→            "VideoGen", "generate_video",
+   407→            {"prompt": prompt, "quality": quality},
+   408→            risk_level="high",
+   409→        )
+   410→        approved = await ledger.wait_for_approval(action_id, timeout=30)
+   411→        if not approved:
+   412→            return {
+   413→                "status": "error",
+   414→                "message": "Video generation requires explicit approval. Action queued but not approved within timeout.",
+   415→                "receipt": self._make_receipt("video_generation", {"status": "rejected"}),
+   416→            }
+   417→
+   418→        try:
+   419→            from integrations.video_gen import VideoGen
+   420→            vg = VideoGen()
+   421→            result = await vg.execute("generate_video", {"prompt": prompt, "quality": quality})
+   422→            return {
+   423→                "status": result.get("status", "unknown"),
+   424→                "message": result.get("message", ""),
+   425→                "receipt": self._make_receipt("video_generation", result),
+   426→            }
+   427→        except Exception as exc:
+   428→            return {"status": "error", "message": str(exc)}
+   429→
+   430→    async def handle_code_execution(self, params: dict) -> dict:
+   431→        """Handle the 'code_execution' tool — gated through ledger."""
+   432→        code = params.get("code", "")
+   433→        language = params.get("language", "python")
+   434→
+   435→        if not code:
+   436→            return {"status": "error", "message": "No code provided."}
+   437→
+   438→        # Gate through ledger — FAIL CLOSED if ledger unavailable
+   439→        ledger = self._get_ledger()
+   440→        if ledger is None:
+   441→            return {
+   442→                "status": "error",
+   443→                "message": "Ledger unavailable — refusing to execute without approval gate.",
+   444→                "receipt": self._make_receipt("code_execution", {"status": "error"}),
+   445→            }
+   446→        action_id = ledger.queue_action(
+   447→            "CodeExecution", "execute_code",
+   448→            {"code": code, "language": language},
+   449→            risk_level="critical",
+   450→        )
+   451→        approved = await ledger.wait_for_approval(action_id, timeout=30)
+   452→        if not approved:
+   453→            return {
+   454→                "status": "error",
+   455→                "message": "Code execution requires explicit approval. Action queued but not approved within timeout.",
+   456→                "receipt": self._make_receipt("code_execution", {"status": "rejected"}),
+   457→            }
+   458→
+   459→        glm = self._get_glm_brain()
+   460→        if not glm or not glm.available():
+   461→            return {"status": "error", "message": "GLM not available for code execution."}
+   462→
+   463→        result = await glm.code_interpreter(code, language)
+   464→        return {
+   465→            "status": result.get("status", "unknown"),
+   466→            "message": result.get("output", ""),
+   467→            "receipt": self._make_receipt("code_execution", {"status": result.get("status"), "receipt": result}),
+   468→        }
+   469→
+   470→    async def handle_execute_action(self, params: dict) -> dict:
+   471→        """Handle 'friday.execute_action' — routes to UniversalConnector.
+   472→
+   473→        All actions go through the ledger's NEVER_AUTO_APPROVE_COMPONENTS
+   474→        gate. Physical/financial/code-execution actions require explicit
+   475→        user approval regardless of autonomy profile.
+   476→        """
+   477→        service = params.get("service") or params.get("component")
+   478→        action = params.get("action")
+   479→        action_params = params.get("params") or params.get("args") or {}
+   480→
+   481→        if not service or not action:
+   482→            return {
+   483→                "status": "error",
+   484→                "message": "Missing required parameters: service and action",
+   485→            }
+   486→
+   487→        try:
+   488→            from core.universal_connector import UniversalConnector
+   489→            connector = UniversalConnector()
+   490→            # Use a short approval timeout so MCP clients get a clear
+   491→            # "pending approval" response quickly rather than hanging.
+   492→            result = await connector.execute_action(
+   493→                service, action, action_params, approval_timeout=5,
+   494→            )
+   495→            return {
+   496→                "status": result.get("status", "unknown"),
+   497→                "message": result.get("message", ""),
+   498→                "receipt": self._make_receipt(
+   499→                    f"execute_action:{service}.{action}", result,
+   500→                ),
+   501→            }
+   502→        except Exception as exc:
+   503→            return {
+   504→                "status": "error",
+   505→                "message": f"execute_action failed: {exc}",
+   506→                "receipt": self._make_receipt("execute_action", {"status": "error"}),
+   507→            }
+   508→
+   509→    async def handle_request_approval(self, params: dict) -> dict:
+   510→        """Handle 'friday.request_approval' — external agent submits an action
+   511→        for human approval via Friday's ledger.
+   512→
+   513→        This is the killer feature for trusted execution: another AI agent
+   514→        (Claude Code, Cursor, etc.) can say "I want to delete this file"
+   515→        and Friday's human-in-the-loop gate stands between the suggestion
+   516→        and the action.
+   517→
+   518→        Friday speaks the request out loud (if voice is configured), waits
+   519→        for the human's real voice/keyboard response, and returns
+   520→        approved/rejected to the calling agent.
+   521→
+   522→        Params:
+   523→            component: The integration component (e.g. "Filesystem")
+   524→            action: The action name (e.g. "delete_file")
+   525→            params: Action parameters
+   526→            risk_level: "low" | "medium" | "high" | "critical"
+   527→            description: Human-readable description of what the agent wants to do
+   528→            timeout: Seconds to wait for approval (default 60)
+   529→            use_voice: If True, use voice-native approval (default False)
+   530→
+   531→        Returns:
+   532→            {status: "approved" | "rejected" | "timeout",
+   533→             action_id: str,
+   534→             receipt: dict}
+   535→        """
+   536→        component = params.get("component")
+   537→        action = params.get("action")
+   538→        action_params = params.get("params") or {}
+   539→        risk_level = params.get("risk_level", "high")
+   540→        description = params.get("description", f"{component}.{action}")
+   541→        timeout = int(params.get("timeout", 60))
+   542→        use_voice = bool(params.get("use_voice", False))
+   543→
+   544→        if not component or not action:
+   545→            return {
+   546→                "status": "error",
+   547→                "message": "Missing required parameters: component and action",
+   548→                "receipt": self._make_receipt("request_approval", {"status": "error"}),
+   549→            }
+   550→
+   551→        ledger = self._get_ledger()
+   552→        if not ledger:
+   553→            return {
+   554→                "status": "error",
+   555→                "message": "Ledger not available",
+   556→                "receipt": self._make_receipt("request_approval", {"status": "error"}),
+   557→            }
+   558→
+   559→        # Queue the action in the ledger (this is the gate)
+   560→        action_id = ledger.queue_action(
+   561→            component, action, action_params, risk_level=risk_level,
+   562→        )
+   563→        logger.info(
+   564→            "MCP request_approval: queued %s.%s (id=%s, risk=%s, timeout=%ss)",
+   565→            component, action, action_id, risk_level, timeout,
+   566→        )
+   567→
+   568→        # Wait for approval
+   569→        try:
+   570→            if use_voice:
+   571→                approved = await ledger.wait_for_voice_approval(
+   572→                    action_id, timeout=timeout,
+   573→                )
+   574→            else:
+   575→                approved = await ledger.wait_for_approval(
+   576→                    action_id, timeout=timeout,
+   577→                )
+   578→        except asyncio.TimeoutError:
+   579→            approved = False
+   580→
+   581→        status = "approved" if approved else (
+   582→            "timeout" if not approved and ledger.pending_actions.get(action_id, {}).get("status") == "pending"
+   583→            else "rejected"
+   584→        )
+   585→
+   586→        return {
+   587→            "status": status,
+   588→            "action_id": action_id,
+   589→            "component": component,
+   590→            "action": action,
+   591→            "message": (
+   592→                f"Action {action_id} {status} by human"
+   593→                if approved
+   594→                else f"Action {action_id} not approved within {timeout}s"
+   595→            ),
+   596→            "receipt": self._make_receipt("request_approval", {
+   597→                "status": status,
+   598→                "receipt": {
+   599→                    "action_id": action_id,
+   600→                    "component": component,
+   601→                    "action": action,
+   602→                    "risk_level": risk_level,
+   603→                    "description": description,
+   604→                },
+   605→            }),
+   606→        }
+   607→
+   608→    # ─── Dispatch ───────────────────────────────────────────────────────
+   609→
+   610→    async def dispatch(self, tool_name: str, params: dict) -> dict:
+   611→        """Dispatch a tool call to the appropriate handler.
+   612→
+   613→        Accepts both the bare tool name (e.g. 'chat') and the
+   614→        namespaced form (e.g. 'friday.chat').
+   615→        """
+   616→        # Strip the 'friday.' prefix if present
+   617→        if tool_name.startswith("friday."):
+   618→            tool_name = tool_name[len("friday."):]
+   619→
+   620→        handlers = {
+   621→            "chat": self.handle_chat,
+   622→            "vision": self.handle_vision,
+   623→            "search": self.handle_web_search,
+   624→            "web_search": self.handle_web_search,
+   625→            "generate_image": self.handle_image_generation,
+   626→            "image_generation": self.handle_image_generation,
+   627→            "generate_video": self.handle_video_generation,
+   628→            "video_generation": self.handle_video_generation,
+   629→            "code_execution": self.handle_code_execution,
+   630→            "execute_action": self.handle_execute_action,
+   631→            "request_approval": self.handle_request_approval,
+   632→        }
+   633→
+   634→        handler = handlers.get(tool_name)
+   635→        if not handler:
+   636→            return {"status": "error", "message": f"Unknown tool: {tool_name}"}
+   637→
+   638→        return await handler(params)
+   639→
+   640→
+   641→# ──────────────────────────────────────────────────────────────────────────────
+   642→# JSON-RPC / stdio transport (MCP protocol)
+   643→# ──────────────────────────────────────────────────────────────────────────────
+   644→
+   645→async def serve_stdio():
+   646→    """Serve the MCP server over stdio using JSON-RPC."""
+   647→    server = FridayMCPServer()
+   648→
+   649→    logger.info("FRIDAY MCP Server starting (stdio transport)")
+   650→
+   651→    reader = asyncio.StreamReader()
+   652→    protocol = asyncio.StreamReaderProtocol(reader)
+   653→    await asyncio.get_event_loop().connect_read_pipe(lambda: protocol, sys.stdin)
+   654→
+   655→    writer_transport, writer_protocol = await asyncio.get_event_loop().connect_write_pipe(
+   656→        asyncio.streams.FlowControlMixin, sys.stdout
+   657→    )
+   658→    writer = asyncio.StreamWriter(writer_transport, writer_protocol, reader, asyncio.get_event_loop())
+   659→
+   660→    while True:
+   661→        try:
+   662→            line = await reader.readline()
+   663→            if not line:
+   664→                break
+   665→
+   666→            line = line.decode("utf-8").strip()
+   667→            if not line:
+   668→                continue
+   669→
+   670→            try:
+   671→                request = json.loads(line)
+   672→            except json.JSONDecodeError:
+   673→                response = {"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": None}
+   674→                writer.write((json.dumps(response) + "\n").encode())
+   675→                await writer.drain()
+   676→                continue
+   677→
+   678→            request_id = request.get("id")
+   679→            method = request.get("method", "")
+   680→            params = request.get("params", {})
+   681→
+   682→            # ── JSON-RPC method routing ─────────────────────────────
+   683→            if method == "initialize":
+   684→                response = {
+   685→                    "jsonrpc": "2.0",
+   686→                    "id": request_id,
+   687→                    "result": {
+   688→                        "protocolVersion": "2024-11-05",
+   689→                        "capabilities": {
+   690→                            "tools": {"listChanged": False},
+   691→                        },
+   692→                        "serverInfo": {
+   693→                            "name": "friday-mcp",
+   694→                            "version": "1.0.0",
+   695→                        },
+   696→                    },
+   697→                }
+   698→            elif method == "tools/list":
+   699→                response = {
+   700→                    "jsonrpc": "2.0",
+   701→                    "id": request_id,
+   702→                    "result": {"tools": TOOLS},
+   703→                }
+   704→            elif method == "tools/call":
+   705→                tool_name = params.get("name", "")
+   706→                tool_params = params.get("arguments", {})
+   707→                result = await server.dispatch(tool_name, tool_params)
+   708→                response = {
+   709→                    "jsonrpc": "2.0",
+   710→                    "id": request_id,
+   711→                    "result": {
+   712→                        "content": [
+   713→                            {"type": "text", "text": json.dumps(result, default=str)},
+   714→                        ],
+   715→                    },
+   716→                }
+   717→            elif method.startswith("friday."):
+   718→                # Direct namespaced method call (e.g. friday.chat)
+   719→                # Routes through the same dispatch as tools/call.
+   720→                result = await server.dispatch(method, params)
+   721→                response = {
+   722→                    "jsonrpc": "2.0",
+   723→                    "id": request_id,
+   724→                    "result": {
+   725→                        "content": [
+   726→                            {"type": "text", "text": json.dumps(result, default=str)},
+   727→                        ],
+   728→                        "receipt": result.get("receipt"),
+   729→                    },
+   730→                }
+   731→            elif method == "notifications/initialized":
+   732→                # No response needed for notifications
+   733→                continue
+   734→            else:
+   735→                response = {
+   736→                    "jsonrpc": "2.0",
+   737→                    "id": request_id,
+   738→                    "error": {"code": -32601, "message": f"Method not found: {method}"},
+   739→                }
+   740→
+   741→            writer.write((json.dumps(response, default=str) + "\n").encode())
+   742→            await writer.drain()
+   743→
+   744→        except Exception as exc:
+   745→            logger.error(f"MCP server error: {exc}")
+   746→            try:
+   747→                error_response = {
+   748→                    "jsonrpc": "2.0",
+   749→                    "error": {"code": -32603, "message": "Internal error"},
+   750→                    "id": None,
+   751→                }
+   752→                writer.write((json.dumps(error_response) + "\n").encode())
+   753→                await writer.drain()
+   754→            except Exception as e:
+   755→                logger.debug(f"Non-critical error: {e}")
+   756→
+   757→
+   758→# ──────────────────────────────────────────────────────────────────────────────
+   759→# Entry point
+   760→# ──────────────────────────────────────────────────────────────────────────────
+   761→
+   762→if __name__ == "__main__":
+   763→    asyncio.run(serve_stdio())
+   764→

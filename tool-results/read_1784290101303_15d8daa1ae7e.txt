@@ -1,0 +1,1169 @@
+     1→import asyncio
+     2→import logging
+     3→import os
+     4→import json
+     5→import inspect
+     6→import pkgutil
+     7→import importlib
+     8→import hashlib
+     9→import re
+    10→from typing import List, Dict, Any, AsyncGenerator, Optional
+    11→from datetime import datetime
+    12→
+    13→# Lazy import of optional LLM SDKs — these are NOT required for the
+    14→# default GLM-only install, so we must not fail at module import time.
+    15→try:
+    16→    import anthropic
+    17→except ImportError:
+    18→    anthropic = None  # type: ignore[assignment]
+    19→
+    20→from config.settings import ANTHROPIC_API_KEY, GEMINI_API_KEY, GLM_API_KEY, TAVILY_API_KEY
+    21→from config.friday_identity import get_system_prompt
+    22→from core.gemini_brain import GeminiBrain
+    23→from core.glm_brain import GLMBrain
+    24→from core.local_brain import LocalBrain
+    25→from integrations.registry import UniversalRegistry
+    26→from core.universal_connector import UniversalConnector
+    27→from skills.base import BaseSkill
+    28→
+    29→logger = logging.getLogger("FridayBrain")
+    30→
+    31→
+    32→class ConversationSummarizer:
+    33→    """Summarizes old conversation history to maintain context within token limits."""
+    34→
+    35→    def __init__(self, brain_client=None, max_unsummarized: int = 20, summary_max_tokens: int = 500):
+    36→        self.brain_client = brain_client
+    37→        self.max_unsummarized = max_unsummarized
+    38→        self.summary_max_tokens = summary_max_tokens
+    39→        self.summaries: List[str] = []
+    40→
+    41→    async def summarize_older_messages(self, messages: List[Dict]) -> List[Dict]:
+    42→        """Keep recent messages intact, summarize older ones into a condensed block."""
+    43→        if len(messages) <= self.max_unsummarized:
+    44→            return messages
+    45→
+    46→        older = messages[:-self.max_unsummarized]
+    47→        recent = messages[-self.max_unsummarized:]
+    48→
+    49→        # Build text to summarize
+    50→        older_text = "\n".join(
+    51→            f"{m.get('role', 'unknown')}: {m.get('content', '')}"
+    52→            for m in older
+    53→        )
+    54→
+    55→        summary = await self._generate_summary(older_text)
+    56→        if summary:
+    57→            self.summaries.append(summary)
+    58→
+    59→        return recent
+    60→
+    61→    async def _generate_summary(self, text: str) -> Optional[str]:
+    62→        """Use the LLM to generate a conversation summary."""
+    63→        if not self.brain_client:
+    64→            # Heuristic fallback: just keep key facts
+    65→            return self._heuristic_summary(text)
+    66→
+    67→        try:
+    68→            response = await self.brain_client.messages.create(
+    69→                model="claude-sonnet-4-20250514",
+    70→                max_tokens=self.summary_max_tokens,
+    71→                messages=[{
+    72→                    "role": "user",
+    73→                    "content": (
+    74→                        "Summarize the key points, decisions, and facts from this "
+    75→                        "conversation excerpt in a concise paragraph:\n\n" + text
+    76→                    )
+    77→                }]
+    78→            )
+    79→            return response.content[0].text
+    80→        except Exception as e:
+    81→            logger.warning(f"Summary generation failed: {e}")
+    82→            return self._heuristic_summary(text)
+    83→
+    84→    def _heuristic_summary(self, text: str) -> str:
+    85→        """Extract key sentences when LLM is unavailable."""
+    86→        sentences = text.split('.')
+    87→        keywords = [
+    88→            'important', 'decided', 'remember', 'prefer', 'need', 'want',
+    89→            'fact', 'name is', 'my name'
+    90→        ]
+    91→        key_sentences = [
+    92→            s.strip() for s in sentences
+    93→            if any(kw in s.lower() for kw in keywords)
+    94→        ]
+    95→        if key_sentences:
+    96→            return "Key points: " + "; ".join(key_sentences[:5])
+    97→        return ""
+    98→
+    99→    def get_context_block(self) -> str:
+   100→        """Return all summaries as a context block for the system prompt."""
+   101→        if not self.summaries:
+   102→            return ""
+   103→        return (
+   104→            "\n\n## Previous Conversation Summaries\n"
+   105→            + "\n---\n".join(self.summaries)
+   106→        )
+   107→
+   108→
+   109→class RAGPipeline:
+   110→    """Retrieval-Augmented Generation: inject relevant memories into context."""
+   111→
+   112→    def __init__(self, memory=None, max_results: int = 5, relevance_threshold: float = 0.6):
+   113→        self.memory = memory
+   114→        self.max_results = max_results
+   115→        self.relevance_threshold = relevance_threshold
+   116→
+   117→    async def retrieve_context(self, query: str) -> str:
+   118→        """Retrieve relevant memories and format them for injection into system prompt."""
+   119→        if not self.memory:
+   120→            return ""
+   121→
+   122→        try:
+   123→            memories = self.memory.retrieve_relevant_memories(query)
+   124→            if not memories:
+   125→                return ""
+   126→
+   127→            # Filter by relevance and format
+   128→            relevant = []
+   129→            for mem in memories[:self.max_results]:
+   130→                if isinstance(mem, dict):
+   131→                    content = mem.get('content', mem.get('text', str(mem)))
+   132→                    score = mem.get('similarity', mem.get('score', 1.0))
+   133→                    if score >= self.relevance_threshold:
+   134→                        relevant.append(f"- {content}")
+   135→                else:
+   136→                    relevant.append(f"- {str(mem)}")
+   137→
+   138→            if not relevant:
+   139→                return ""
+   140→
+   141→            return "\n\n## Relevant Memories\n" + "\n".join(relevant)
+   142→        except Exception as e:
+   143→            logger.warning(f"RAG retrieval failed: {e}")
+   144→            return ""
+   145→
+   146→
+   147→class FridayBrain:
+   148→    # Default provider order: GLM (free, default), Claude, Gemini, GPT, Grok, Local/Ollama
+   149→    PROVIDER_ORDER = ["glm", "claude", "gemini", "gpt", "grok", "ollama"]
+   150→
+   151→    def __init__(self, provider=None, memory=None, emotions=None, personality=None):
+   152→        self.provider = provider or os.getenv("BRAIN_PROVIDER", "glm")
+   153→        self.logger = logging.getLogger("FridayBrain")
+   154→
+   155→        # LLM Clients - lazy init
+   156→        self._claude_client = None
+   157→        self.gemini_brain = None
+   158→        self.glm_brain = GLMBrain()
+   159→        self.local_brain = LocalBrain()
+   160→
+   161→        # Model configuration
+   162→        self.claude_model = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-20250514")
+   163→
+   164→        # Connected subsystems
+   165→        self.memory = memory
+   166→        self.emotions = emotions
+   167→        self.personality = personality
+   168→
+   169→        # Integration layer
+   170→        self.registry = UniversalRegistry()
+   171→        self.connector = UniversalConnector()
+   172→
+   173→        # Skills
+   174→        self.skills = {}
+   175→        self._discover_skills()
+   176→
+   177→        # Conversation management
+   178→        self.conversation_history = []
+   179→        self.history_limit = int(os.getenv("HISTORY_LIMIT", "50"))
+   180→        self.summarizer = ConversationSummarizer()
+   181→        self.rag_pipeline = RAGPipeline(memory=self.memory)
+   182→
+   183→        # Conversation branching
+   184→        self._branches: Dict[str, dict] = {}  # branch_id → {history, parent_message_id, created_at}
+   185→        self._active_branch_id: Optional[str] = None  # None = main conversation
+   186→
+   187→        # Build tools
+   188→        self.tools = self._build_universal_tools()
+   189→
+   190→        self.logger.info(
+   191→            f"FridayBrain initialized with provider={self.provider}, "
+   192→            f"model={self.claude_model}"
+   193→        )
+   194→
+   195→    # ------------------------------------------------------------------
+   196→    # Lazy Claude client
+   197→    # ------------------------------------------------------------------
+   198→
+   199→    @property
+   200→    def claude_client(self):
+   201→        """Lazy-init Claude client to avoid startup crashes."""
+   202→        if self._claude_client is None:
+   203→            if not ANTHROPIC_API_KEY:
+   204→                self.logger.warning("No ANTHROPIC_API_KEY set")
+   205→                return None
+   206→            if anthropic is None:
+   207→                self.logger.warning(
+   208→                    "anthropic package not installed — Claude unavailable. "
+   209→                    "Install with: pip install anthropic"
+   210→                )
+   211→                return None
+   212→            self._claude_client = anthropic.AsyncAnthropic(
+   213→                api_key=ANTHROPIC_API_KEY
+   214→            )
+   215→            self.summarizer.brain_client = self._claude_client
+   216→        return self._claude_client
+   217→
+   218→    # ------------------------------------------------------------------
+   219→    # Skill discovery
+   220→    # ------------------------------------------------------------------
+   221→
+   222→    def _discover_skills(self):
+   223→        """Auto-discover skills from the skills package."""
+   224→        import skills
+   225→        if not hasattr(skills, "__file__") or skills.__file__ is None:
+   226→            path = os.path.join(os.getcwd(), "skills")
+   227→            if not os.path.isdir(path):
+   228→                path = os.path.join(
+   229→                    os.path.dirname(os.path.dirname(__file__)), "skills"
+   230→                )
+   231→        else:
+   232→            path = os.path.dirname(skills.__file__)
+   233→
+   234→        if not os.path.isdir(path):
+   235→            self.logger.warning(f"Skills directory not found: {path}")
+   236→            return
+   237→
+   238→        for loader, name, is_pkg in pkgutil.iter_modules([path]):
+   239→            if name == 'base':
+   240→                continue
+   241→            try:
+   242→                module = importlib.import_module(f"skills.{name}")
+   243→                for n, obj in inspect.getmembers(module):
+   244→                    if (
+   245→                        inspect.isclass(obj)
+   246→                        and issubclass(obj, BaseSkill)
+   247→                        and obj is not BaseSkill
+   248→                    ):
+   249→                        instance = obj()
+   250→                        self.skills[instance.name] = instance
+   251→                        self.logger.info(f"Discovered skill: {instance.name}")
+   252→            except Exception as e:
+   253→                self.logger.warning(f"Failed to load skill {name}: {e}")
+   254→
+   255→    # ------------------------------------------------------------------
+   256→    # Tool definitions
+   257→    # ------------------------------------------------------------------
+   258→
+   259→    def _build_universal_tools(self):
+   260→        """Build the tool definitions for Claude's tool-use."""
+   261→        tools = [
+   262→            {
+   263→                "name": "access_universal_service",
+   264→                "description": (
+   265→                    "Access any integrated service (weather, calendar, email, "
+   266→                    "spotify, smart home, crypto, finance, global_pulse, etc.). "
+   267→                    "Returns structured receipt with status."
+   268→                ),
+   269→                "input_schema": {
+   270→                    "type": "object",
+   271→                    "properties": {
+   272→                        "service": {
+   273→                            "type": "string",
+   274→                            "description": (
+   275→                                "Service name (weather, calendar, gmail, spotify, "
+   276→                                "smart_home, crypto, finance, global_pulse)"
+   277→                            ),
+   278→                        },
+   279→                        "action": {
+   280→                            "type": "string",
+   281→                            "description": "Action to perform on the service",
+   282→                        },
+   283→                        "params": {
+   284→                            "type": "object",
+   285→                            "description": "Parameters for the action",
+   286→                        },
+   287→                    },
+   288→                    "required": ["service", "action"],
+   289→                },
+   290→            },
+   291→            {
+   292→                "name": "search_web",
+   293→                "description": (
+   294→                    "Search the web for real-time information. Use this for "
+   295→                    "current events, facts you're unsure about, or anything "
+   296→                    "requiring up-to-date data."
+   297→                ),
+   298→                "input_schema": {
+   299→                    "type": "object",
+   300→                    "properties": {
+   301→                        "query": {
+   302→                            "type": "string",
+   303→                            "description": "Search query",
+   304→                        },
+   305→                        "max_results": {
+   306→                            "type": "integer",
+   307→                            "description": "Maximum number of results (default 5)",
+   308→                        },
+   309→                    },
+   310→                    "required": ["query"],
+   311→                },
+   312→            },
+   313→            {
+   314→                "name": "remember",
+   315→                "description": (
+   316→                    "Store an important fact or preference about the user for "
+   317→                    "future reference. Use this when the user shares personal "
+   318→                    "details, preferences, or important context."
+   319→                ),
+   320→                "input_schema": {
+   321→                    "type": "object",
+   322→                    "properties": {
+   323→                        "fact": {
+   324→                            "type": "string",
+   325→                            "description": "The fact or preference to remember",
+   326→                        },
+   327→                        "category": {
+   328→                            "type": "string",
+   329→                            "description": "Category",
+   330→                            "enum": [
+   331→                                "personal", "preference", "work",
+   332→                                "health", "social", "finance",
+   333→                            ],
+   334→                        },
+   335→                    },
+   336→                    "required": ["fact", "category"],
+   337→                },
+   338→            },
+   339→            {
+   340→                "name": "recall_memories",
+   341→                "description": (
+   342→                    "Search through stored memories and past conversations. "
+   343→                    "Use when you need to recall something the user previously "
+   344→                    "mentioned."
+   345→                ),
+   346→                "input_schema": {
+   347→                    "type": "object",
+   348→                    "properties": {
+   349→                        "query": {
+   350→                            "type": "string",
+   351→                            "description": "What to search for in memories",
+   352→                        },
+   353→                        "max_results": {
+   354→                            "type": "integer",
+   355→                            "description": "Maximum memories to return (default 5)",
+   356→                        },
+   357→                    },
+   358→                    "required": ["query"],
+   359→                },
+   360→            },
+   361→        ]
+   362→
+   363→        if self.skills:
+   364→            tools.append({
+   365→                "name": "run_skill",
+   366→                "description": (
+   367→                    "Execute a complex skill. Available skills: "
+   368→                    + ", ".join(
+   369→                        f"{k}: {v.description}" for k, v in self.skills.items()
+   370→                    )
+   371→                ),
+   372→                "input_schema": {
+   373→                    "type": "object",
+   374→                    "properties": {
+   375→                        "skill_name": {
+   376→                            "type": "string",
+   377→                            "description": (
+   378→                                "Name of the skill to run. Options: "
+   379→                                + ", ".join(self.skills.keys())
+   380→                            ),
+   381→                        },
+   382→                        "params": {"type": "object"},
+   383→                    },
+   384→                    "required": ["skill_name"],
+   385→                },
+   386→            })
+   387→
+   388→        return tools
+   389→
+   390→    # ------------------------------------------------------------------
+   391→    # Tool execution
+   392→    # ------------------------------------------------------------------
+   393→
+   394→    async def _execute_tool(self, tool_name: str, tool_input: Dict) -> str:
+   395→        """Execute a tool call and return the result as a string."""
+   396→        try:
+   397→            if tool_name == "access_universal_service":
+   398→                result = await self.connector.execute_action(
+   399→                    tool_input["service"],
+   400→                    tool_input["action"],
+   401→                    tool_input.get("params", {}),
+   402→                )
+   403→                return json.dumps(result, indent=2, default=str)
+   404→
+   405→            elif tool_name == "search_web":
+   406→                return await self._web_search(
+   407→                    tool_input["query"],
+   408→                    tool_input.get("max_results", 5),
+   409→                )
+   410→
+   411→            elif tool_name == "remember":
+   412→                if self.memory:
+   413→                    self.memory.extract_and_store_facts(
+   414→                        tool_input["fact"],
+   415→                        category=tool_input.get("category", "personal"),
+   416→                    )
+   417→                    return json.dumps({
+   418→                        "status": "success",
+   419→                        "message": f"Remembered: {tool_input['fact']}",
+   420→                    })
+   421→                return json.dumps({
+   422→                    "status": "error",
+   423→                    "message": "Memory system unavailable",
+   424→                })
+   425→
+   426→            elif tool_name == "recall_memories":
+   427→                if self.memory:
+   428→                    memories = self.memory.retrieve_relevant_memories(
+   429→                        tool_input["query"],
+   430→                        top_k=tool_input.get("max_results", 5),
+   431→                    )
+   432→                    if memories:
+   433→                        return json.dumps(memories, indent=2, default=str)
+   434→                    return "No relevant memories found."
+   435→                return json.dumps({
+   436→                    "status": "error",
+   437→                    "message": "Memory system unavailable",
+   438→                })
+   439→
+   440→            elif tool_name == "run_skill":
+   441→                s_name = tool_input["skill_name"]
+   442→                if s_name in self.skills:
+   443→                    result = await self.skills[s_name].run(
+   444→                        self, tool_input.get("params", {})
+   445→                    )
+   446→                    return json.dumps(result, indent=2, default=str)
+   447→                return json.dumps({
+   448→                    "status": "error",
+   449→                    "message": (
+   450→                        f"Skill '{s_name}' not found. Available: "
+   451→                        + ", ".join(self.skills.keys())
+   452→                    ),
+   453→                })
+   454→
+   455→            else:
+   456→                return json.dumps({
+   457→                    "status": "error",
+   458→                    "message": f"Unknown tool: {tool_name}",
+   459→                })
+   460→
+   461→        except Exception as e:
+   462→            self.logger.error(f"Tool execution error ({tool_name}): {e}")
+   463→            return json.dumps({"status": "error", "message": str(e)})
+   464→
+   465→    # ------------------------------------------------------------------
+   466→    # Web search
+   467→    # ------------------------------------------------------------------
+   468→
+   469→    async def _web_search(self, query: str, max_results: int = 5) -> str:
+   470→        """Perform web search — try Z.ai first, then Tavily."""
+   471→        # --- Try Z.ai / GLM web search first ---
+   472→        try:
+   473→            if self.glm_brain and self.glm_brain.available():
+   474→                results = await self.glm_brain.web_search(query, max_results=max_results)
+   475→                if results:
+   476→                    formatted = []
+   477→                    for r in results:
+   478→                        formatted.append({
+   479→                            "title": r.get("title", ""),
+   480→                            "url": r.get("url", ""),
+   481→                            "snippet": r.get("snippet", r.get("content", ""))[:300],
+   482→                        })
+   483→                    return json.dumps(formatted, indent=2)
+   484→        except Exception as e:
+   485→            self.logger.debug(f"Z.ai web search failed, trying Tavily: {e}")
+   486→
+   487→        # --- Fallback: Tavily ---
+   488→        if not TAVILY_API_KEY:
+   489→            return json.dumps({
+   490→                "status": "error",
+   491→                "message": "Web search unavailable (no GLM_API_KEY or TAVILY_API_KEY)",
+   492→            })
+   493→
+   494→        try:
+   495→            from tavily import TavilyClient
+   496→            client = TavilyClient(api_key=TAVILY_API_KEY)
+   497→            results = client.search(query, max_results=max_results)
+   498→
+   499→            formatted = []
+   500→            for r in results.get("results", []):
+   501→                formatted.append({
+   502→                    "title": r.get("title", ""),
+   503→                    "url": r.get("url", ""),
+   504→                    "snippet": r.get("content", "")[:300],
+   505→                })
+   506→            return json.dumps(formatted, indent=2)
+   507→        except Exception as e:
+   508→            self.logger.error(f"Web search failed: {e}")
+   509→            return json.dumps({
+   510→                "status": "error",
+   511→                "message": f"Search failed: {str(e)}",
+   512→            })
+   513→
+   514→    # ------------------------------------------------------------------
+   515→    # System prompt construction
+   516→    # ------------------------------------------------------------------
+   517→
+   518→    def _build_system_prompt(self, user_name: str = "User") -> str:
+   519→        """Build the full system prompt with memory context, mood, and personality."""
+   520→        prompt = get_system_prompt(user_name)
+   521→
+   522→        # Add conversation summaries
+   523→        summary_block = self.summarizer.get_context_block()
+   524→        if summary_block:
+   525→            prompt += summary_block
+   526→
+   527→        # Add emotion context
+   528→        if self.emotions and hasattr(self.emotions, 'current_emotion'):
+   529→            mood = self.emotions.current_emotion
+   530→            if mood != "neutral":
+   531→                prompt += (
+   532→                    f"\n\n## User's Detected Mood: {mood}\n"
+   533→                    "Adapt your tone accordingly."
+   534→                )
+   535→                if self.personality:
+   536→                    mood_response = self.personality.adjust_mood(mood)
+   537→                    if mood_response:
+   538→                        prompt += f"\nSuggested approach: {mood_response}"
+   539→
+   540→        # Add personality context
+   541→        if self.personality and hasattr(self.personality, 'get_personality_context'):
+   542→            prompt += (
+   543→                "\n\n## Your Personality Configuration\n"
+   544→                + self.personality.get_personality_context()
+   545→            )
+   546→
+   547→        return prompt
+   548→
+   549→    async def _inject_rag_context(self, message: str) -> str:
+   550→        """Inject RAG-retrieved memories + subconscious patterns + learning corrections."""
+   551→        rag_context = await self.rag_pipeline.retrieve_context(message)
+   552→
+   553→        # Surface subconscious patterns relevant to the current message
+   554→        try:
+   555→            from database.subconscious import SubconsciousMind
+   556→            sub = SubconsciousMind()
+   557→            intuition = sub.get_intuition()
+   558→            if intuition and len(intuition) > 10:
+   559→                rag_context += f"\n\n[Subconscious insight: {intuition[:300]}]"
+   560→        except Exception as e:
+   561→            self.logger.debug(f"Subconscious mind unavailable: {e}")
+   562→
+   563→        # Check for relevant corrections from the learning system
+   564→        try:
+   565→            from core.learning import FridayLearningSystem
+   566→            ls = FridayLearningSystem()
+   567→            corrections = await ls.check_similar_corrections(message)
+   568→            if corrections:
+   569→                for c in corrections[:3]:
+   570→                    rag_context += (
+   571→                        f"\n\n[Correction from previous session: "
+   572→                        f"you previously said '{c['original'][:100]}' "
+   573→                        f"but were corrected to '{c['correction'][:100]}'. "
+   574→                        f"Avoid repeating the mistake.]"
+   575→                    )
+   576→        except Exception as e:
+   577→            self.logger.debug(f"Learning system unavailable: {e}")
+   578→
+   579→        return rag_context
+   580→
+   581→    # ------------------------------------------------------------------
+   582→    # GLM tool-calling loop — mirrors the Claude branch
+   583→    # ------------------------------------------------------------------
+   584→
+   585→    async def _glm_stream_with_tools(
+   586→        self,
+   587→        messages: list,
+   588→        tools: list,
+   589→        system_prompt: str,
+   590→    ) -> AsyncGenerator[str, None]:
+   591→        """GLM tool-calling loop — mirrors the Claude branch.
+   592→
+   593→        GLM-4-Flash supports function calling via the ZhipuAI SDK
+   594→        using OpenAI-compatible tools format.
+   595→        Max 5 rounds to prevent infinite loops.
+   596→        """
+   597→        max_rounds = 5
+   598→        glm_client = self.glm_brain._ensure_client()
+   599→        if glm_client is None:
+   600→            yield "Error: GLM client not initialised."
+   601→            return
+   602→
+   603→        # Prepend system prompt if provided
+   604→        if system_prompt and (not messages or messages[0].get("role") != "system"):
+   605→            messages = [{"role": "system", "content": system_prompt}] + messages
+   606→
+   607→        for round_num in range(max_rounds):
+   608→            try:
+   609→                response = await asyncio.to_thread(
+   610→                    glm_client.chat.completions.create,
+   611→                    model=self.glm_brain._model_name,
+   612→                    messages=messages,
+   613→                    tools=tools if tools else None,
+   614→                    stream=False,
+   615→                )
+   616→            except Exception as e:
+   617→                self.logger.error(f"GLM tool call error (round {round_num}): {e}")
+   618→                yield f"Error in GLM tool calling: {e}"
+   619→                return
+   620→
+   621→            choice = response.choices[0]
+   622→            finish_reason = getattr(choice, "finish_reason", "stop")
+   623→            message = choice.message
+   624→            tool_calls = getattr(message, "tool_calls", None)
+   625→
+   626→            # Model wants to call tools
+   627→            if finish_reason == "tool_calls" and tool_calls:
+   628→                # Add assistant message with tool_calls to history
+   629→                messages.append({
+   630→                    "role": "assistant",
+   631→                    "content": getattr(message, "content", "") or "",
+   632→                    "tool_calls": [
+   633→                        {
+   634→                            "id": tc.id,
+   635→                            "type": "function",
+   636→                            "function": {
+   637→                                "name": tc.function.name,
+   638→                                "arguments": tc.function.arguments,
+   639→                            },
+   640→                        }
+   641→                        for tc in tool_calls
+   642→                    ],
+   643→                })
+   644→
+   645→                # Execute each tool and collect results
+   646→                for tool_call in tool_calls:
+   647→                    tool_name = tool_call.function.name
+   648→                    try:
+   649→                        tool_input = json.loads(tool_call.function.arguments)
+   650→                    except (json.JSONDecodeError, TypeError):
+   651→                        tool_input = {}
+   652→
+   653→                    self.logger.info(f"GLM tool call: {tool_name}({tool_input})")
+   654→                    yield f"\n[System: {tool_name}(...)]\n"
+   655→
+   656→                    tool_result = await self._execute_tool(tool_name, tool_input)
+   657→
+   658→                    messages.append({
+   659→                        "role": "tool",
+   660→                        "tool_call_id": tool_call.id,
+   661→                        "content": str(tool_result),
+   662→                    })
+   663→
+   664→                # Continue to next round with tool results injected
+   665→                continue
+   666→
+   667→            # No more tool calls — stream the final text response
+   668→            final_content = getattr(message, "content", "") or ""
+   669→            # Store assistant response in memory
+   670→            if self.memory and final_content.strip():
+   671→                try:
+   672→                    self.memory.store_conversation("assistant", final_content)
+   673→                except Exception as e:
+   674→                    self.logger.warning(f"Memory store failed: {e}")
+   675→            # Stream word by word for natural feel
+   676→            words = final_content.split(" ")
+   677→            for i, word in enumerate(words):
+   678→                if i < len(words) - 1:
+   679→                    yield word + " "
+   680→                else:
+   681→                    yield word
+   682→            return
+   683→
+   684→        # Max rounds reached — yield what we have
+   685→        self.logger.warning("GLM tool calling reached max rounds (5)")
+   686→        yield "I reached the maximum reasoning steps. Please try rephrasing your request."
+   687→
+   688→    # ------------------------------------------------------------------
+   689→    # Creative suite routing — image / video generation
+   690→    # ------------------------------------------------------------------
+   691→
+   692→    # Patterns that indicate the user wants an image generated
+   693→    _IMAGE_PATTERNS = [
+   694→        re.compile(r"generate\s+(?:an?\s+)?image\s+(?:of\s+)?(.+)", re.IGNORECASE),
+   695→        re.compile(r"create\s+(?:an?\s+)?image\s+(?:of\s+)?(.+)", re.IGNORECASE),
+   696→        re.compile(r"draw\s+(?:an?\s+)?(.+)", re.IGNORECASE),
+   697→        re.compile(r"make\s+(?:an?\s+)?image\s+(?:of\s+)?(.+)", re.IGNORECASE),
+   698→        re.compile(r"illustrate\s+(.+)", re.IGNORECASE),
+   699→        re.compile(r"picture\s+(?:of\s+)?(.+)", re.IGNORECASE),
+   700→        re.compile(r"show\s+(?:me\s+)?(?:an?\s+)?image\s+(?:of\s+)?(.+)", re.IGNORECASE),
+   701→    ]
+   702→
+   703→    # Patterns that indicate the user wants a video generated
+   704→    _VIDEO_PATTERNS = [
+   705→        re.compile(r"generate\s+(?:an?\s+)?video\s+(?:of\s+)?(.+)", re.IGNORECASE),
+   706→        re.compile(r"create\s+(?:an?\s+)?video\s+(?:of\s+)?(.+)", re.IGNORECASE),
+   707→        re.compile(r"make\s+(?:an?\s+)?video\s+(?:of\s+)?(.+)", re.IGNORECASE),
+   708→        re.compile(r"animate\s+(.+)", re.IGNORECASE),
+   709→    ]
+   710→
+   711→    def _detect_creative_route(self, message: str) -> Optional[Dict[str, Any]]:
+   712→        """Check if the message is a creative generation request.
+   713→
+   714→        Returns:
+   715→            A dict with ``type`` ("image" or "video") and ``prompt``,
+   716→            or ``None`` if the message is not a creative request.
+   717→        """
+   718→        for pattern in self._IMAGE_PATTERNS:
+   719→            match = pattern.search(message)
+   720→            if match:
+   721→                prompt = match.group(1).strip()
+   722→                if prompt:
+   723→                    return {"type": "image", "prompt": prompt}
+   724→
+   725→        for pattern in self._VIDEO_PATTERNS:
+   726→            match = pattern.search(message)
+   727→            if match:
+   728→                prompt = match.group(1).strip()
+   729→                if prompt:
+   730→                    return {"type": "video", "prompt": prompt}
+   731→
+   732→        return None
+   733→
+   734→    async def _handle_creative_route(
+   735→        self, route: Dict[str, Any]
+   736→    ) -> AsyncGenerator[str, None]:
+   737→        """Handle an image or video generation request.
+   738→
+   739→        Uses the UniversalConnector to dispatch to the ImageGen or
+   740→        VideoGen integration, which in turn uses GLM's CogView-3 or
+   741→        CogVideoX.
+   742→        """
+   743→        route_type = route["type"]
+   744→        prompt = route["prompt"]
+   745→
+   746→        self.logger.info("Creative route: %s generation for prompt: %s", route_type, prompt)
+   747→
+   748→        if route_type == "image":
+   749→            result = await self.connector.execute_action(
+   750→                "image_gen", "generate_image", {"prompt": prompt}
+   751→            )
+   752→        elif route_type == "video":
+   753→            result = await self.connector.execute_action(
+   754→                "video_gen", "generate_video", {"prompt": prompt}
+   755→            )
+   756→        else:
+   757→            yield f"Unknown creative route type: {route_type}"
+   758→            return
+   759→
+   760→        if result.get("status") == "success":
+   761→            receipt = result.get("receipt", result)
+   762→            # Try to extract URL from receipt
+   763→            url = ""
+   764→            if isinstance(receipt, dict):
+   765→                url = receipt.get("image_url", receipt.get("video_url", ""))
+   766→
+   767→            if url:
+   768→                yield f"Here's your {route_type}: {url}"
+   769→            else:
+   770→                yield f"{route_type.capitalize()} generated successfully! Details: {json.dumps(receipt, indent=2, default=str)}"
+   771→        else:
+   772→            error_msg = result.get("message", result.get("error", "Unknown error"))
+   773→            yield f"Sorry, {route_type} generation failed: {error_msg}"
+   774→
+   775→    # ------------------------------------------------------------------
+   776→    # Main chat streaming method
+   777→    # ------------------------------------------------------------------
+   778→
+   779→    async def chat_stream(
+   780→        self,
+   781→        message: str,
+   782→        user_name: str = "User",
+   783→        force_provider=None,
+   784→    ) -> AsyncGenerator[str, None]:
+   785→        """Stream a chat response with full tool-calling, RAG, and memory integration."""
+   786→        prov = force_provider or self.provider
+   787→
+   788→        # Detect emotion from user message
+   789→        if self.emotions:
+   790→            try:
+   791→                detected_mood = self.emotions.detect_emotion(message)
+   792→                self.logger.info(f"Detected mood: {detected_mood}")
+   793→            except Exception as e:
+   794→                logger.debug(f"Non-critical error: {e}")
+   795→
+   796→        # Store user message in memory
+   797→        if self.memory:
+   798→            try:
+   799→                self.memory.store_conversation("user", message)
+   800→            except Exception as e:
+   801→                logger.debug(f"Non-critical error: {e}")
+   802→
+   803→        # ------------------------------------------------------------------
+   804→        # Creative suite routing — detect image/video generation requests
+   805→        # ------------------------------------------------------------------
+   806→        creative_route = self._detect_creative_route(message)
+   807→        if creative_route is not None:
+   808→            async for chunk in self._handle_creative_route(creative_route):
+   809→                yield chunk
+   810→            return
+   811→
+   812→        # Route to alternative providers
+   813→        # GLM (Z.ai) — default, free-tier provider
+   814→        if prov == "glm":
+   815→            if self.glm_brain and self.glm_brain.available():
+   816→                glm_system_prompt = self._build_system_prompt(user_name)
+   817→                # Inject RAG context
+   818→                rag_ctx = await self._inject_rag_context(message)
+   819→                glm_message = f"{rag_ctx}\n\nUser's current message: {message}" if rag_ctx else message
+   820→
+   821→                # Use tool-calling loop when tools are configured
+   822→                if self.tools:
+   823→                    messages = [{"role": "user", "content": glm_message}]
+   824→                    async for chunk in self._glm_stream_with_tools(
+   825→                        messages, self.tools, glm_system_prompt
+   826→                    ):
+   827→                        yield chunk
+   828→                else:
+   829→                    # No tools — simple streaming
+   830→                    full_response = ""
+   831→                    async for chunk in self.glm_brain.chat_stream(
+   832→                        glm_message, system_prompt=glm_system_prompt
+   833→                    ):
+   834→                        full_response += chunk
+   835→                        yield chunk
+   836→                    # Store assistant response in memory
+   837→                    if self.memory and full_response.strip():
+   838→                        try:
+   839→                            self.memory.store_conversation("assistant", full_response)
+   840→                        except Exception as e:
+   841→                            self.logger.warning(f"Memory store failed: {e}")
+   842→                return
+   843→            # GLM not available — fall through to other providers
+   844→            self.logger.info("GLM not available, trying fallback providers")
+   845→
+   846→        if prov == "ollama":
+   847→            async for chunk in self.local_brain.chat_stream(message):
+   848→                yield chunk
+   849→            return
+   850→
+   851→        if (prov == "gemini" or len(message) > 5000) and self.gemini_brain:
+   852→            async for chunk in self.gemini_brain.chat_stream(message):
+   853→                yield chunk
+   854→            return
+   855→
+   856→        if not ANTHROPIC_API_KEY:
+   857→            # Try GLM as fallback before local brain
+   858→            if self.glm_brain and self.glm_brain.available():
+   859→                async for chunk in self.glm_brain.chat_stream(message):
+   860→                    yield chunk
+   861→            elif await self.local_brain.available():
+   862→                async for chunk in self.local_brain.chat_stream(message):
+   863→                    yield chunk
+   864→            else:
+   865→                yield (
+   866→                    "Error: No brain providers available. "
+   867→                    "Please set GLM_API_KEY, ANTHROPIC_API_KEY, or run Ollama locally."
+   868→                )
+   869→            return
+   870→
+   871→        # Build enriched system prompt
+   872→        system_prompt = self._build_system_prompt(user_name)
+   873→
+   874→        # RAG: inject relevant memories
+   875→        rag_context = await self._inject_rag_context(message)
+   876→        if rag_context:
+   877→            enriched_message = (
+   878→                f"{rag_context}\n\nUser's current message: {message}"
+   879→            )
+   880→        else:
+   881→            enriched_message = message
+   882→
+   883→        self.conversation_history.append({
+   884→            "role": "user",
+   885→            "content": enriched_message,
+   886→        })
+   887→
+   888→        # Summarize older messages
+   889→        self.conversation_history = (
+   890→            await self.summarizer.summarize_older_messages(
+   891→                self.conversation_history
+   892→            )
+   893→        )
+   894→
+   895→        # Trim if still too long
+   896→        if len(self.conversation_history) > self.history_limit:
+   897→            self.conversation_history = self.conversation_history[-self.history_limit:]
+   898→
+   899→        # Tool-calling loop
+   900→        max_tool_rounds = 5  # Prevent infinite loops
+   901→        for round_num in range(max_tool_rounds):
+   902→            full_response = ""
+   903→            tool_calls = []
+   904→
+   905→            try:
+   906→                client = self.claude_client
+   907→                if client is None:
+   908→                    yield "Error: Claude client unavailable (no API key)"
+   909→                    return
+   910→
+   911→                async with client.messages.stream(
+   912→                    model=self.claude_model,
+   913→                    max_tokens=4096,
+   914→                    system=system_prompt,
+   915→                    tools=self.tools,
+   916→                    messages=self.conversation_history,
+   917→                ) as stream:
+   918→                    async for event in stream:
+   919→                        if (
+   920→                            event.type == "content_block_delta"
+   921→                            and event.delta.type == "text_delta"
+   922→                        ):
+   923→                            text = event.delta.text
+   924→                            full_response += text
+   925→                            yield text
+   926→
+   927→                    final_msg = await stream.get_final_message()
+   928→                    for content in final_msg.content:
+   929→                        if content.type == "tool_use":
+   930→                            tool_calls.append(content)
+   931→
+   932→                if not tool_calls:
+   933→                    # No tools called — we're done
+   934→                    self.conversation_history.append({
+   935→                        "role": "assistant",
+   936→                        "content": full_response,
+   937→                    })
+   938→
+   939→                    # Store assistant response in memory
+   940→                    if self.memory:
+   941→                        try:
+   942→                            self.memory.store_conversation(
+   943→                                "assistant", full_response
+   944→                            )
+   945→                        except Exception as e:
+   946→                            logger.debug(f"Non-critical error: {e}")
+   947→
+   948→                    break
+   949→
+   950→                # Process tool calls
+   951→                self.conversation_history.append({
+   952→                    "role": "assistant",
+   953→                    "content": final_msg.content,
+   954→                })
+   955→
+   956→                tool_results = []
+   957→                for tool in tool_calls:
+   958→                    yield f"\n[System: {tool.name}(...)]\n"
+   959→                    result = await self._execute_tool(tool.name, tool.input)
+   960→                    tool_results.append({
+   961→                        "role": "user",
+   962→                        "content": [{
+   963→                            "type": "tool_result",
+   964→                            "tool_use_id": tool.id,
+   965→                            "content": result,
+   966→                        }],
+   967→                    })
+   968→
+   969→                self.conversation_history.extend(tool_results)
+   970→
+   971→            except (anthropic.RateLimitError if anthropic else Exception) as e:
+   972→                yield "\n[System: Rate limited, waiting...]\n"
+   973→                await asyncio.sleep(2)
+   974→                continue
+   975→            except (anthropic.APIError if anthropic else Exception) as e:
+   976→                self.logger.error(f"API error: {e}")
+   977→                yield f"\n[System: API error - {str(e)}]\n"
+   978→                break
+   979→            except Exception as e:
+   980→                self.logger.error(f"Error in chat_stream: {e}", exc_info=True)
+   981→                yield f"\n[System error: {str(e)}]\n"
+   982→                break
+   983→
+   984→    # ------------------------------------------------------------------
+   985→    # Conversation branching
+   986→    # ------------------------------------------------------------------
+   987→
+   988→    async def branch_conversation(self, branch_point_message_id: str, new_message: str = "") -> dict:
+   989→        """Fork the conversation at a specific message index.
+   990→
+   991→        Creates an independent branch with its own history.
+   992→        The original conversation is unchanged.
+   993→        """
+   994→        import uuid as _uuid
+   995→
+   996→        # Find the branch point in conversation history
+   997→        # message_id is the index as a string
+   998→        try:
+   999→            idx = int(branch_point_message_id)
+  1000→        except (ValueError, TypeError):
+  1001→            idx = len(self.conversation_history) - 1
+  1002→
+  1003→        # Clamp to valid range
+  1004→        idx = max(0, min(idx, len(self.conversation_history) - 1))
+  1005→
+  1006→        # Copy history up to and including the branch point
+  1007→        branch_history = list(self.conversation_history[:idx + 1])
+  1008→
+  1009→        branch_id = f"branch_{_uuid.uuid4().hex[:8]}"
+  1010→        self._branches[branch_id] = {
+  1011→            "history": branch_history,
+  1012→            "parent_message_id": branch_point_message_id,
+  1013→            "created_at": datetime.now().isoformat(),
+  1014→            "summaries": list(self.summarizer.summaries),
+  1015→        }
+  1016→
+  1017→        # Save main history before switching
+  1018→        if self._active_branch_id is None:
+  1019→            self._main_history = list(self.conversation_history)
+  1020→            self._main_summaries = list(self.summarizer.summaries)
+  1021→
+  1022→        # Switch to the new branch
+  1023→        self._active_branch_id = branch_id
+  1024→        self.conversation_history = branch_history
+  1025→        self.summarizer.summaries = list(self._branches[branch_id]["summaries"])
+  1026→
+  1027→        self.logger.info(
+  1028→            f"Created branch {branch_id} at message {idx} "
+  1029→            f"({len(branch_history)} messages copied)"
+  1030→        )
+  1031→
+  1032→        return {
+  1033→            "branch_id": branch_id,
+  1034→            "parent_message_id": branch_point_message_id,
+  1035→            "created_at": self._branches[branch_id]["created_at"],
+  1036→            "message_count": len(branch_history),
+  1037→        }
+  1038→
+  1039→    async def get_branches(self) -> list:
+  1040→        """List all active conversation branches with message counts."""
+  1041→        result = []
+  1042→        for bid, bdata in self._branches.items():
+  1043→            result.append({
+  1044→                "branch_id": bid,
+  1045→                "parent_message_id": bdata["parent_message_id"],
+  1046→                "created_at": bdata["created_at"],
+  1047→                "message_count": len(bdata["history"]),
+  1048→                "is_active": bid == self._active_branch_id,
+  1049→            })
+  1050→        # Include main conversation
+  1051→        result.append({
+  1052→            "branch_id": "main",
+  1053→            "parent_message_id": None,
+  1054→            "created_at": None,
+  1055→            "message_count": len(self.conversation_history) if self._active_branch_id is None else len(self._branches.get(self._active_branch_id, {}).get("history", [])),
+  1056→            "is_active": self._active_branch_id is None,
+  1057→        })
+  1058→        return result
+  1059→
+  1060→    async def switch_branch(self, branch_id: str) -> bool:
+  1061→        """Switch the active conversation to a different branch."""
+  1062→        if branch_id == "main":
+  1063→            # Save current branch state
+  1064→            if self._active_branch_id and self._active_branch_id in self._branches:
+  1065→                self._branches[self._active_branch_id]["history"] = list(self.conversation_history)
+  1066→                self._branches[self._active_branch_id]["summaries"] = list(self.summarizer.summaries)
+  1067→            self._active_branch_id = None
+  1068→            # Restore main history (stored separately)
+  1069→            if hasattr(self, "_main_history"):
+  1070→                self.conversation_history = list(self._main_history)
+  1071→                self.summarizer.summaries = list(getattr(self, "_main_summaries", []))
+  1072→            return True
+  1073→
+  1074→        if branch_id not in self._branches:
+  1075→            return False
+  1076→
+  1077→        # Save current state
+  1078→        if self._active_branch_id is None:
+  1079→            self._main_history = list(self.conversation_history)
+  1080→            self._main_summaries = list(self.summarizer.summaries)
+  1081→        elif self._active_branch_id in self._branches:
+  1082→            self._branches[self._active_branch_id]["history"] = list(self.conversation_history)
+  1083→            self._branches[self._active_branch_id]["summaries"] = list(self.summarizer.summaries)
+  1084→
+  1085→        # Switch to target branch
+  1086→        self._active_branch_id = branch_id
+  1087→        self.conversation_history = list(self._branches[branch_id]["history"])
+  1088→        self.summarizer.summaries = list(self._branches[branch_id].get("summaries", []))
+  1089→        self.logger.info(f"Switched to branch {branch_id}")
+  1090→        return True
+  1091→
+  1092→    async def merge_branch_insight(self, branch_id: str) -> str:
+  1093→        """Summarize what was learned in a branch and bring it back to main."""
+  1094→        if branch_id not in self._branches:
+  1095→            return "Branch not found."
+  1096→
+  1097→        branch_history = self._branches[branch_id]["history"]
+  1098→        if not branch_history:
+  1099→            return "Branch has no messages."
+  1100→
+  1101→        # Summarize the branch's key content
+  1102→        user_messages = [
+  1103→            m["content"] for m in branch_history
+  1104→            if m.get("role") == "user" and isinstance(m.get("content"), str)
+  1105→        ]
+  1106→        assistant_messages = [
+  1107→            m["content"] for m in branch_history
+  1108→            if m.get("role") == "assistant" and isinstance(m.get("content"), str)
+  1109→        ]
+  1110→
+  1111→        summary_parts = []
+  1112→        if user_messages:
+  1113→            summary_parts.append(f"User explored: {' | '.join(m[:100] for m in user_messages[-3:])}")
+  1114→        if assistant_messages:
+  1115→            summary_parts.append(f"Key findings: {' | '.join(m[:100] for m in assistant_messages[-3:])}")
+  1116→
+  1117→        insight = f"[Branch {branch_id} insight] " + " ".join(summary_parts)
+  1118→
+  1119→        # Add to main conversation as context
+  1120→        was_in_branch = self._active_branch_id == branch_id
+  1121→        if was_in_branch:
+  1122→            await self.switch_branch("main")
+  1123→        elif self._active_branch_id is not None:
+  1124→            # Save current, switch to main, add insight, switch back
+  1125→            await self.switch_branch("main")
+  1126→
+  1127→        self.conversation_history.append({
+  1128→            "role": "system",
+  1129→            "content": insight,
+  1130→        })
+  1131→
+  1132→        if was_in_branch:
+  1133→            await self.switch_branch(branch_id)
+  1134→
+  1135→        return insight
+  1136→
+  1137→    async def delete_branch(self, branch_id: str) -> bool:
+  1138→        """Delete a conversation branch."""
+  1139→        if branch_id == "main" or branch_id not in self._branches:
+  1140→            return False
+  1141→        if self._active_branch_id == branch_id:
+  1142→            await self.switch_branch("main")
+  1143→        del self._branches[branch_id]
+  1144→        self.logger.info(f"Deleted branch {branch_id}")
+  1145→        return True
+  1146→
+  1147→    # ------------------------------------------------------------------
+  1148→    # Utility methods
+  1149→    # ------------------------------------------------------------------
+  1150→
+  1151→    def clear_context(self):
+  1152→        """Clear conversation history."""
+  1153→        self.conversation_history = []
+  1154→        self.summarizer.summaries = []
+  1155→
+  1156→    def get_stats(self) -> Dict[str, Any]:
+  1157→        """Return brain statistics."""
+  1158→        return {
+  1159→            "provider": self.provider,
+  1160→            "model": self.claude_model,
+  1161→            "history_length": len(self.conversation_history),
+  1162→            "summary_count": len(self.summarizer.summaries),
+  1163→            "skills_loaded": list(self.skills.keys()),
+  1164→            "tools_available": [t["name"] for t in self.tools],
+  1165→            "memory_enabled": self.memory is not None,
+  1166→            "emotions_enabled": self.emotions is not None,
+  1167→            "personality_enabled": self.personality is not None,
+  1168→        }
+  1169→
