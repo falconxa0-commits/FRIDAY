@@ -1,0 +1,23 @@
+{
+  "id": "d45a80ab-6e78-433c-bba8-dcf6fa14f75d",
+  "type": "lesson",
+  "title": "Lesson: Missing skills/ directory broke 35 tests",
+  "summary": "core/brain.py imported from skills.base but the skills/ directory didn't exist. This caused ModuleNotFoundError in 35 tests. Always verify that import targets exist on disk.",
+  "content": "## What Happened\n\nThe `skills/` directory was referenced in `core/brain.py:27` (`from skills.base import BaseSkill`) and in the CLI (`from skills.morning_briefing import MorningBriefing`), but the directory itself didn't exist on disk. This caused `ModuleNotFoundError` in 35 tests, the smoke test, the hellfire audit, and the Docker container.\n\n## Root Cause\n\nThe skills framework was documented in `docs/SKILLS.md` and referenced in code, but the actual `skills/` package was never created (or was deleted at some point).\n\n## Fix\n\nCreated:\n- `skills/__init__.py` \u2014 package init\n- `skills/base.py` \u2014 BaseSkill ABC with abstract `name`, `description`, `run()` methods\n- `skills/morning_briefing.py` \u2014 MorningBriefing skill implementation\n- `skills/daily_journal.py` \u2014 DailyJournalSkill implementation\n\n## Lesson\n\n1. **Imports must be verified**: Every `from X import Y` should have a corresponding file on disk. CI should catch this but didn't because the import was at module level and `pytest` collection caught it late.\n2. **The `verify_definition_of_done.py` script was lying**: it hardcoded \"183/183 tests passing\" when the actual count was 307 (and 35 were failing). Always compute real numbers, never hardcode.\n3. **Documentation != implementation**: `docs/SKILLS.md` described the framework in detail, but the code didn't exist. Always verify docs match reality.\n",
+  "status": "accepted",
+  "tags": [
+    "testing",
+    "skills",
+    "phase-3",
+    "root-cause"
+  ],
+  "related_tasks": [],
+  "related_entries": [],
+  "created_at": "2026-08-09T22:34:10.602120+00:00",
+  "updated_at": "2026-08-09T22:34:10.602127+00:00",
+  "author": "seed-script",
+  "metadata": {
+    "severity": "critical",
+    "tests_affected": 35
+  }
+}

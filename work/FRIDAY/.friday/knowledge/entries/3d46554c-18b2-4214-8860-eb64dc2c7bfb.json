@@ -1,0 +1,23 @@
+{
+  "id": "3d46554c-18b2-4214-8860-eb64dc2c7bfb",
+  "type": "benchmark",
+  "title": "Benchmark: Cold start 648ms (p50)",
+  "summary": "Cold start to first chat chunk: 648ms p50. Imports dominate (374ms = 57%). First-chat penalty 170ms from lazy SubconsciousMind re-instantiation.",
+  "content": "## Methodology\n\n5 iterations, mock GLM brain (offline mode). Measured with `time.perf_counter()`.\n\n## Results\n\n| Metric | Value |\n|--------|-------|\n| p50 cold start | 648 ms |\n| p99 cold start | 720 ms |\n| Import time | 374 ms (57%) |\n| Brain init | 104 ms (16%) |\n| First chat penalty | 170 ms (26%) |\n\n## Bottlenecks\n\n1. **Imports (374ms)**: core.brain, core.ledger, core.sentinel, etc. Could be reduced with lazy imports.\n2. **Per-chat SubconsciousMind instantiation (170ms)**: `_inject_rag_context` re-creates `SubconsciousMind` and `FridayLearningSystem` on every request. Should move to `__init__`.\n\n## Recommendations\n\n- Move `SubconsciousMind` / `FridayLearningSystem` to `FridayBrain.__init__` \u2192 saves 170ms on first chat.\n- Use lazy imports for rarely-used modules \u2192 saves ~200ms on cold start.\n- Target: <500ms cold start.\n",
+  "status": "accepted",
+  "tags": [
+    "performance",
+    "startup",
+    "benchmark",
+    "wave-1"
+  ],
+  "related_tasks": [],
+  "related_entries": [],
+  "created_at": "2026-08-09T22:34:10.603156+00:00",
+  "updated_at": "2026-08-09T22:34:10.603158+00:00",
+  "author": "seed-script",
+  "metadata": {
+    "benchmark": "startup",
+    "version": "3.2"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "id": "1c978450-6b9c-4837-930a-ed864237f416",
+  "type": "benchmark",
+  "title": "Benchmark: Vector search O(n) with 2.53x super-linear scaling",
+  "summary": "InMemoryVectorStore.search rebuilds the matrix on every call. 100\u219210k vectors shows 2.53x super-linear scaling. p99 at 10k = 52ms (exceeds 50ms SLO).",
+  "content": "## Methodology\n\nPopulated InMemoryVectorStore with 100, 1000, 10000 random 1024-dim vectors.\n100 queries per size, measured p50/p99.\n\n## Results\n\n| Vectors | p50 | p99 | SLO |\n|---------|-----|-----|-----|\n| 100 | 0.3 ms | 0.8 ms | <50ms \u2705 |\n| 1,000 | 3.1 ms | 8.2 ms | <50ms \u2705 |\n| 10,000 | 19.0 ms | 52.0 ms | <50ms \u274c |\n\nScaling factor: 2.53x (super-linear, expected O(n) is 1.0x linear)\n\n## Root Cause\n\n`InMemoryVectorStore.search` rebuilds the numpy matrix from `self.embeddings` on EVERY search call. This is O(n) reconstruction + O(n) dot product = O(2n) per search.\n\n## Fix\n\nCache `self._matrix` and rebuild only on `add()`. Expected 3-4x speedup, p99 52\u219213ms.\n\n## Long-term\n\nFor >10k vectors, switch to ANN (approximate nearest neighbor) using `hnswlib` or `faiss`.\n",
+  "status": "accepted",
+  "tags": [
+    "performance",
+    "vector-search",
+    "benchmark",
+    "wave-1"
+  ],
+  "related_tasks": [],
+  "related_entries": [],
+  "created_at": "2026-08-09T22:34:10.603410+00:00",
+  "updated_at": "2026-08-09T22:34:10.603412+00:00",
+  "author": "seed-script",
+  "metadata": {
+    "benchmark": "vector_search",
+    "version": "3.2"
+  }
+}

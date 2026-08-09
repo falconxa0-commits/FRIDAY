@@ -1,0 +1,24 @@
+{
+  "id": "9c28e3e9-6dd5-43ef-8434-fac7e6470f24",
+  "type": "adr",
+  "title": "ADR-001: Use HMAC-SHA256 instead of bare SHA-256 for audit chain",
+  "summary": "The audit chain was forgeable because approved_by was excluded from the hash and no server secret was used. Fixed by switching to HMAC-SHA256 with a persisted server secret.",
+  "content": "## Context\n\nThe original audit chain in `core/ledger.py` used bare SHA-256 hashing of 6 fields (prev_hash, action_id, component, action, params, timestamp, status). The `approved_by` field was NOT included in the hash content.\n\n## Problem\n\nAn attacker with filesystem access could modify the `approved_by` field in the persisted JSON without breaking the hash chain. This was verified with a PoC:\n\n```\nInitial: approved_by=human, verify_chain=True\nAfter tampering approved_by \u2192 attacker: verify_chain=True (STILL VALID)\n```\n\n## Decision\n\n1. Include `approved_by` in the hash content (7 fields total).\n2. Switch from bare SHA-256 to HMAC-SHA256 with a server-side secret.\n3. Secret sourced from: FRIDAY_LEDGER_HMAC_SECRET env var \u2192 FRIDAY_API_TOKEN \u2192 persisted random at ~/.friday/ledger_secret.\n\n## Consequences\n\n- Tampering any field (including approved_by) now breaks the chain.\n- An attacker needs both the JSON file AND the HMAC secret to forge entries.\n- Backward compatibility: old chains (without approved_by in hash) will fail verification on first load \u2014 they're archived as `.tampered.<timestamp>.json`.\n- The HMAC secret must be backed up; losing it means all historical receipts become unverifiable.\n",
+  "status": "accepted",
+  "tags": [
+    "security",
+    "audit",
+    "hmac",
+    "ledger",
+    "phase-3"
+  ],
+  "related_tasks": [],
+  "related_entries": [],
+  "created_at": "2026-08-09T22:34:10.600347+00:00",
+  "updated_at": "2026-08-09T22:34:10.600358+00:00",
+  "author": "seed-script",
+  "metadata": {
+    "phase": "3",
+    "fix_id": "approved_by_forgery"
+  }
+}

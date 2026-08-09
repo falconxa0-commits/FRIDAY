@@ -1,0 +1,23 @@
+{
+  "id": "d6b6cbae-9a55-423a-8c36-68b638ff4731",
+  "type": "standard",
+  "title": "Standard: All audit-chain hashes must include approved_by",
+  "summary": "Every hash in the audit chain MUST include the approved_by field. This prevents forging who approved an action.",
+  "content": "## Rule\n\nAny hash computation that verifies an audit-chain entry MUST include the `approved_by` field in the hash content. This is enforced in `core/ledger.py:_compute_entry_hash`.\n\n## Rationale\n\nWithout `approved_by` in the hash, an attacker with filesystem access can rewrite WHO approved any past action without detection. This defeats the purpose of a tamper-evident audit log.\n\n## Enforcement\n\n- `_compute_entry_hash` includes 7 fields: prev_hash, action_id, component, action, params, timestamp, status, approved_by.\n- Uses HMAC-SHA256 with a server-side secret (not bare SHA-256).\n- The secret is sourced from FRIDAY_LEDGER_HMAC_SECRET env var \u2192 FRIDAY_API_TOKEN \u2192 persisted random.\n\n## Testing\n\n`tests/test_security_regression.py` includes a test that tampers `approved_by` and verifies the chain breaks.\n",
+  "status": "accepted",
+  "tags": [
+    "standard",
+    "security",
+    "audit",
+    "hash",
+    "mandatory"
+  ],
+  "related_tasks": [],
+  "related_entries": [],
+  "created_at": "2026-08-09T22:34:10.603707+00:00",
+  "updated_at": "2026-08-09T22:34:10.603709+00:00",
+  "author": "seed-script",
+  "metadata": {
+    "enforcement": "automatic"
+  }
+}

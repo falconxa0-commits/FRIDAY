@@ -1,0 +1,235 @@
+[
+  {
+    "id": "ef70cf55-67c4-4e57-b654-59f34e6b9635",
+    "type": "lesson",
+    "title": "Task completed: Test task",
+    "status": "accepted",
+    "tags": [
+      "task-completion",
+      "quality"
+    ],
+    "created_at": "2026-08-09T22:31:45.224420+00:00",
+    "updated_at": "2026-08-09T22:31:45.224430+00:00"
+  },
+  {
+    "id": "0f3cfe40-19cb-4c7b-ba73-4da85243ea69",
+    "type": "lesson",
+    "title": "Task completed: Test task",
+    "status": "accepted",
+    "tags": [
+      "task-completion",
+      "quality"
+    ],
+    "created_at": "2026-08-09T22:32:13.501133+00:00",
+    "updated_at": "2026-08-09T22:32:13.501141+00:00"
+  },
+  {
+    "id": "9c28e3e9-6dd5-43ef-8434-fac7e6470f24",
+    "type": "adr",
+    "title": "ADR-001: Use HMAC-SHA256 instead of bare SHA-256 for audit chain",
+    "status": "accepted",
+    "tags": [
+      "security",
+      "audit",
+      "hmac",
+      "ledger",
+      "phase-3"
+    ],
+    "created_at": "2026-08-09T22:34:10.600347+00:00",
+    "updated_at": "2026-08-09T22:34:10.600358+00:00"
+  },
+  {
+    "id": "1ba6ac89-dc84-436d-8fd7-fc7d610c7d7b",
+    "type": "adr",
+    "title": "ADR-002: Walk entire AST for plugin security scan, not just top-level",
+    "status": "accepted",
+    "tags": [
+      "security",
+      "plugins",
+      "ast",
+      "marketplace",
+      "phase-3"
+    ],
+    "created_at": "2026-08-09T22:34:10.600757+00:00",
+    "updated_at": "2026-08-09T22:34:10.600761+00:00"
+  },
+  {
+    "id": "bace8e85-275d-4ede-850b-a53a96ad178e",
+    "type": "adr",
+    "title": "ADR-003: Ignore caller-supplied risk_level in MCP request_approval",
+    "status": "accepted",
+    "tags": [
+      "security",
+      "mcp",
+      "risk-classification",
+      "sentinel",
+      "phase-3"
+    ],
+    "created_at": "2026-08-09T22:34:10.601493+00:00",
+    "updated_at": "2026-08-09T22:34:10.601509+00:00"
+  },
+  {
+    "id": "3149e77d-48d5-42fb-87bc-14e6b54459ef",
+    "type": "adr",
+    "title": "ADR-004: Decompose FridayBrain god class into ProviderRouter, ContextManager, CreativeRouter",
+    "status": "accepted",
+    "tags": [
+      "architecture",
+      "refactoring",
+      "brain",
+      "decomposition",
+      "wave-2"
+    ],
+    "created_at": "2026-08-09T22:34:10.601871+00:00",
+    "updated_at": "2026-08-09T22:34:10.601876+00:00"
+  },
+  {
+    "id": "d45a80ab-6e78-433c-bba8-dcf6fa14f75d",
+    "type": "lesson",
+    "title": "Lesson: Missing skills/ directory broke 35 tests",
+    "status": "accepted",
+    "tags": [
+      "testing",
+      "skills",
+      "phase-3",
+      "root-cause"
+    ],
+    "created_at": "2026-08-09T22:34:10.602120+00:00",
+    "updated_at": "2026-08-09T22:34:10.602127+00:00"
+  },
+  {
+    "id": "3d6a42a0-1c7a-4b00-941c-38b18e4a6fa0",
+    "type": "lesson",
+    "title": "Lesson: GLM web_search returned hallucinations as search results",
+    "status": "accepted",
+    "tags": [
+      "ai-systems",
+      "glm",
+      "web-search",
+      "hallucination",
+      "phase-3"
+    ],
+    "created_at": "2026-08-09T22:34:10.602377+00:00",
+    "updated_at": "2026-08-09T22:34:10.602381+00:00"
+  },
+  {
+    "id": "66566c42-b145-4c58-9b44-def254eaf57b",
+    "type": "lesson",
+    "title": "Lesson: CostTracker never recorded real usage due to signature mismatch",
+    "status": "accepted",
+    "tags": [
+      "ai-systems",
+      "cost-tracking",
+      "phase-3",
+      "silent-failure"
+    ],
+    "created_at": "2026-08-09T22:34:10.602652+00:00",
+    "updated_at": "2026-08-09T22:34:10.602655+00:00"
+  },
+  {
+    "id": "8829087f-0eee-418a-92b8-8c697a099b63",
+    "type": "lesson",
+    "title": "Lesson: Engineering swarm \u2014 file ownership prevents merge conflicts",
+    "status": "accepted",
+    "tags": [
+      "engineering-org",
+      "swarm",
+      "parallel-execution",
+      "wave-1"
+    ],
+    "created_at": "2026-08-09T22:34:10.602898+00:00",
+    "updated_at": "2026-08-09T22:34:10.602900+00:00"
+  },
+  {
+    "id": "3d46554c-18b2-4214-8860-eb64dc2c7bfb",
+    "type": "benchmark",
+    "title": "Benchmark: Cold start 648ms (p50)",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "startup",
+      "benchmark",
+      "wave-1"
+    ],
+    "created_at": "2026-08-09T22:34:10.603156+00:00",
+    "updated_at": "2026-08-09T22:34:10.603158+00:00"
+  },
+  {
+    "id": "1c978450-6b9c-4837-930a-ed864237f416",
+    "type": "benchmark",
+    "title": "Benchmark: Vector search O(n) with 2.53x super-linear scaling",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "vector-search",
+      "benchmark",
+      "wave-1"
+    ],
+    "created_at": "2026-08-09T22:34:10.603410+00:00",
+    "updated_at": "2026-08-09T22:34:10.603412+00:00"
+  },
+  {
+    "id": "d6b6cbae-9a55-423a-8c36-68b638ff4731",
+    "type": "standard",
+    "title": "Standard: All audit-chain hashes must include approved_by",
+    "status": "accepted",
+    "tags": [
+      "standard",
+      "security",
+      "audit",
+      "hash",
+      "mandatory"
+    ],
+    "created_at": "2026-08-09T22:34:10.603707+00:00",
+    "updated_at": "2026-08-09T22:34:10.603709+00:00"
+  },
+  {
+    "id": "7e0bb4af-a7c9-462b-9095-b2ac82b17dd8",
+    "type": "standard",
+    "title": "Standard: Never silently swallow exceptions in production code",
+    "status": "accepted",
+    "tags": [
+      "standard",
+      "code-quality",
+      "error-handling"
+    ],
+    "created_at": "2026-08-09T22:34:10.603977+00:00",
+    "updated_at": "2026-08-09T22:34:10.603981+00:00"
+  },
+  {
+    "id": "64c79de0-0313-4595-b29d-2adadf6d4984",
+    "type": "lesson",
+    "title": "Task completed: Test task",
+    "status": "accepted",
+    "tags": [
+      "task-completion",
+      "quality"
+    ],
+    "created_at": "2026-08-09T22:35:40.256275+00:00",
+    "updated_at": "2026-08-09T22:35:40.256284+00:00"
+  },
+  {
+    "id": "1305b5ca-68e1-4abb-a79b-8ce597523ffb",
+    "type": "lesson",
+    "title": "Task completed: Test task",
+    "status": "accepted",
+    "tags": [
+      "task-completion",
+      "quality"
+    ],
+    "created_at": "2026-08-09T22:37:43.249861+00:00",
+    "updated_at": "2026-08-09T22:37:43.249871+00:00"
+  },
+  {
+    "id": "d40a6126-dcfd-405e-be52-e4d2090a2993",
+    "type": "lesson",
+    "title": "Task completed: Test task",
+    "status": "accepted",
+    "tags": [
+      "task-completion",
+      "quality"
+    ],
+    "created_at": "2026-08-09T22:40:18.833804+00:00",
+    "updated_at": "2026-08-09T22:40:18.833814+00:00"
+  }
+]

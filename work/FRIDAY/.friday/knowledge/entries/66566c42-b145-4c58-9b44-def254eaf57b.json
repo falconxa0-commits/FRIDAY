@@ -1,0 +1,22 @@
+{
+  "id": "66566c42-b145-4c58-9b44-def254eaf57b",
+  "type": "lesson",
+  "title": "Lesson: CostTracker never recorded real usage due to signature mismatch",
+  "summary": "api/routes/chat.py called CostTracker.record_usage with wrong kwargs (model=, tokens_in=, tokens_out=, cost=) vs the actual signature (provider, input_tokens, output_tokens). The TypeError was swallowed by except: pass.",
+  "content": "## What Happened\n\n`api/routes/chat.py:55-60` called:\n```python\ntracker.record_usage(provider=, model=, tokens_in=, tokens_out=, cost=)\n```\n\nBut `CostTracker.record_usage` signature is:\n```python\ndef record_usage(self, provider: str, input_tokens: int, output_tokens: int)\n```\n\nThe call raised `TypeError`, which was caught by `except Exception: pass` at line 62. The persistent cost tracker was NEVER populated from real traffic.\n\n## Impact\n\n- No usage-based billing was possible.\n- The `/api/stats` endpoint showed $0.00 cost even when the system was actively used.\n- Token usage data was lost.\n\n## Fix\n\nChanged the call to use the correct signature:\n```python\ntracker.record_usage(provider=provider, input_tokens=tokens_in, output_tokens=tokens_out)\n```\n\n## Lesson\n\n1. **`except Exception: pass` is dangerous**: it silently swallows programming errors. Only use it for genuinely optional operations where you've verified the call works.\n2. **Test your integrations**: the CostTracker had unit tests, but the integration between chat.py and CostTracker was never tested. Always test the actual call site, not just the module in isolation.\n3. **Type checkers catch this**: if `mypy` were in CI, this would have been caught. Adding type checking to CI is a Phase 9 task.\n",
+  "status": "accepted",
+  "tags": [
+    "ai-systems",
+    "cost-tracking",
+    "phase-3",
+    "silent-failure"
+  ],
+  "related_tasks": [],
+  "related_entries": [],
+  "created_at": "2026-08-09T22:34:10.602652+00:00",
+  "updated_at": "2026-08-09T22:34:10.602655+00:00",
+  "author": "seed-script",
+  "metadata": {
+    "severity": "high"
+  }
+}

@@ -654,6 +654,12 @@ async def cmd_council_tui(args: list[str]) -> int:
 # Dispatcher
 # ---------------------------------------------------------------------------
 
+async def _eng_dispatch(args: list[str]) -> int:
+    """Dispatch to the engineering system commands."""
+    from cli.engineering_commands import cmd_eng
+    return await cmd_eng(args)
+
+
 # Subcommand map: name → (handler, takes_args)
 # Flag-style entries start with --
 COMMANDS = {
@@ -669,6 +675,7 @@ COMMANDS = {
     "trust":      cmd_trust,
     "ledger":     cmd_ledger,
     "plugin":     cmd_plugin,
+    "eng":        _eng_dispatch,
     "--watch":    cmd_watch,
     "--voice":    cmd_voice,
     "--council":  cmd_council_tui,

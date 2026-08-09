@@ -1,0 +1,24 @@
+{
+  "id": "bace8e85-275d-4ede-850b-a53a96ad178e",
+  "type": "adr",
+  "title": "ADR-003: Ignore caller-supplied risk_level in MCP request_approval",
+  "summary": "External MCP clients could self-classify destructive actions as 'low' risk to bypass the approval gate. Fixed by always computing risk_level via EthicalSentinel.",
+  "content": "## Context\n\nThe MCP `request_approval` tool accepted a `risk_level` parameter from the caller. In STANDARD/POWER autonomy profiles, low-risk actions auto-approve.\n\n## Problem\n\nA malicious MCP client (e.g., a compromised Claude Code session) could submit:\n```json\n{\"component\": \"FileManager\", \"action\": \"delete_file\", \"risk_level\": \"low\"}\n```\nThis would auto-approve file deletion without human review.\n\n## Decision\n\n1. Ignore the caller-supplied `risk_level` entirely.\n2. Compute risk_level using `EthicalSentinel.evaluate_action()` (the 356-line risk classifier).\n3. Fall back to `UniversalConnector._classify_risk()` if Sentinel unavailable.\n4. Log a warning when a caller supplies `risk_level` (for audit trail).\n\n## Consequences\n\n- External agents can no longer influence their own risk classification.\n- The Sentinel is now the single source of truth for MCP risk assessment.\n- This required wiring the Sentinel into `UniversalConnector.execute_action` (previously it was dead code).\n",
+  "status": "accepted",
+  "tags": [
+    "security",
+    "mcp",
+    "risk-classification",
+    "sentinel",
+    "phase-3"
+  ],
+  "related_tasks": [],
+  "related_entries": [],
+  "created_at": "2026-08-09T22:34:10.601493+00:00",
+  "updated_at": "2026-08-09T22:34:10.601509+00:00",
+  "author": "seed-script",
+  "metadata": {
+    "phase": "3",
+    "fix_id": "caller_risk_level"
+  }
+}

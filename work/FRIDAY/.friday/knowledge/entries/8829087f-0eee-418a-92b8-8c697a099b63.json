@@ -1,0 +1,23 @@
+{
+  "id": "8829087f-0eee-418a-92b8-8c697a099b63",
+  "type": "lesson",
+  "title": "Lesson: Engineering swarm \u2014 file ownership prevents merge conflicts",
+  "summary": "When running 5 agents in parallel, strict file ownership (each agent only modifies its assigned files) prevented merge conflicts. Only 1 conflict occurred (webhook tests), resolved by the orchestrator.",
+  "content": "## What Happened\n\nThe engineering swarm ran 5 agents in parallel (Security, Testing, Observability, Documentation, Performance). Each agent was given a strict list of files it could modify.\n\n## What Worked\n\n1. **File ownership prevented conflicts**: No two agents modified the same file. The only conflict was cross-cutting: the Security Agent changed webhook behavior (fail-closed) which broke the Testing Agent's webhook tests.\n2. **The orchestrator resolved conflicts**: when the webhook test conflict was detected, the orchestrator updated the tests to match the new security contract.\n3. **Continuous validation caught regressions**: after each wave, the full test suite was run. 0 regressions slipped through.\n\n## What Didn't Work\n\n1. **Performance Agent timed out on first run**: the context deadline was hit because the benchmark scripts took too long. Retry with shorter scripts succeeded.\n2. **One agent modified requirements.txt outside its ownership**: the Observability Agent installed prometheus-client and sentry-sdk but couldn't update requirements.txt (owned by Refactoring Agent). Had to flag it as a follow-up.\n\n## Lesson\n\n1. **Strict file ownership is the key to parallel agent work**. Without it, merge conflicts would dominate the integration phase.\n2. **Cross-cutting concerns need orchestrator coordination**: when a security fix changes a contract, the tests must be updated by someone with visibility across both agents.\n3. **Agents should flag out-of-scope work** rather than silently skipping it. The Observability Agent correctly flagged the requirements.txt issue instead of ignoring it.\n",
+  "status": "accepted",
+  "tags": [
+    "engineering-org",
+    "swarm",
+    "parallel-execution",
+    "wave-1"
+  ],
+  "related_tasks": [],
+  "related_entries": [],
+  "created_at": "2026-08-09T22:34:10.602898+00:00",
+  "updated_at": "2026-08-09T22:34:10.602900+00:00",
+  "author": "seed-script",
+  "metadata": {
+    "phase": "wave-1",
+    "agents": 5
+  }
+}

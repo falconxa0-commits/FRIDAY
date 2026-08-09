@@ -1,0 +1,13 @@
+{
+  "task_id": "382a8c6c-9b75-4dfe-9e11-f7afbb634ad2",
+  "title": "Simple task",
+  "phase": "quality",
+  "completed_at": "2026-08-09T22:31:45.209367+00:00",
+  "duration_seconds": 1.837399940995965e-05,
+  "tests_passed": 0,
+  "tests_failed": 0,
+  "hash": "ad633d32190a6144595d668233c42b6ff7ff9c3d2a0e8afe0d1b78edbb7fd56b",
+  "metadata": {
+    "lead": "Testing Lead"
+  }
+}

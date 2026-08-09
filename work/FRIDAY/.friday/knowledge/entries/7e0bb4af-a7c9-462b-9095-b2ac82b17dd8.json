@@ -1,0 +1,21 @@
+{
+  "id": "7e0bb4af-a7c9-462b-9095-b2ac82b17dd8",
+  "type": "standard",
+  "title": "Standard: Never silently swallow exceptions in production code",
+  "summary": "except Exception: pass hides bugs. Use except Exception as exc: logger.debug(...) at minimum, and only for genuinely optional operations.",
+  "content": "## Rule\n\nNever use bare `except Exception: pass` in production code. Always at minimum log the exception.\n\n## Acceptable patterns\n\n```python\n# GOOD \u2014 log the exception\ntry:\n    optional_operation()\nexcept Exception as exc:\n    logger.debug(\"Optional operation failed: %s\", exc)\n\n# GOOD \u2014 explicit handling\ntry:\n    risky_operation()\nexcept SpecificError as exc:\n    handle_error(exc)\n\n# BAD \u2014 silently swallows bugs\ntry:\n    important_operation()\nexcept Exception:\n    pass\n```\n\n## Rationale\n\nThe CostTracker signature mismatch bug persisted for months because the `except Exception: pass` at `api/routes/chat.py:62` hid the TypeError. If the exception had been logged, the bug would have been caught immediately.\n\n## Enforcement\n\n- The validation pipeline checks for `except Exception: pass` patterns (planned).\n- Code review should reject new instances.\n- Existing instances should be replaced with logged exceptions.\n",
+  "status": "accepted",
+  "tags": [
+    "standard",
+    "code-quality",
+    "error-handling"
+  ],
+  "related_tasks": [],
+  "related_entries": [],
+  "created_at": "2026-08-09T22:34:10.603977+00:00",
+  "updated_at": "2026-08-09T22:34:10.603981+00:00",
+  "author": "seed-script",
+  "metadata": {
+    "enforcement": "code-review"
+  }
+}

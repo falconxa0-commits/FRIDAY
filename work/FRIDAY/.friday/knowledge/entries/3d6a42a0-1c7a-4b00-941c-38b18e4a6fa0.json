@@ -1,0 +1,23 @@
+{
+  "id": "3d6a42a0-1c7a-4b00-941c-38b18e4a6fa0",
+  "type": "lesson",
+  "title": "Lesson: GLM web_search returned hallucinations as search results",
+  "summary": "glm_brain.py:web_search parsed tool_calls instead of the web_search response field, causing it to return LLM-synthesised text as fake search results.",
+  "content": "## What Happened\n\n`core/glm_brain.py:web_search` called the ZhipuAI API with `tools=[{\"type\": \"web_search\", ...}]` but then tried to extract results from `msg.tool_calls`. ZhipuAI's web_search tool returns results in a separate `response.web_search` field, NOT in `tool_calls`.\n\n## Impact\n\nThe fallback at line 294 turned the LLM's synthesised prose answer into a single \"search result\" with an empty URL. This meant `friday research \"topic\"` was returning LLM hallucinations labeled as web search results \u2014 the user had no way to distinguish real sources from invented ones.\n\n## Fix\n\n1. Primary: extract results from `response.web_search` (the correct field).\n2. Fallback 1: check `tool_calls` for entries with `name` containing \"search\".\n3. Fallback 2: if no real results, return the LLM's answer but LABEL IT CLEARLY as \"GLM Synthesised Answer (NOT a real search result)\" with a warning field.\n\n## Lesson\n\n1. **Read the SDK docs**: API response shapes vary between providers. Don't assume one provider's pattern (tool_calls) matches another's (web_search field).\n2. **Never silently return LLM output as factual data**: if you must fall back to LLM synthesis, label it clearly so downstream code and users know it's not a real source.\n3. **Test with real APIs when possible**: mock-based tests won't catch response-shape mismatches.\n",
+  "status": "accepted",
+  "tags": [
+    "ai-systems",
+    "glm",
+    "web-search",
+    "hallucination",
+    "phase-3"
+  ],
+  "related_tasks": [],
+  "related_entries": [],
+  "created_at": "2026-08-09T22:34:10.602377+00:00",
+  "updated_at": "2026-08-09T22:34:10.602381+00:00",
+  "author": "seed-script",
+  "metadata": {
+    "severity": "high"
+  }
+}

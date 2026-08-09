@@ -38,17 +38,17 @@ from cli.commands import (
 
 
 class TestCommandRegistry:
-    """Test the COMMANDS map has all 15 expected entries."""
+    """Test the COMMANDS map has all 16 expected entries."""
 
     def test_commands_map_size(self):
-        # 12 named + 3 flag-style (--watch, --voice, --council) = 15
-        assert len(COMMANDS) == 15
+        # 13 named + 3 flag-style (--watch, --voice, --council) = 16
+        assert len(COMMANDS) == 16
 
     def test_commands_contains_all_named_commands(self):
         expected_named = {
             "chat", "research", "generate", "video", "morning",
             "council", "status", "memory", "bench", "trust",
-            "ledger", "plugin",
+            "ledger", "plugin", "eng",
         }
         named_in_map = {k for k in COMMANDS if not k.startswith("--")}
         assert named_in_map == expected_named

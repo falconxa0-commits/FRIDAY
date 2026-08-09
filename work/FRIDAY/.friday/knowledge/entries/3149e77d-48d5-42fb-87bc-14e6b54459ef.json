@@ -1,0 +1,24 @@
+{
+  "id": "3149e77d-48d5-42fb-87bc-14e6b54459ef",
+  "type": "adr",
+  "title": "ADR-004: Decompose FridayBrain god class into ProviderRouter, ContextManager, CreativeRouter",
+  "summary": "brain.py was 1189 lines with 7 responsibilities. Decomposed into 3 collaborator modules while preserving the public API via property delegation.",
+  "content": "## Context\n\n`core/brain.py` was a god class with 7 responsibilities: provider routing, tool-calling, skill discovery, RAG, conversation branching, creative routing, and summarisation. Score: 5/10 on architecture.\n\n## Decision\n\nExtract three collaborator modules:\n1. `core/provider_router.py` (314 LOC) \u2014 GLM/Claude/Gemini/Ollama dispatch\n2. `core/context_manager.py` (295 LOC) \u2014 conversation history + summarisation + branching\n3. `core/creative_router.py` (147 LOC) \u2014 image/video generation routing\n\n`FridayBrain` delegates to these via composition. The public API (`chat_stream`, `branch_conversation`, etc.) is preserved via `@property` delegation so existing tests pass unchanged.\n\n## Consequences\n\n- brain.py reduced from 1189 \u2192 866 lines (-27%).\n- 32 new tests verify the decomposition.\n- 0 regressions \u2014 all 691 pre-existing tests still pass.\n- Future extraction: `ToolRegistry` and `ToolExecutor` can further reduce brain.py to ~600 lines.\n- Tests that directly mutate `brain.conversation_history` still work because the property delegates to `self.context.history`.\n",
+  "status": "accepted",
+  "tags": [
+    "architecture",
+    "refactoring",
+    "brain",
+    "decomposition",
+    "wave-2"
+  ],
+  "related_tasks": [],
+  "related_entries": [],
+  "created_at": "2026-08-09T22:34:10.601871+00:00",
+  "updated_at": "2026-08-09T22:34:10.601876+00:00",
+  "author": "seed-script",
+  "metadata": {
+    "phase": "wave-2",
+    "agent": "architecture"
+  }
+}

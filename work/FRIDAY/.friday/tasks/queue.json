@@ -1,0 +1,500 @@
+[
+  {
+    "id": "e87754b3-e75a-4313-a5b0-95e986ee87a2",
+    "title": "Security fix",
+    "description": "Fix MCP auth",
+    "phase": "security",
+    "priority": "critical",
+    "status": "pending",
+    "dependencies": [],
+    "blockers": [],
+    "assigned_to": "security_lead",
+    "max_retries": 3,
+    "retry_count": 0,
+    "checkpoints": [],
+    "history": [
+      {
+        "timestamp": "2026-08-09T22:31:45.204121+00:00",
+        "event": "created",
+        "actor": "system",
+        "details": {
+          "details": {
+            "priority": "critical"
+          }
+        }
+      }
+    ],
+    "created_at": "2026-08-09T22:31:45.204106+00:00",
+    "updated_at": "2026-08-09T22:31:45.204125+00:00",
+    "completed_at": null,
+    "receipt_hash": null,
+    "metadata": {}
+  },
+  {
+    "id": "c4904bdc-ea8a-48ce-b1ba-aa74e604c12f",
+    "title": "Test task",
+    "description": "Description",
+    "phase": "performance",
+    "priority": "medium",
+    "status": "pending",
+    "dependencies": [],
+    "blockers": [],
+    "assigned_to": "performance_lead",
+    "max_retries": 3,
+    "retry_count": 0,
+    "checkpoints": [],
+    "history": [
+      {
+        "timestamp": "2026-08-09T22:31:45.206190+00:00",
+        "event": "created",
+        "actor": "system",
+        "details": {
+          "details": {
+            "priority": "medium"
+          }
+        }
+      }
+    ],
+    "created_at": "2026-08-09T22:31:45.206171+00:00",
+    "updated_at": "2026-08-09T22:31:45.206193+00:00",
+    "completed_at": null,
+    "receipt_hash": null,
+    "metadata": {}
+  },
+  {
+    "id": "dddac749-ef9a-4ba3-ab0a-fbfeeb418a94",
+    "title": "Security fix",
+    "description": "Fix MCP auth",
+    "phase": "security",
+    "priority": "critical",
+    "status": "pending",
+    "dependencies": [],
+    "blockers": [],
+    "assigned_to": "security_lead",
+    "max_retries": 3,
+    "retry_count": 0,
+    "checkpoints": [],
+    "history": [
+      {
+        "timestamp": "2026-08-09T22:32:13.478888+00:00",
+        "event": "created",
+        "actor": "system",
+        "details": {
+          "details": {
+            "priority": "critical"
+          }
+        }
+      }
+    ],
+    "created_at": "2026-08-09T22:32:13.478875+00:00",
+    "updated_at": "2026-08-09T22:32:13.478890+00:00",
+    "completed_at": null,
+    "receipt_hash": null,
+    "metadata": {}
+  },
+  {
+    "id": "d0b21969-21b3-4ace-8007-03065e970b5f",
+    "title": "Test task",
+    "description": "Description",
+    "phase": "performance",
+    "priority": "medium",
+    "status": "pending",
+    "dependencies": [],
+    "blockers": [],
+    "assigned_to": "performance_lead",
+    "max_retries": 3,
+    "retry_count": 0,
+    "checkpoints": [],
+    "history": [
+      {
+        "timestamp": "2026-08-09T22:32:13.481379+00:00",
+        "event": "created",
+        "actor": "system",
+        "details": {
+          "details": {
+            "priority": "medium"
+          }
+        }
+      }
+    ],
+    "created_at": "2026-08-09T22:32:13.481366+00:00",
+    "updated_at": "2026-08-09T22:32:13.481381+00:00",
+    "completed_at": null,
+    "receipt_hash": null,
+    "metadata": {}
+  },
+  {
+    "id": "af9e9a4e-1a6d-466d-9ea4-2dab9a0cac4a",
+    "title": "Failing task",
+    "description": "This will fail",
+    "phase": "quality",
+    "priority": "medium",
+    "status": "failed",
+    "dependencies": [],
+    "blockers": [],
+    "assigned_to": "testing_lead",
+    "max_retries": 1,
+    "retry_count": 1,
+    "checkpoints": [],
+    "history": [
+      {
+        "timestamp": "2026-08-09T22:32:13.488558+00:00",
+        "event": "created",
+        "actor": "system",
+        "details": {
+          "details": {
+            "priority": "medium"
+          }
+        }
+      },
+      {
+        "timestamp": "2026-08-09T22:32:13.489122+00:00",
+        "event": "started",
+        "actor": "Testing Lead",
+        "details": {}
+      },
+      {
+        "timestamp": "2026-08-09T22:32:13.489707+00:00",
+        "event": "failed",
+        "actor": "Testing Lead",
+        "details": {
+          "details": {
+            "error": "Intentional failure"
+          }
+        }
+      }
+    ],
+    "created_at": "2026-08-09T22:32:13.488545+00:00",
+    "updated_at": "2026-08-09T22:32:13.489715+00:00",
+    "completed_at": null,
+    "receipt_hash": null,
+    "metadata": {}
+  },
+  {
+    "id": "04320968-7469-4b90-a620-a6e2b0b86af5",
+    "title": "Security fix",
+    "description": "Fix MCP auth",
+    "phase": "security",
+    "priority": "critical",
+    "status": "pending",
+    "dependencies": [],
+    "blockers": [],
+    "assigned_to": "security_lead",
+    "max_retries": 3,
+    "retry_count": 0,
+    "checkpoints": [],
+    "history": [
+      {
+        "timestamp": "2026-08-09T22:35:40.227988+00:00",
+        "event": "created",
+        "actor": "system",
+        "details": {
+          "details": {
+            "priority": "critical"
+          }
+        }
+      }
+    ],
+    "created_at": "2026-08-09T22:35:40.227969+00:00",
+    "updated_at": "2026-08-09T22:35:40.227992+00:00",
+    "completed_at": null,
+    "receipt_hash": null,
+    "metadata": {}
+  },
+  {
+    "id": "4beea2fb-9451-4d9e-b9dc-a549d4d55147",
+    "title": "Test task",
+    "description": "Description",
+    "phase": "performance",
+    "priority": "medium",
+    "status": "pending",
+    "dependencies": [],
+    "blockers": [],
+    "assigned_to": "performance_lead",
+    "max_retries": 3,
+    "retry_count": 0,
+    "checkpoints": [],
+    "history": [
+      {
+        "timestamp": "2026-08-09T22:35:40.231416+00:00",
+        "event": "created",
+        "actor": "system",
+        "details": {
+          "details": {
+            "priority": "medium"
+          }
+        }
+      }
+    ],
+    "created_at": "2026-08-09T22:35:40.231400+00:00",
+    "updated_at": "2026-08-09T22:35:40.231421+00:00",
+    "completed_at": null,
+    "receipt_hash": null,
+    "metadata": {}
+  },
+  {
+    "id": "5f79e2e2-f1c8-4fda-a8aa-044e2368d7a0",
+    "title": "Failing task",
+    "description": "This will fail",
+    "phase": "quality",
+    "priority": "medium",
+    "status": "failed",
+    "dependencies": [],
+    "blockers": [],
+    "assigned_to": "testing_lead",
+    "max_retries": 1,
+    "retry_count": 1,
+    "checkpoints": [],
+    "history": [
+      {
+        "timestamp": "2026-08-09T22:35:40.239885+00:00",
+        "event": "created",
+        "actor": "system",
+        "details": {
+          "details": {
+            "priority": "medium"
+          }
+        }
+      },
+      {
+        "timestamp": "2026-08-09T22:35:40.240663+00:00",
+        "event": "started",
+        "actor": "Testing Lead",
+        "details": {}
+      },
+      {
+        "timestamp": "2026-08-09T22:35:40.241265+00:00",
+        "event": "failed",
+        "actor": "Testing Lead",
+        "details": {
+          "details": {
+            "error": "Intentional failure"
+          }
+        }
+      }
+    ],
+    "created_at": "2026-08-09T22:35:40.239871+00:00",
+    "updated_at": "2026-08-09T22:35:40.241270+00:00",
+    "completed_at": null,
+    "receipt_hash": null,
+    "metadata": {}
+  },
+  {
+    "id": "0b4acef6-bff0-4394-8ecb-6c1545700cde",
+    "title": "Security fix",
+    "description": "Fix MCP auth",
+    "phase": "security",
+    "priority": "critical",
+    "status": "pending",
+    "dependencies": [],
+    "blockers": [],
+    "assigned_to": "security_lead",
+    "max_retries": 3,
+    "retry_count": 0,
+    "checkpoints": [],
+    "history": [
+      {
+        "timestamp": "2026-08-09T22:37:43.220617+00:00",
+        "event": "created",
+        "actor": "system",
+        "details": {
+          "details": {
+            "priority": "critical"
+          }
+        }
+      }
+    ],
+    "created_at": "2026-08-09T22:37:43.220598+00:00",
+    "updated_at": "2026-08-09T22:37:43.220620+00:00",
+    "completed_at": null,
+    "receipt_hash": null,
+    "metadata": {}
+  },
+  {
+    "id": "b22112aa-25b1-47d0-8063-1cbef732cc9c",
+    "title": "Test task",
+    "description": "Description",
+    "phase": "performance",
+    "priority": "medium",
+    "status": "pending",
+    "dependencies": [],
+    "blockers": [],
+    "assigned_to": "performance_lead",
+    "max_retries": 3,
+    "retry_count": 0,
+    "checkpoints": [],
+    "history": [
+      {
+        "timestamp": "2026-08-09T22:37:43.223927+00:00",
+        "event": "created",
+        "actor": "system",
+        "details": {
+          "details": {
+            "priority": "medium"
+          }
+        }
+      }
+    ],
+    "created_at": "2026-08-09T22:37:43.223912+00:00",
+    "updated_at": "2026-08-09T22:37:43.223930+00:00",
+    "completed_at": null,
+    "receipt_hash": null,
+    "metadata": {}
+  },
+  {
+    "id": "06d31527-7698-4e1e-bac1-95b2cf459132",
+    "title": "Failing task",
+    "description": "This will fail",
+    "phase": "quality",
+    "priority": "medium",
+    "status": "failed",
+    "dependencies": [],
+    "blockers": [],
+    "assigned_to": "testing_lead",
+    "max_retries": 1,
+    "retry_count": 1,
+    "checkpoints": [],
+    "history": [
+      {
+        "timestamp": "2026-08-09T22:37:43.232941+00:00",
+        "event": "created",
+        "actor": "system",
+        "details": {
+          "details": {
+            "priority": "medium"
+          }
+        }
+      },
+      {
+        "timestamp": "2026-08-09T22:37:43.233813+00:00",
+        "event": "started",
+        "actor": "Testing Lead",
+        "details": {}
+      },
+      {
+        "timestamp": "2026-08-09T22:37:43.234649+00:00",
+        "event": "failed",
+        "actor": "Testing Lead",
+        "details": {
+          "details": {
+            "error": "Intentional failure"
+          }
+        }
+      }
+    ],
+    "created_at": "2026-08-09T22:37:43.232928+00:00",
+    "updated_at": "2026-08-09T22:37:43.234656+00:00",
+    "completed_at": null,
+    "receipt_hash": null,
+    "metadata": {}
+  },
+  {
+    "id": "cca283fe-5f82-4d65-b06b-45f08ed44d60",
+    "title": "Security fix",
+    "description": "Fix MCP auth",
+    "phase": "security",
+    "priority": "critical",
+    "status": "pending",
+    "dependencies": [],
+    "blockers": [],
+    "assigned_to": "security_lead",
+    "max_retries": 3,
+    "retry_count": 0,
+    "checkpoints": [],
+    "history": [
+      {
+        "timestamp": "2026-08-09T22:40:18.801855+00:00",
+        "event": "created",
+        "actor": "system",
+        "details": {
+          "details": {
+            "priority": "critical"
+          }
+        }
+      }
+    ],
+    "created_at": "2026-08-09T22:40:18.801833+00:00",
+    "updated_at": "2026-08-09T22:40:18.801858+00:00",
+    "completed_at": null,
+    "receipt_hash": null,
+    "metadata": {}
+  },
+  {
+    "id": "68df8209-ecca-4233-b6d2-2aa5e794bc3b",
+    "title": "Test task",
+    "description": "Description",
+    "phase": "performance",
+    "priority": "medium",
+    "status": "pending",
+    "dependencies": [],
+    "blockers": [],
+    "assigned_to": "performance_lead",
+    "max_retries": 3,
+    "retry_count": 0,
+    "checkpoints": [],
+    "history": [
+      {
+        "timestamp": "2026-08-09T22:40:18.805349+00:00",
+        "event": "created",
+        "actor": "system",
+        "details": {
+          "details": {
+            "priority": "medium"
+          }
+        }
+      }
+    ],
+    "created_at": "2026-08-09T22:40:18.805333+00:00",
+    "updated_at": "2026-08-09T22:40:18.805352+00:00",
+    "completed_at": null,
+    "receipt_hash": null,
+    "metadata": {}
+  },
+  {
+    "id": "50993937-ee9b-451d-b99b-a958b13deaee",
+    "title": "Failing task",
+    "description": "This will fail",
+    "phase": "quality",
+    "priority": "medium",
+    "status": "failed",
+    "dependencies": [],
+    "blockers": [],
+    "assigned_to": "testing_lead",
+    "max_retries": 1,
+    "retry_count": 1,
+    "checkpoints": [],
+    "history": [
+      {
+        "timestamp": "2026-08-09T22:40:18.815271+00:00",
+        "event": "created",
+        "actor": "system",
+        "details": {
+          "details": {
+            "priority": "medium"
+          }
+        }
+      },
+      {
+        "timestamp": "2026-08-09T22:40:18.816258+00:00",
+        "event": "started",
+        "actor": "Testing Lead",
+        "details": {}
+      },
+      {
+        "timestamp": "2026-08-09T22:40:18.817917+00:00",
+        "event": "failed",
+        "actor": "Testing Lead",
+        "details": {
+          "details": {
+            "error": "Intentional failure"
+          }
+        }
+      }
+    ],
+    "created_at": "2026-08-09T22:40:18.815258+00:00",
+    "updated_at": "2026-08-09T22:40:18.817928+00:00",
+    "completed_at": null,
+    "receipt_hash": null,
+    "metadata": {}
+  }
+]
