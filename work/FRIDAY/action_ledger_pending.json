@@ -144,28 +144,6 @@
     "status": "pending",
     "timestamp": "2026-07-17T12:16:56.823004"
   },
-  "de25089b-e7bf-44d7-a2ab-f065eec2b0ee": {
-    "id": "de25089b-e7bf-44d7-a2ab-f065eec2b0ee",
-    "component": "MCPChat",
-    "action": "chat",
-    "params": {
-      "message_length": 4
-    },
-    "risk_level": "low",
-    "status": "approved",
-    "timestamp": "2026-07-17T12:17:40.340704"
-  },
-  "b9f36768-813a-4634-bf92-7e5d9853a0d3": {
-    "id": "b9f36768-813a-4634-bf92-7e5d9853a0d3",
-    "component": "MCPChat",
-    "action": "chat",
-    "params": {
-      "message_length": 4
-    },
-    "risk_level": "low",
-    "status": "approved",
-    "timestamp": "2026-07-17T12:17:40.348462"
-  },
   "76f32730-d272-45b2-acf5-a73435343d7a": {
     "id": "76f32730-d272-45b2-acf5-a73435343d7a",
     "component": "Test",
@@ -194,5 +172,114 @@
     "risk_level": "high",
     "status": "pending",
     "timestamp": "2026-07-17T12:17:42.579475"
+  },
+  "35a6f6e2-6c58-421f-89d0-ad15072e7124": {
+    "id": "35a6f6e2-6c58-421f-89d0-ad15072e7124",
+    "component": "Test",
+    "action": "test_action",
+    "params": {},
+    "risk_level": "low",
+    "status": "pending",
+    "timestamp": "2026-08-09T20:20:41.284512"
+  },
+  "9e9b29cb-d8e4-404d-baa7-25e167391869": {
+    "id": "9e9b29cb-d8e4-404d-baa7-25e167391869",
+    "component": "Test",
+    "action": "test",
+    "params": {},
+    "risk_level": "medium",
+    "status": "pending",
+    "timestamp": "2026-08-09T20:20:42.290814"
+  },
+  "c75e2347-49d8-4edf-a678-cffac2a90e5f": {
+    "id": "c75e2347-49d8-4edf-a678-cffac2a90e5f",
+    "component": "PrivacyAudit",
+    "action": "purge_provider",
+    "params": {
+      "provider": "glm"
+    },
+    "risk_level": "high",
+    "status": "pending",
+    "timestamp": "2026-08-09T20:20:43.624390"
+  },
+  "b2594220-d53c-4ea0-984c-f3b953ff9dd5": {
+    "id": "b2594220-d53c-4ea0-984c-f3b953ff9dd5",
+    "component": "Test",
+    "action": "test_action",
+    "params": {},
+    "risk_level": "low",
+    "status": "pending",
+    "timestamp": "2026-08-09T20:22:19.719772"
+  },
+  "ef393bfa-6f63-4ccc-b03d-4d2cd86abd41": {
+    "id": "ef393bfa-6f63-4ccc-b03d-4d2cd86abd41",
+    "component": "Test",
+    "action": "test",
+    "params": {},
+    "risk_level": "medium",
+    "status": "pending",
+    "timestamp": "2026-08-09T20:22:20.723542"
+  },
+  "aa7732cd-7d77-4b77-940e-0240e578c7c5": {
+    "id": "aa7732cd-7d77-4b77-940e-0240e578c7c5",
+    "component": "PrivacyAudit",
+    "action": "purge_provider",
+    "params": {
+      "provider": "glm"
+    },
+    "risk_level": "high",
+    "status": "pending",
+    "timestamp": "2026-08-09T20:22:22.014308"
+  },
+  "8be5e595-d3b0-4580-97fc-eef424ecb5ac": {
+    "id": "8be5e595-d3b0-4580-97fc-eef424ecb5ac",
+    "component": "MCPChat",
+    "action": "chat",
+    "params": {
+      "message_length": 4
+    },
+    "risk_level": "low",
+    "status": "approved",
+    "timestamp": "2026-08-09T20:24:15.867549"
+  },
+  "b5af5afc-7c3a-4adf-ba16-4c1a0a0402be": {
+    "id": "b5af5afc-7c3a-4adf-ba16-4c1a0a0402be",
+    "component": "MCPChat",
+    "action": "chat",
+    "params": {
+      "message_length": 4
+    },
+    "risk_level": "low",
+    "status": "approved",
+    "timestamp": "2026-08-09T20:24:16.163418"
+  },
+  "a10996f4-4090-4568-9d99-c70383b61bca": {
+    "id": "a10996f4-4090-4568-9d99-c70383b61bca",
+    "component": "Test",
+    "action": "test_action",
+    "params": {},
+    "risk_level": "low",
+    "status": "pending",
+    "timestamp": "2026-08-09T20:24:16.185917"
+  },
+  "99789c40-5453-4aae-87a9-ee70c1104815": {
+    "id": "99789c40-5453-4aae-87a9-ee70c1104815",
+    "component": "Test",
+    "action": "test",
+    "params": {},
+    "risk_level": "medium",
+    "status": "pending",
+    "timestamp": "2026-08-09T20:24:17.190064"
+  },
+  "752e4ffc-5c9a-4093-a3a4-c450a3485d76": {
+    "id": "752e4ffc-5c9a-4093-a3a4-c450a3485d76",
+    "component": "PrivacyAudit",
+    "action": "purge_provider",
+    "params": {
+      "provider": "glm"
+    },
+    "risk_level": "high",
+    "status": "pending",
+    "timestamp": "2026-08-09T20:24:18.500969"
   }
 }

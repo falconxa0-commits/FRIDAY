@@ -52,15 +52,16 @@ def _record_chat_request(provider: str, model: str, prompt: str, response: str) 
         try:
             from core.cost_tracker import CostTracker
             tracker = CostTracker()
+            # CostTracker.record_usage signature is:
+            #   record_usage(provider, input_tokens, output_tokens)
+            # Cost is computed internally from the RATES table.
             tracker.record_usage(
                 provider=provider,
-                model=model,
-                tokens_in=tokens_in,
-                tokens_out=tokens_out,
-                cost=cost,
+                input_tokens=tokens_in,
+                output_tokens=tokens_out,
             )
-        except Exception:
-            pass  # CostTracker is optional
+        except Exception as cost_exc:
+            logger.debug("CostTracker recording failed: %s", cost_exc)
     except Exception as exc:
         logger.debug("Failed to record chat request stats: %s", exc)
 

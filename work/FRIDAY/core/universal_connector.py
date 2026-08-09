@@ -100,7 +100,9 @@ class UniversalConnector:
         """Dispatch an action to the appropriate integration.
 
         The action goes through the ledger's approval gate before
-        being sent to the integration.
+        being sent to the integration. Risk is classified by the
+        EthicalSentinel (falls back to keyword classifier if the
+        Sentinel is unavailable).
 
         Args:
             service_name: Integration name (e.g. "Weather", "Printer")
@@ -113,8 +115,10 @@ class UniversalConnector:
         """
         logger.info(f"Dispatching '{action}' to {service_name}...")
 
-        # Classify risk properly
-        risk_level = self._classify_risk(action)
+        # Classify risk using EthicalSentinel (deep) with keyword fallback
+        risk_level = self._classify_risk_with_sentinel(
+            service_name, action, params or {}
+        )
 
         action_id = self.ledger.queue_action(
             service_name, action, params, risk_level=risk_level
@@ -148,6 +152,52 @@ class UniversalConnector:
                 "not implemented as a plugin."
             ),
         }
+
+    def _classify_risk_with_sentinel(
+        self, component: str, action: str, params: dict
+    ) -> str:
+        """Classify risk using EthicalSentinel, with keyword fallback.
+
+        Tries the 356-line EthicalSentinel first (which considers
+        component, action, AND params via context). Falls back to the
+        simple keyword classifier if the Sentinel is unavailable.
+
+        Returns one of: "low", "medium", "high", "critical".
+        """
+        try:
+            from core.sentinel import EthicalSentinel
+            sentinel = EthicalSentinel()
+            # Sentinel's evaluate_action signature is:
+            #   evaluate_action(action: str, context: dict) -> dict
+            # Pass component + params via context so the Sentinel can
+            # consider them in its NEVER_AUTO_APPROVE_COMPONENTS check.
+            context = {
+                "component": component,
+                "params": params or {},
+            }
+            result = sentinel.evaluate_action(action, context=context)
+            classification = result.get("classification", "")
+            if isinstance(classification, str):
+                classification = classification.upper()
+            elif hasattr(classification, "value"):
+                classification = classification.value.upper()
+            else:
+                classification = str(classification).upper()
+
+            # Sentinel classification values: SAFE, CAUTIOUS, DANGEROUS, CRITICAL
+            mapping = {
+                "SAFE": "low",
+                "CAUTIOUS": "medium",
+                "DANGEROUS": "high",
+                "CRITICAL": "critical",
+            }
+            mapped = mapping.get(classification)
+            if mapped:
+                return mapped
+        except Exception as exc:
+            logger.debug(f"Sentinel unavailable, using keyword classifier: {exc}")
+
+        return self._classify_risk(action)
 
     # ------------------------------------------------------------------
     # Graceful shutdown

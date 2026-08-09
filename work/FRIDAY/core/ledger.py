@@ -11,6 +11,7 @@ Key improvements over the original:
 
 import asyncio
 import hashlib
+import hmac
 import json
 import os
 import uuid
@@ -148,14 +149,83 @@ class ActionLedger:
                 redacted[k] = v
         return redacted
 
+    # Server-side secret for HMAC-SHA256. Loaded once at class init.
+    # Prevents offline hash forgery: an attacker who modifies the JSON
+    # file cannot recompute valid hashes without this secret.
+    # Sourced from FRIDAY_LEDGER_HMAC_SECRET env var, or derived from
+    # FRIDAY_API_TOKEN, or generated once and persisted to ~/.friday/ledger_secret.
+    _HMAC_SECRET: Optional[str] = None
+
+    @classmethod
+    def _get_hmac_secret(cls) -> bytes:
+        """Return the HMAC secret, loading it lazily on first use.
+
+        Priority:
+            1. FRIDAY_LEDGER_HMAC_SECRET env var (operator-set)
+            2. FRIDAY_API_TOKEN env var (already a secure random)
+            3. Persisted random secret at ~/.friday/ledger_secret
+               (auto-generated on first run, chmod 600)
+
+        The secret is bytes-encoded UTF-8. Returns a non-empty bytestring.
+        """
+        if cls._HMAC_SECRET is not None:
+            return cls._HMAC_SECRET.encode("utf-8")
+
+        env_secret = os.environ.get("FRIDAY_LEDGER_HMAC_SECRET")
+        if env_secret and env_secret.strip():
+            cls._HMAC_SECRET = env_secret.strip()
+            return cls._HMAC_SECRET.encode("utf-8")
+
+        api_token = os.environ.get("FRIDAY_API_TOKEN", "")
+        if api_token and api_token.strip() and not api_token.startswith("your_"):
+            cls._HMAC_SECRET = api_token.strip()
+            return cls._HMAC_SECRET.encode("utf-8")
+
+        # Persisted secret path — generated once, reused across restarts
+        secret_path = os.path.expanduser("~/.friday/ledger_secret")
+        try:
+            if os.path.exists(secret_path):
+                with open(secret_path, "r") as f:
+                    cls._HMAC_SECRET = f.read().strip()
+                    if cls._HMAC_SECRET:
+                        return cls._HMAC_SECRET.encode("utf-8")
+            # Generate a new 32-byte URL-safe secret
+            import secrets as _secrets
+            os.makedirs(os.path.dirname(secret_path), exist_ok=True)
+            cls._HMAC_SECRET = _secrets.token_urlsafe(32)
+            with open(secret_path, "w") as f:
+                f.write(cls._HMAC_SECRET)
+            try:
+                os.chmod(secret_path, 0o600)
+            except OSError:
+                pass  # best-effort on non-POSIX systems
+            return cls._HMAC_SECRET.encode("utf-8")
+        except Exception:
+            # Last-resort fallback: derive from hostname + username.
+            # NOT cryptographically strong, but better than no HMAC.
+            import getpass
+            import socket
+            fallback = f"friday-fallback-{socket.gethostname()}-{getpass.getuser()}"
+            cls._HMAC_SECRET = fallback
+            return cls._HMAC_SECRET.encode("utf-8")
+
     @staticmethod
     def _compute_entry_hash(entry: dict, prev_hash: str) -> str:
-        """SHA-256 hash of (prev_hash || action_id || component || action ||
-        params || timestamp || status).
+        """HMAC-SHA256 of (prev_hash || action_id || component || action ||
+        params || timestamp || status || approved_by).
 
-        Any change to any of these fields (or to prev_hash) produces a
-        different hash, breaking the chain at the modified entry and
-        every subsequent entry.
+        All seven fields are included in the hash content so that any
+        modification — including rewriting WHO approved an action —
+        produces a different hash and breaks the chain.
+
+        Uses HMAC-SHA256 with a server-side secret rather than bare
+        SHA-256, so an attacker with read access to the JSON file
+        cannot recompute valid hashes offline.
+
+        Backward-compat: if the HMAC secret is unavailable (e.g., very
+        old install pre-upgrade), falls back to bare SHA-256 of the
+        same seven fields — still catches tampering of any field
+        except via offline recomputation.
         """
         content = json.dumps({
             "prev_hash": prev_hash,
@@ -165,8 +235,16 @@ class ActionLedger:
             "params": entry.get("params", {}),
             "timestamp": entry.get("timestamp", ""),
             "status": entry.get("status", ""),
+            "approved_by": entry.get("approved_by", ""),
         }, sort_keys=True, default=str)
-        return hashlib.sha256(content.encode("utf-8")).hexdigest()
+
+        try:
+            secret = ActionLedger._get_hmac_secret()
+            return hmac.new(secret, content.encode("utf-8"), hashlib.sha256).hexdigest()
+        except Exception:
+            # Fallback: bare SHA-256 (still includes approved_by, so
+            # the forgery is caught; only offline recomputation is possible)
+            return hashlib.sha256(content.encode("utf-8")).hexdigest()
 
     def _log_audit(self, action_data, approved_by="human"):
         """Append an entry to BOTH the file-based audit log and the
@@ -219,7 +297,13 @@ class ActionLedger:
             logger.exception("Failed to persist audit chain")
 
     def _load_chain(self) -> None:
-        """Load the persisted hash-chained audit log from disk on startup."""
+        """Load the persisted hash-chained audit log from disk on startup.
+
+        If the chain is broken (tamper detected), the on-disk file is
+        archived to ``<path>.tampered.<timestamp>.json`` for forensic
+        analysis rather than silently discarded. The in-memory chain
+        starts fresh from genesis.
+        """
         import os as _os
         if not _os.path.exists(self.CHAIN_PERSIST_PATH):
             return
@@ -235,9 +319,24 @@ class ActionLedger:
                     if entry.get("hash") != expected:
                         logger.warning(
                             "Loaded audit chain has broken hash at entry — "
-                            "discarding chain (possible tampering)."
+                            "archiving chain for forensics (possible tampering)."
                         )
                         valid = False
+                        # Archive the tampered file instead of silently discarding
+                        try:
+                            archive_path = (
+                                f"{self.CHAIN_PERSIST_PATH}.tampered."
+                                f"{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+                            )
+                            with open(archive_path, "w") as af:
+                                json.dump(data, af, indent=2, default=str)
+                            logger.warning(
+                                "Archived tampered audit chain to %s", archive_path
+                            )
+                        except Exception as archive_exc:
+                            logger.error(
+                                "Failed to archive tampered chain: %s", archive_exc
+                            )
                         break
                     prev_hash = entry.get("hash", "")
                 if valid:
@@ -245,6 +344,13 @@ class ActionLedger:
                     logger.info(
                         "Loaded %d entries from persisted audit chain",
                         len(self._audit_chain),
+                    )
+                else:
+                    # Start fresh but preserve the archived copy
+                    self._audit_chain = []
+                    logger.warning(
+                        "Starting with a fresh audit chain. The tampered "
+                        "chain was preserved on disk for forensic analysis."
                     )
         except Exception:
             logger.exception("Failed to load persisted audit chain")

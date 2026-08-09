@@ -177,6 +177,81 @@ TOOLS = [
             "required": ["code"],
         },
     },
+    {
+        "name": "execute_action",
+        "description": (
+            "Route any integration action through Friday's Universal "
+            "Connector with the human-in-the-loop approval gate. "
+            "Examples: Weather.get_weather, Finance.transfer, "
+            "Printer.print_file. The action is queued in the ledger "
+            "and waits up to 5 seconds for approval (use "
+            "request_approval for longer timeouts)."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "component": {
+                    "type": "string",
+                    "description": "Integration name (e.g. 'Weather', 'Finance').",
+                },
+                "action": {
+                    "type": "string",
+                    "description": "Action name to execute (e.g. 'get_weather').",
+                },
+                "params": {
+                    "type": "object",
+                    "description": "Action parameters as a JSON object.",
+                    "default": {},
+                },
+            },
+            "required": ["component", "action"],
+        },
+    },
+    {
+        "name": "request_approval",
+        "description": (
+            "THE KILLER FEATURE: an external AI agent (Claude Code, "
+            "Cursor, etc.) submits an action for human approval via "
+            "Friday's tamper-evident ledger. Friday speaks the "
+            "request (optional voice), waits for the human's "
+            "yes/no, and returns approved/rejected/timeout. The "
+            "risk_level is computed by Friday's EthicalSentinel — "
+            "caller-supplied risk_level is IGNORED for security."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "component": {
+                    "type": "string",
+                    "description": "Integration component (e.g. 'Filesystem').",
+                },
+                "action": {
+                    "type": "string",
+                    "description": "Action name (e.g. 'delete_file').",
+                },
+                "params": {
+                    "type": "object",
+                    "description": "Action parameters.",
+                    "default": {},
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Human-readable description of what the agent wants to do.",
+                },
+                "timeout": {
+                    "type": "integer",
+                    "description": "Seconds to wait for approval (default 60).",
+                    "default": 60,
+                },
+                "use_voice": {
+                    "type": "boolean",
+                    "description": "If True, use voice-native approval loop.",
+                    "default": False,
+                },
+            },
+            "required": ["component", "action"],
+        },
+    },
 ]
 
 
@@ -219,6 +294,55 @@ class FridayMCPServer:
             "status": result.get("status", "unknown"),
             "data": result.get("receipt", result.get("message", "")),
         }
+
+    def _compute_risk_level(
+        self, component: str, action: str, params: dict
+    ) -> str:
+        """Compute the risk level for an action using EthicalSentinel.
+
+        SECURITY: This is the single source of truth for risk
+        classification on the MCP layer. Caller-supplied risk_level
+        is always ignored. Falls back to UniversalConnector._classify_risk
+        if the Sentinel is unavailable.
+
+        Returns one of: "low", "medium", "high", "critical".
+        """
+        # Try EthicalSentinel first (deeper analysis)
+        try:
+            from core.sentinel import EthicalSentinel
+            sentinel = EthicalSentinel()
+            context = {
+                "component": component,
+                "params": params or {},
+            }
+            result = sentinel.evaluate_action(action, context=context)
+            classification = result.get("classification", "")
+            if isinstance(classification, str):
+                classification = classification.upper()
+            elif hasattr(classification, "value"):
+                classification = classification.value.upper()
+            else:
+                classification = str(classification).upper()
+
+            mapping = {
+                "SAFE": "low",
+                "CAUTIOUS": "medium",
+                "DANGEROUS": "high",
+                "CRITICAL": "critical",
+            }
+            mapped = mapping.get(classification)
+            if mapped:
+                return mapped
+        except Exception as exc:
+            logger.debug(f"Sentinel unavailable, falling back to keyword classifier: {exc}")
+
+        # Fallback: keyword-based classifier from UniversalConnector
+        try:
+            from core.universal_connector import UniversalConnector
+            return UniversalConnector._classify_risk(action)
+        except Exception:
+            # Last resort: assume high risk
+            return "high"
 
     # ─── Tool handlers ──────────────────────────────────────────────────
 
@@ -536,7 +660,21 @@ class FridayMCPServer:
         component = params.get("component")
         action = params.get("action")
         action_params = params.get("params") or {}
-        risk_level = params.get("risk_level", "high")
+        # SECURITY: Ignore caller-supplied risk_level. An external agent
+        # (Claude Code, Cursor) should not be able to self-classify a
+        # destructive action as "low" to bypass the approval gate.
+        # We compute risk_level ourselves via EthicalSentinel (or the
+        # connector's _classify_risk fallback) using the component +
+        # action + params.
+        caller_risk_level = params.get("risk_level")
+        if caller_risk_level is not None:
+            logger.warning(
+                "MCP request_approval: caller supplied risk_level=%r — "
+                "IGNORING (security policy). Risk will be computed by "
+                "Friday's EthicalSentinel.",
+                caller_risk_level,
+            )
+        risk_level = self._compute_risk_level(component, action, action_params)
         description = params.get("description", f"{component}.{action}")
         timeout = int(params.get("timeout", 60))
         use_voice = bool(params.get("use_voice", False))

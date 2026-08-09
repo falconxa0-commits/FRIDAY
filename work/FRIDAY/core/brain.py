@@ -818,12 +818,28 @@ class FridayBrain:
                 rag_ctx = await self._inject_rag_context(message)
                 glm_message = f"{rag_ctx}\n\nUser's current message: {message}" if rag_ctx else message
 
+                # Persist the user's message to conversation history so
+                # that branching, summarisation, and history-based
+                # features work on the default GLM path (previously
+                # only the Claude path updated conversation_history).
+                self.conversation_history.append(
+                    {"role": "user", "content": message}
+                )
+                # Also store in long-term memory if available
+                if self.memory:
+                    try:
+                        self.memory.store_conversation("user", message)
+                    except Exception as e:
+                        self.logger.debug(f"Memory store failed: {e}")
+
                 # Use tool-calling loop when tools are configured
                 if self.tools:
                     messages = [{"role": "user", "content": glm_message}]
+                    full_response = ""
                     async for chunk in self._glm_stream_with_tools(
                         messages, self.tools, glm_system_prompt
                     ):
+                        full_response += chunk
                         yield chunk
                 else:
                     # No tools — simple streaming
@@ -833,12 +849,16 @@ class FridayBrain:
                     ):
                         full_response += chunk
                         yield chunk
-                    # Store assistant response in memory
-                    if self.memory and full_response.strip():
-                        try:
-                            self.memory.store_conversation("assistant", full_response)
-                        except Exception as e:
-                            self.logger.warning(f"Memory store failed: {e}")
+                    # Store assistant response in memory + conversation history
+                    if full_response.strip():
+                        self.conversation_history.append(
+                            {"role": "assistant", "content": full_response}
+                        )
+                        if self.memory:
+                            try:
+                                self.memory.store_conversation("assistant", full_response)
+                            except Exception as e:
+                                self.logger.warning(f"Memory store failed: {e}")
                 return
             # GLM not available — fall through to other providers
             self.logger.info("GLM not available, trying fallback providers")

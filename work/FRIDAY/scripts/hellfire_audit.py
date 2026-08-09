@@ -4,12 +4,15 @@ already caught in this project's history.
 
 Exits non-zero on FIRST failure. Run after every change.
 """
+import logging
 import os
 import re
 import sys
 import ast
 import importlib
 from pathlib import Path
+
+logger = logging.getLogger("hellfire_audit")
 
 ROOT = Path(__file__).resolve().parent.parent
 FAILURES = []

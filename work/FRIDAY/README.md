@@ -1,4 +1,4 @@
-# Project FRIDAY v3.0 — Personal AI Assistant
+# Project FRIDAY v3.2 — Personal AI Assistant
 
 FRIDAY is a Python-based personal AI assistant built around ZhipuAI's free GLM-4-Flash model. It provides chat, web search, image generation, video generation, code execution, voice interaction, screen analysis, multi-agent orchestration, and a tamper-evident action ledger — all on a free Z.ai API key. It runs as a CLI, a REST API, a WebSocket server, an MCP server, and a web dashboard.
 

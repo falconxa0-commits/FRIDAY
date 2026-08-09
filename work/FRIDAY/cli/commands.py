@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 import sys
 from datetime import datetime
@@ -42,6 +43,7 @@ from cli.terminal import (
 )
 
 console = Console()
+logger = logging.getLogger("FridayCLI")
 
 
 # ---------------------------------------------------------------------------
@@ -510,12 +512,26 @@ def _plugin_install(name: str) -> int:
         console.print(f"[dim]{name} already installed.[/]")
         return 0
 
-    # ---- Security scan: refuse dangerous top-level imports ------------
-    # These imports at module top-level are refused because they grant
-    # the plugin full process privileges (file access, subprocess, network).
+    # ---- Security scan: refuse dangerous imports anywhere in the AST ----
+    # These imports grant the plugin full process privileges (file access,
+    # subprocess, network, foreign function interface). They are refused
+    # regardless of where they appear in the source — top-level, inside
+    # functions, inside classes, inside conditionals, inside try/except —
+    # because a plugin can call any of them at runtime.
+    #
+    # NOTE: This is a defense-in-depth measure, not a sandbox. A
+    # determined attacker can still bypass it (e.g., via __import__,
+    # importlib.import_module with a computed name, or by reading the
+    # module file at runtime and exec'ing it). For true isolation, run
+    # plugins in a subprocess with seccomp/bubblewrap. This scan catches
+    # the most common supply-chain patterns: top-level or lazy imports
+    # of os/subprocess/socket/etc.
     DANGEROUS_IMPORTS = {
         "os", "subprocess", "socket", "shlex", "ctypes", "sys",
         "importlib", "builtins", "pty", "multiprocessing",
+    }
+    DANGEROUS_BUILTINS = {
+        "__import__", "exec", "eval", "compile",
     }
     src_text = plugin_files[0].read_text()
     try:
@@ -524,29 +540,58 @@ def _plugin_install(name: str) -> int:
         return _err(f"Plugin '{name}' has a syntax error: {exc}")
 
     found_dangerous = []
-    for node in ast.iter_child_nodes(tree):
-        # Direct `import os` / `import subprocess as sp`
+
+    # Walk the ENTIRE AST — not just top-level nodes. This catches
+    # lazy imports inside __init__, methods, conditionals, loops, etc.
+    # (The previous implementation only walked ast.iter_child_nodes(tree),
+    # which missed imports inside any nested scope.)
+    for node in ast.walk(tree):
+        # Direct `import os` / `import subprocess as sp` (anywhere)
         if isinstance(node, ast.Import):
             for alias in node.names:
                 root = alias.name.split(".")[0]
                 if root in DANGEROUS_IMPORTS:
-                    found_dangerous.append(f"import {alias.name}")
-        # `from os import ...` / `from subprocess import ...`
+                    found_dangerous.append(
+                        f"import {alias.name}  (line {node.lineno})"
+                    )
+        # `from os import ...` / `from subprocess import ...` (anywhere)
         elif isinstance(node, ast.ImportFrom):
             if node.module:
                 root = node.module.split(".")[0]
                 if root in DANGEROUS_IMPORTS:
-                    found_dangerous.append(f"from {node.module} import ...")
+                    found_dangerous.append(
+                        f"from {node.module} import ...  (line {node.lineno})"
+                    )
+        # Catch __import__("subprocess"), exec(...), eval(...), compile(...)
+        # used as a dynamic-import escape hatch.
+        elif isinstance(node, ast.Call):
+            func = node.func
+            if isinstance(func, ast.Name) and func.id in DANGEROUS_BUILTINS:
+                found_dangerous.append(
+                    f"{func.id}(...)  (line {node.lineno}) — "
+                    "dynamic code execution"
+                )
+            elif isinstance(func, ast.Attribute) and func.attr == "__import__":
+                found_dangerous.append(
+                    f"__import__(...)  (line {node.lineno}) — "
+                    "dynamic import escape hatch"
+                )
 
     if found_dangerous:
         console.print(
             Panel(
-                f"[{COL_DANGER}]REFUSED: Plugin '{name}' has dangerous top-level imports:[/]\n\n"
+                f"[{COL_DANGER}]REFUSED: Plugin '{name}' has dangerous imports/calls:[/]\n\n"
                 + "\n".join(f"  • {imp}" for imp in found_dangerous)
-                + "\n\nPlugins that import os/subprocess/socket/etc at module level "
-                "can execute arbitrary code with full process privileges. "
-                "If you trust this plugin, copy it manually:\n"
-                f"  cp {plugin_files[0]} {target}",
+                + "\n\nPlugins that import os/subprocess/socket/etc — or use "
+                "__import__/exec/eval/compile — can execute arbitrary code "
+                "with full process privileges. This scan walks the ENTIRE "
+                "AST (not just top-level) so lazy imports inside functions, "
+                "classes, and conditionals are also caught.\n\n"
+                "If you have personally audited this plugin's source and "
+                "trust it, copy it manually:\n"
+                f"  cp {plugin_files[0]} {target}\n\n"
+                "For true isolation, run plugins in a subprocess with "
+                "seccomp/bubblewrap (planned for FRIDAY v4.0).",
                 title="⚠ Plugin Security Refusal",
                 border_style=COL_DANGER,
             )
@@ -558,7 +603,8 @@ def _plugin_install(name: str) -> int:
         Panel(
             f"Installed {name} → {target.name}\n"
             "Friday will auto-discover it on next start.\n\n"
-            "(Passed security scan: no dangerous top-level imports.)",
+            "(Passed security scan: no dangerous imports or dynamic "
+            "code-execution calls found anywhere in the AST.)",
             border_style=COL_SUCCESS,
         )
     )
@@ -648,12 +694,20 @@ def dispatch(argv: list[str]) -> int:
 
 
 async def _run_tui_default() -> int:
+    """Boot the TUI with the default provider.
+
+    Handles KeyboardInterrupt gracefully — Ctrl+C exits the TUI
+    without printing a traceback.
+    """
     status = await boot_sequence()
     from cli.terminal import run_tui
     try:
         await run_tui(status)
-    except KeyboardInterrupt as e:
-        logger.debug(f"Non-critical error: {e}")
+    except KeyboardInterrupt:
+        # Graceful exit — no traceback, no undefined-logger crash.
+        # The previous implementation referenced an undefined `logger`
+        # symbol here, which itself raised NameError on Ctrl+C.
+        console.print("\n[dim]Goodbye.[/]")
     return 0
 
 

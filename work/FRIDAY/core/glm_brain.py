@@ -252,6 +252,20 @@ class GLMBrain:
         """Perform web search using the ZhipuAI built-in web_search tool.
 
         Returns a list of dicts with 'title', 'url', 'snippet' keys.
+
+        ZhipuAI's web_search tool returns results in the response's
+        ``web_search`` field (a list of search-result objects), NOT
+        in ``tool_calls``. The previous implementation parsed
+        ``tool_calls`` (which contains the LLM's *function-call
+        arguments*, not search results) and fell back to returning
+        the LLM's synthesised prose answer as a fake "search result" —
+        effectively returning hallucinations labelled as search.
+
+        This corrected implementation:
+            1. Extracts real search results from ``response.web_search``
+            2. Falls back to ``choice.message.content`` ONLY if no
+               web_search field is present (and labels it clearly as
+               "LLM synthesised answer" — not a search result)
         """
         client = self._ensure_client()
         if client is None:
@@ -270,32 +284,86 @@ class GLMBrain:
 
             response = await asyncio.to_thread(_call_search)
 
-            # Parse web search results from tool calls if present
-            results = []
-            choice = response.choices[0] if response.choices else None
-            if choice and hasattr(choice, "message"):
-                msg = choice.message
-                # If the model used web_search tool, extract results
-                if hasattr(msg, "tool_calls") and msg.tool_calls:
-                    for tool_call in msg.tool_calls:
-                        if hasattr(tool_call, "function") and tool_call.function:
-                            import json as _json
-                            try:
-                                data = _json.loads(tool_call.function.arguments)
-                                if isinstance(data, list):
-                                    results.extend(data)
-                                elif isinstance(data, dict):
-                                    results.append(data)
-                            except Exception as e:
-                                logger.debug(f"Non-critical error: {e}")
+            results: List[Dict] = []
 
-                # If no tool_calls, the response content itself may contain
-                # the synthesized answer — return it as a single result
-                if not results and msg.content:
+            # PRIMARY: ZhipuAI returns real search results in
+            # ``response.web_search`` (a list of dicts with
+            # title/url/snippet/content keys).
+            web_search_data = getattr(response, "web_search", None)
+            if web_search_data and isinstance(web_search_data, list):
+                for item in web_search_data[:max_results]:
+                    if isinstance(item, dict):
+                        results.append({
+                            "title": item.get("title", "") or item.get("media", ""),
+                            "url": item.get("link", "") or item.get("url", ""),
+                            "snippet": (item.get("content", "") or
+                                        item.get("snippet", "") or
+                                        item.get("summary", ""))[:500],
+                            "source": "zhipuai_web_search",
+                        })
+
+            # FALLBACK 1: Some ZhipuAI SDK versions put results in
+            # ``choices[0].message.tool_calls`` with name="web_search".
+            # We extract the *search-result array* (not the function
+            # arguments) if the tool-call result is structured that way.
+            if not results:
+                choice = response.choices[0] if response.choices else None
+                if choice and hasattr(choice, "message"):
+                    msg = choice.message
+                    if hasattr(msg, "tool_calls") and msg.tool_calls:
+                        import json as _json
+                        for tool_call in msg.tool_calls:
+                            # Look for a tool_call with name == "web_search"
+                            func = getattr(tool_call, "function", None)
+                            if not func:
+                                continue
+                            tool_name = getattr(func, "name", "") or ""
+                            if "search" not in tool_name.lower():
+                                continue
+                            try:
+                                data = _json.loads(func.arguments or "{}")
+                                if isinstance(data, list):
+                                    for item in data[:max_results]:
+                                        if isinstance(item, dict):
+                                            results.append({
+                                                "title": item.get("title", ""),
+                                                "url": item.get("url", "") or item.get("link", ""),
+                                                "snippet": (item.get("snippet", "") or
+                                                            item.get("content", ""))[:500],
+                                                "source": "zhipuai_tool_call",
+                                            })
+                                elif isinstance(data, dict) and "results" in data:
+                                    for item in (data.get("results") or [])[:max_results]:
+                                        if isinstance(item, dict):
+                                            results.append({
+                                                "title": item.get("title", ""),
+                                                "url": item.get("url", "") or item.get("link", ""),
+                                                "snippet": (item.get("snippet", "") or
+                                                            item.get("content", ""))[:500],
+                                                "source": "zhipuai_tool_call",
+                                            })
+                            except Exception as e:
+                                logger.debug(f"Non-critical error parsing tool_call: {e}")
+
+            # FALLBACK 2: If we still have no real search results,
+            # return the LLM's synthesised answer but LABEL IT CLEARLY
+            # as "LLM synthesised answer" — not as a search result.
+            # This prevents downstream code from treating hallucinated
+            # text as if it were a real web-search hit.
+            if not results:
+                choice = response.choices[0] if response.choices else None
+                if choice and hasattr(choice, "message") and choice.message.content:
                     results.append({
-                        "title": "GLM Web Search",
+                        "title": "GLM Synthesised Answer (NOT a real search result)",
                         "url": "",
-                        "snippet": msg.content[:500],
+                        "snippet": choice.message.content[:500],
+                        "source": "llm_synthesised",
+                        "warning": (
+                            "No web_search results were returned by the API. "
+                            "This is the LLM's synthesised answer, not a "
+                            "real search result. Treat as LLM output, not "
+                            "as a cited source."
+                        ),
                     })
 
             return results[:max_results]

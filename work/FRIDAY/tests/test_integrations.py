@@ -1,9 +1,12 @@
 """Tests for integration base class and registry."""
 
+import logging
 import pytest
 from unittest.mock import MagicMock, patch
 from integrations.base import BaseIntegration
 from integrations.registry import UniversalRegistry, _INTEGRATION_SPECS
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------

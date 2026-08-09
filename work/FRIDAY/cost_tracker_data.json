@@ -1,0 +1,12 @@
+{
+  "providers": {
+    "glm": {
+      "total_input_tokens": 120,
+      "total_output_tokens": 3000,
+      "total_calls": 120,
+      "last_call_cost": 0.0
+    }
+  },
+  "created_at": "2026-08-09T20:24:18.515762",
+  "updated_at": "2026-08-09T20:24:19.760420"
+}

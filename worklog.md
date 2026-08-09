@@ -843,3 +843,33 @@ The weakest areas are: integration testing (3 tests, all skipped), E2E testing (
 ---
 
 *End of AUDIT-TESTS entry.*
+
+---
+Task ID: HARDENING-SPRINT-PHASES-1-3-9
+Agent: Main (Super Z)
+Task: Execute Phase 1 (documentation), Phase 3 (security hardening), and Phase 9 (code quality) of the FRIDAY v3.2 production hardening sprint.
+
+Work Log:
+- Created missing `skills/` directory with `__init__.py`, `base.py` (BaseSkill ABC), `morning_briefing.py`, `daily_journal.py` — fixed 35 failing tests
+- Fixed forgeable audit chain in `core/ledger.py`: switched from bare SHA-256 to HMAC-SHA256 with server-side secret, included `approved_by` in hash content. Added tampered-chain archival for forensics.
+- Fixed plugin AST scan in `cli/commands.py`: now walks `ast.walk(tree)` (all nodes) instead of `ast.iter_child_nodes(tree)` (top-level only). Catches lazy imports inside functions/classes/conditionals, plus `__import__`/`exec`/`eval`/`compile` dynamic-execution calls.
+- Fixed MCP `request_approval` in `mcp_server.py`: caller-supplied `risk_level` is now IGNORED. Risk computed via EthicalSentinel (or keyword fallback). Added `_compute_risk_level` method.
+- Advertised `execute_action` and `request_approval` in MCP `tools/list` (was hiding 2 of 8 tools — including the killer feature).
+- Wired EthicalSentinel into `UniversalConnector.execute_action` via new `_classify_risk_with_sentinel` method. Sentinel now invoked before ledger gate.
+- Fixed CostTracker signature mismatch in `api/routes/chat.py`: call now uses correct `(provider, input_tokens, output_tokens)` signature.
+- Fixed GLM path conversation_history in `core/brain.py`: user + assistant messages now appended to `conversation_history` on the default GLM path (was only updating on Claude path).
+- Fixed GLM web_search response parsing in `core/glm_brain.py`: now parses `response.web_search` field (was parsing `tool_calls` and returning hallucinations as search results). LLM synthesised answers are now clearly labelled with a warning.
+- Fixed 3 logger NameErrors: `cli/commands.py` (added `logging` import + module-level logger), `tests/test_integrations.py` (added logger), `scripts/hellfire_audit.py` (added logger).
+- Fixed CLI boot crash on Ctrl+C: `_run_tui_default` was referencing undefined `logger` on KeyboardInterrupt.
+- Updated version string v2.0 → v3.2 in `cli/terminal.py` and `README.md`.
+- Created `docs/ARCHITECTURE.md` with Mermaid architecture diagram, threat model diagram, and request_approval sequence diagram.
+- Created `docs/REMEDIATION_PLAN.md` with full 10-phase remediation plan for remaining work.
+
+Stage Summary:
+- Test suite: 304 passed, 0 failed, 3 skipped (up from 269/35 failed)
+- 6 of 10 critical security issues fixed and verified with PoCs
+- 3 logger NameErrors fixed
+- Phase 1 (documentation), Phase 3 (security), Phase 9 (code quality) critical fixes COMPLETE
+- Remaining work documented in docs/REMEDIATION_PLAN.md (3-6 months to Production Ready)
+- Files modified: core/ledger.py, core/universal_connector.py, core/brain.py, core/glm_brain.py, mcp_server.py, cli/commands.py, cli/terminal.py, api/routes/chat.py, tests/test_integrations.py, scripts/hellfire_audit.py, README.md
+- Files created: skills/__init__.py, skills/base.py, skills/morning_briefing.py, skills/daily_journal.py, docs/ARCHITECTURE.md, docs/REMEDIATION_PLAN.md
