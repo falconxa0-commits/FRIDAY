@@ -1,8 +1,28 @@
+"""Quantum Continuum — EXPERIMENTAL, NOT WIRED INTO PRODUCTION.
+
+This module implements an n-gram + time-of-day intent predictor that
+guesses the user's next action from their recent intent history. It is
+**not wired into the main chat loop** and is retained for future
+experimentation.
+
+Importing this module emits a ``DeprecationWarning`` to flag its
+experimental status. It may be removed in v4.0 if no production wiring
+is added.
+"""
+
 import time
 import logging
+import warnings
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 from collections import Counter
+
+warnings.warn(
+    "core.continuum is experimental and not wired into the main loop. "
+    "It may be removed in v4.0.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 logger = logging.getLogger("QuantumContinuum")
 

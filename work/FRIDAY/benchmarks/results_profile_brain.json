@@ -1,0 +1,502 @@
+{
+  "benchmark": "profile_brain",
+  "requests": 100,
+  "total_wall_s": 0.293,
+  "ms_per_request": 2.93,
+  "canned_response_chars": 176,
+  "tools_enabled": false,
+  "memory_mocked": false,
+  "hotspots": [
+    {
+      "function": "_hash_embed (embeddings.py:118)",
+      "ncalls": 400,
+      "tottime_s": 0.061,
+      "cumtime_s": 0.1014,
+      "avg_per_call_ms": 0.153,
+      "tottime_pct": 20.8,
+      "flags": {
+        "tottime_gt_10ms": true,
+        "avg_gt_1ms": false,
+        "ncalls_gt_1000": false
+      }
+    },
+    {
+      "function": "<built-in method _struct.unpack> (~:0)",
+      "ncalls": 102400,
+      "tottime_s": 0.0147,
+      "cumtime_s": 0.0147,
+      "avg_per_call_ms": 0.0,
+      "tottime_pct": 5.0,
+      "flags": {
+        "tottime_gt_10ms": true,
+        "avg_gt_1ms": false,
+        "ncalls_gt_1000": true
+      }
+    },
+    {
+      "function": "norm (_linalg.py:2624)",
+      "ncalls": 600,
+      "tottime_s": 0.0126,
+      "cumtime_s": 0.0182,
+      "avg_per_call_ms": 0.021,
+      "tottime_pct": 4.3,
+      "flags": {
+        "tottime_gt_10ms": true,
+        "avg_gt_1ms": false,
+        "ncalls_gt_1000": false
+      }
+    },
+    {
+      "function": "<method 'digest' of '_hashlib.HASH' objects> (~:0)",
+      "ncalls": 25600,
+      "tottime_s": 0.0076,
+      "cumtime_s": 0.0076,
+      "avg_per_call_ms": 0.0,
+      "tottime_pct": 2.6,
+      "flags": {
+        "tottime_gt_10ms": false,
+        "avg_gt_1ms": false,
+        "ncalls_gt_1000": true
+      }
+    },
+    {
+      "function": "<method 'acquire' of '_thread.lock' objects> (~:0)",
+      "ncalls": 1900,
+      "tottime_s": 0.006,
+      "cumtime_s": 0.0193,
+      "avg_per_call_ms": 0.003,
+      "tottime_pct": 2.1,
+      "flags": {
+        "tottime_gt_10ms": false,
+        "avg_gt_1ms": false,
+        "ncalls_gt_1000": true
+      }
+    },
+    {
+      "function": "<built-in method _hashlib.openssl_sha256> (~:0)",
+      "ncalls": 25600,
+      "tottime_s": 0.0058,
+      "cumtime_s": 0.0058,
+      "avg_per_call_ms": 0.0,
+      "tottime_pct": 2.0,
+      "flags": {
+        "tottime_gt_10ms": false,
+        "avg_gt_1ms": false,
+        "ncalls_gt_1000": true
+      }
+    },
+    {
+      "function": "<method 'encode' of 'str' objects> (~:0)",
+      "ncalls": 25700,
+      "tottime_s": 0.0052,
+      "cumtime_s": 0.0052,
+      "avg_per_call_ms": 0.0,
+      "tottime_pct": 1.8,
+      "flags": {
+        "tottime_gt_10ms": false,
+        "avg_gt_1ms": false,
+        "ncalls_gt_1000": true
+      }
+    },
+    {
+      "function": "<method 'run' of '_contextvars.Context' objects> (~:0)",
+      "ncalls": 1300,
+      "tottime_s": 0.0033,
+      "cumtime_s": 0.0969,
+      "avg_per_call_ms": 0.003,
+      "tottime_pct": 1.1,
+      "flags": {
+        "tottime_gt_10ms": false,
+        "avg_gt_1ms": false,
+        "ncalls_gt_1000": true
+      }
+    },
+    {
+      "function": "_compile (__init__.py:280)",
+      "ncalls": 2000,
+      "tottime_s": 0.0022,
+      "cumtime_s": 0.0034,
+      "avg_per_call_ms": 0.001,
+      "tottime_pct": 0.7,
+      "flags": {
+        "tottime_gt_10ms": false,
+        "avg_gt_1ms": false,
+        "ncalls_gt_1000": true
+      }
+    },
+    {
+      "function": "_run (events.py:86)",
+      "ncalls": 1300,
+      "tottime_s": 0.0021,
+      "cumtime_s": 0.1017,
+      "avg_per_call_ms": 0.002,
+      "tottime_pct": 0.7,
+      "flags": {
+        "tottime_gt_10ms": false,
+        "avg_gt_1ms": false,
+        "ncalls_gt_1000": true
+      }
+    },
+    {
+      "function": "_call_soon (base_events.py:818)",
+      "ncalls": 1100,
+      "tottime_s": 0.0016,
+      "cumtime_s": 0.0029,
+      "avg_per_call_ms": 0.001,
+      "tottime_pct": 0.5,
+      "flags": {
+        "tottime_gt_10ms": false,
+        "avg_gt_1ms": false,
+        "ncalls_gt_1000": true
+      }
+    },
+    {
+      "function": "<method 'append' of 'list' objects> (~:0)",
+      "ncalls": 7295,
+      "tottime_s": 0.0014,
+      "cumtime_s": 0.0014,
+      "avg_per_call_ms": 0.0,
+      "tottime_pct": 0.5,
+      "flags": {
+        "tottime_gt_10ms": false,
+        "avg_gt_1ms": false,
+        "ncalls_gt_1000": true
+      }
+    },
+    {
+      "function": "__init__ (events.py:36)",
+      "ncalls": 1300,
+      "tottime_s": 0.0013,
+      "cumtime_s": 0.0016,
+      "avg_per_call_ms": 0.001,
+      "tottime_pct": 0.4,
+      "flags": {
+        "tottime_gt_10ms": false,
+        "avg_gt_1ms": false,
+        "ncalls_gt_1000": true
+      }
+    },
+    {
+      "function": "finditer (__init__.py:219)",
+      "ncalls": 2000,
+      "tottime_s": 0.0012,
+      "cumtime_s": 0.0057,
+      "avg_per_call_ms": 0.001,
+      "tottime_pct": 0.4,
+      "flags": {
+        "tottime_gt_10ms": false,
+        "avg_gt_1ms": false,
+        "ncalls_gt_1000": true
+      }
+    },
+    {
+      "function": "<built-in method builtins.isinstance> (~:0)",
+      "ncalls": 4899,
+      "tottime_s": 0.0011,
+      "cumtime_s": 0.0014,
+      "avg_per_call_ms": 0.0,
+      "tottime_pct": 0.4,
+      "flags": {
+        "tottime_gt_10ms": false,
+        "avg_gt_1ms": false,
+        "ncalls_gt_1000": true
+      }
+    },
+    {
+      "function": "<method 'finditer' of 're.Pattern' objects> (~:0)",
+      "ncalls": 2000,
+      "tottime_s": 0.0011,
+      "cumtime_s": 0.0011,
+      "avg_per_call_ms": 0.001,
+      "tottime_pct": 0.4,
+      "flags": {
+        "tottime_gt_10ms": false,
+        "avg_gt_1ms": false,
+        "ncalls_gt_1000": true
+      }
+    },
+    {
+      "function": "<built-in method builtins.len> (~:0)",
+      "ncalls": 5001,
+      "tottime_s": 0.001,
+      "cumtime_s": 0.001,
+      "avg_per_call_ms": 0.0,
+      "tottime_pct": 0.3,
+      "flags": {
+        "tottime_gt_10ms": false,
+        "avg_gt_1ms": false,
+        "ncalls_gt_1000": true
+      }
+    },
+    {
+      "function": "__enter__ (threading.py:299)",
+      "ncalls": 1300,
+      "tottime_s": 0.0008,
+      "cumtime_s": 0.0012,
+      "avg_per_call_ms": 0.001,
+      "tottime_pct": 0.3,
+      "flags": {
+        "tottime_gt_10ms": false,
+        "avg_gt_1ms": false,
+        "ncalls_gt_1000": true
+      }
+    },
+    {
+      "function": "__exit__ (threading.py:302)",
+      "ncalls": 1300,
+      "tottime_s": 0.0008,
+      "cumtime_s": 0.001,
+      "avg_per_call_ms": 0.001,
+      "tottime_pct": 0.3,
+      "flags": {
+        "tottime_gt_10ms": false,
+        "avg_gt_1ms": false,
+        "ncalls_gt_1000": true
+      }
+    },
+    {
+      "function": "<built-in method builtins.hasattr> (~:0)",
+      "ncalls": 3200,
+      "tottime_s": 0.0007,
+      "cumtime_s": 0.0007,
+      "avg_per_call_ms": 0.0,
+      "tottime_pct": 0.2,
+      "flags": {
+        "tottime_gt_10ms": false,
+        "avg_gt_1ms": false,
+        "ncalls_gt_1000": true
+      }
+    },
+    {
+      "function": "__get__ (enum.py:202)",
+      "ncalls": 2000,
+      "tottime_s": 0.0007,
+      "cumtime_s": 0.001,
+      "avg_per_call_ms": 0.0,
+      "tottime_pct": 0.2,
+      "flags": {
+        "tottime_gt_10ms": false,
+        "avg_gt_1ms": false,
+        "ncalls_gt_1000": true
+      }
+    },
+    {
+      "function": "<method 'get' of 'dict' objects> (~:0)",
+      "ncalls": 2396,
+      "tottime_s": 0.0006,
+      "cumtime_s": 0.0006,
+      "avg_per_call_ms": 0.0,
+      "tottime_pct": 0.2,
+      "flags": {
+        "tottime_gt_10ms": false,
+        "avg_gt_1ms": false,
+        "ncalls_gt_1000": true
+      }
+    },
+    {
+      "function": "<method 'search' of 're.Pattern' objects> (~:0)",
+      "ncalls": 1100,
+      "tottime_s": 0.0006,
+      "cumtime_s": 0.0006,
+      "avg_per_call_ms": 0.001,
+      "tottime_pct": 0.2,
+      "flags": {
+        "tottime_gt_10ms": false,
+        "avg_gt_1ms": false,
+        "ncalls_gt_1000": true
+      }
+    },
+    {
+      "function": "isfuture (base_futures.py:13)",
+      "ncalls": 1200,
+      "tottime_s": 0.0006,
+      "cumtime_s": 0.0009,
+      "avg_per_call_ms": 0.001,
+      "tottime_pct": 0.2,
+      "flags": {
+        "tottime_gt_10ms": false,
+        "avg_gt_1ms": false,
+        "ncalls_gt_1000": true
+      }
+    },
+    {
+      "function": "time (base_events.py:738)",
+      "ncalls": 1300,
+      "tottime_s": 0.0006,
+      "cumtime_s": 0.0009,
+      "avg_per_call_ms": 0.0,
+      "tottime_pct": 0.2,
+      "flags": {
+        "tottime_gt_10ms": false,
+        "avg_gt_1ms": false,
+        "ncalls_gt_1000": true
+      }
+    },
+    {
+      "function": "<built-in method builtins.max> (~:0)",
+      "ncalls": 1100,
+      "tottime_s": 0.0005,
+      "cumtime_s": 0.0005,
+      "avg_per_call_ms": 0.0,
+      "tottime_pct": 0.2,
+      "flags": {
+        "tottime_gt_10ms": false,
+        "avg_gt_1ms": false,
+        "ncalls_gt_1000": true
+      }
+    },
+    {
+      "function": "<method 'add' of 'set' objects> (~:0)",
+      "ncalls": 1100,
+      "tottime_s": 0.0004,
+      "cumtime_s": 0.0004,
+      "avg_per_call_ms": 0.0,
+      "tottime_pct": 0.1,
+      "flags": {
+        "tottime_gt_10ms": false,
+        "avg_gt_1ms": false,
+        "ncalls_gt_1000": true
+      }
+    },
+    {
+      "function": "<method 'append' of 'collections.deque' objects> (~:0)",
+      "ncalls": 1600,
+      "tottime_s": 0.0004,
+      "cumtime_s": 0.0004,
+      "avg_per_call_ms": 0.0,
+      "tottime_pct": 0.1,
+      "flags": {
+        "tottime_gt_10ms": false,
+        "avg_gt_1ms": false,
+        "ncalls_gt_1000": true
+      }
+    },
+    {
+      "function": "<built-in method _thread.get_ident> (~:0)",
+      "ncalls": 1200,
+      "tottime_s": 0.0004,
+      "cumtime_s": 0.0004,
+      "avg_per_call_ms": 0.0,
+      "tottime_pct": 0.1,
+      "flags": {
+        "tottime_gt_10ms": false,
+        "avg_gt_1ms": false,
+        "ncalls_gt_1000": true
+      }
+    },
+    {
+      "function": "<built-in method time.monotonic> (~:0)",
+      "ncalls": 1500,
+      "tottime_s": 0.0004,
+      "cumtime_s": 0.0004,
+      "avg_per_call_ms": 0.0,
+      "tottime_pct": 0.1,
+      "flags": {
+        "tottime_gt_10ms": false,
+        "avg_gt_1ms": false,
+        "ncalls_gt_1000": true
+      }
+    },
+    {
+      "function": "<method 'popleft' of 'collections.deque' objects> (~:0)",
+      "ncalls": 1300,
+      "tottime_s": 0.0003,
+      "cumtime_s": 0.0003,
+      "avg_per_call_ms": 0.0,
+      "tottime_pct": 0.1,
+      "flags": {
+        "tottime_gt_10ms": false,
+        "avg_gt_1ms": false,
+        "ncalls_gt_1000": true
+      }
+    },
+    {
+      "function": "<method '__exit__' of '_thread.lock' objects> (~:0)",
+      "ncalls": 1400,
+      "tottime_s": 0.0003,
+      "cumtime_s": 0.0003,
+      "avg_per_call_ms": 0.0,
+      "tottime_pct": 0.1,
+      "flags": {
+        "tottime_gt_10ms": false,
+        "avg_gt_1ms": false,
+        "ncalls_gt_1000": true
+      }
+    },
+    {
+      "function": "<method '__exit__' of '_thread.RLock' objects> (~:0)",
+      "ncalls": 1600,
+      "tottime_s": 0.0003,
+      "cumtime_s": 0.0003,
+      "avg_per_call_ms": 0.0,
+      "tottime_pct": 0.1,
+      "flags": {
+        "tottime_gt_10ms": false,
+        "avg_gt_1ms": false,
+        "ncalls_gt_1000": true
+      }
+    },
+    {
+      "function": "_check_closed (base_events.py:543)",
+      "ncalls": 2300,
+      "tottime_s": 0.0003,
+      "cumtime_s": 0.0003,
+      "avg_per_call_ms": 0.0,
+      "tottime_pct": 0.1,
+      "flags": {
+        "tottime_gt_10ms": false,
+        "avg_gt_1ms": false,
+        "ncalls_gt_1000": true
+      }
+    },
+    {
+      "function": "value (enum.py:1291)",
+      "ncalls": 2000,
+      "tottime_s": 0.0003,
+      "cumtime_s": 0.0003,
+      "avg_per_call_ms": 0.0,
+      "tottime_pct": 0.1,
+      "flags": {
+        "tottime_gt_10ms": false,
+        "avg_gt_1ms": false,
+        "ncalls_gt_1000": true
+      }
+    },
+    {
+      "function": "get_debug (base_events.py:2017)",
+      "ncalls": 2000,
+      "tottime_s": 0.0003,
+      "cumtime_s": 0.0003,
+      "avg_per_call_ms": 0.0,
+      "tottime_pct": 0.1,
+      "flags": {
+        "tottime_gt_10ms": false,
+        "avg_gt_1ms": false,
+        "ncalls_gt_1000": true
+      }
+    },
+    {
+      "function": "<built-in method builtins.issubclass> (~:0)",
+      "ncalls": 1100,
+      "tottime_s": 0.0002,
+      "cumtime_s": 0.0002,
+      "avg_per_call_ms": 0.0,
+      "tottime_pct": 0.1,
+      "flags": {
+        "tottime_gt_10ms": false,
+        "avg_gt_1ms": false,
+        "ncalls_gt_1000": true
+      }
+    }
+  ],
+  "output_files": {
+    "prof_binary": "/home/z/my-project/work/FRIDAY/benchmarks/profile_brain.prof",
+    "summary_txt": "/home/z/my-project/work/FRIDAY/benchmarks/profile_brain.txt"
+  },
+  "methodology": {
+    "profiler": "cProfile.Profile (deterministic, all calls)",
+    "async_strategy": "asyncio.run() per request in calling thread",
+    "warmup": "1 unprofiled request before measurement",
+    "note": "cProfile adds ~2-5x overhead per call \u2014 absolute timings here are NOT comparable to benchmark_chat_latency.py. Use this output to find hotspots and call-count outliers, not for SLA tracking."
+  }
+}

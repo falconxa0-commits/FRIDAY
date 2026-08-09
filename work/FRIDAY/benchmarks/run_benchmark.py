@@ -3,9 +3,33 @@
 Supports GLM-powered tasks (web search, image gen, video gen, deep research,
 code tutor) as well as traditional integration tasks.  Produces a markdown
 results report.
+
+In addition to the original GLM end-to-end task sweep, this runner now
+dispatches the five WAVE1-PERF micro-benchmarks:
+
+    * ``startup``        — cold-start breakdown by component
+    * ``chat_latency``   — TTFT / full-response with mocked GLM
+    * ``memory``         — RSS growth at each milestone
+    * ``vector_search``  — InMemoryVectorStore scaling analysis
+    * ``profile_brain``  — cProfile of ``FridayBrain.chat_stream``
+
+Run individual benchmarks::
+
+    python benchmarks/run_benchmark.py --only=startup
+    python benchmarks/run_benchmark.py --only=chat_latency
+    python benchmarks/run_benchmark.py --only=memory
+    python benchmarks/run_benchmark.py --only=vector_search
+    python benchmarks/run_benchmark.py --only=profile_brain
+    python benchmarks/run_benchmark.py --only=tasks      # original GLM task sweep
+
+Run everything::
+
+    python benchmarks/run_benchmark.py --all
 """
 
+import argparse
 import asyncio
+import importlib
 import json
 import os
 import sys
@@ -14,6 +38,69 @@ import datetime
 sys.path.append(os.getcwd())
 
 from core.brain import FridayBrain
+
+# ──────────────────────────────────────────────────────────────────────────────
+# WAVE1-PERF micro-benchmark registry
+# ──────────────────────────────────────────────────────────────────────────────
+#
+# Each entry is (name, module, description). We import lazily so a single
+# broken benchmark doesn't prevent the others from running.
+
+PERF_BENCHMARKS = {
+    "startup":       ("benchmarks.benchmark_startup",       "Cold-start breakdown by component"),
+    "chat_latency":  ("benchmarks.benchmark_chat_latency",  "TTFT / full-response with mocked GLM"),
+    "memory":        ("benchmarks.benchmark_memory",        "RSS growth at each milestone"),
+    "vector_search": ("benchmarks.benchmark_vector_search", "InMemoryVectorStore scaling analysis"),
+    "profile_brain": ("benchmarks.profile_brain",           "cProfile of FridayBrain.chat_stream"),
+}
+
+
+def run_perf_benchmark(name: str, **kwargs) -> dict:
+    """Dispatch one WAVE1-PERF benchmark by name.
+
+    Each benchmark module exposes a top-level ``run(**kwargs)`` function
+    (or ``run_profile`` for profile_brain) that returns a JSON-serialisable
+    dict and writes its own ``results_*.json`` file.
+
+    Only kwargs that the runner actually accepts are forwarded — this
+    lets ``--iterations=N`` work for benchmarks that take an
+    ``iterations`` parameter (startup, chat_latency) without breaking
+    the ones that don't (memory, vector_search, profile_brain).
+    """
+    import inspect
+
+    if name not in PERF_BENCHMARKS:
+        raise ValueError(
+            f"Unknown benchmark '{name}'. "
+            f"Available: {sorted(PERF_BENCHMARKS.keys())}"
+        )
+    module_name, description = PERF_BENCHMARKS[name]
+    print(f"\n{'=' * 70}")
+    print(f"  PERF BENCHMARK: {name} — {description}")
+    print(f"{'=' * 70}\n")
+    module = importlib.import_module(module_name)
+    # Each module exposes either ``run`` or ``run_profile``.
+    runner = getattr(module, "run", None) or getattr(module, "run_profile")
+
+    # Filter kwargs to those the runner accepts.
+    try:
+        sig = inspect.signature(runner)
+        accepted = set(sig.parameters.keys())
+        # If the runner has **kwargs, accept everything.
+        if any(p.kind == inspect.Parameter.VAR_KEYWORD
+               for p in sig.parameters.values()):
+            filtered = kwargs
+        else:
+            filtered = {k: v for k, v in kwargs.items() if k in accepted}
+            skipped = {k: v for k, v in kwargs.items() if k not in accepted}
+            if skipped:
+                print(f"[runner] Note: {name} does not accept "
+                      f"{sorted(skipped.keys())}; ignoring.")
+    except (TypeError, ValueError):
+        filtered = kwargs
+
+    return runner(**filtered)
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # GLM-specific task handlers (use GLMBrain directly for accuracy)
@@ -218,5 +305,64 @@ async def run_benchmark():
     print(f"Benchmark complete. Pass Rate: {pass_rate:.0f}%. Results in benchmarks/results.md")
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# CLI
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _build_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(
+        description="FRIDAY benchmark runner.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=__doc__,
+    )
+    p.add_argument(
+        "--only",
+        choices=sorted(PERF_BENCHMARKS.keys()) + ["tasks"],
+        help="Run only the named benchmark.",
+    )
+    p.add_argument(
+        "--all",
+        action="store_true",
+        help="Run every benchmark (perf micro-benchmarks + GLM task sweep).",
+    )
+    p.add_argument(
+        "--iterations",
+        type=int,
+        default=None,
+        help="Override iteration count for benchmarks that accept it.",
+    )
+    return p
+
+
+def main():
+    args = _build_parser().parse_args()
+
+    if args.all:
+        # Run every perf benchmark, then the GLM task sweep.
+        for name in PERF_BENCHMARKS:
+            try:
+                if args.iterations is not None:
+                    run_perf_benchmark(name, iterations=args.iterations)
+                else:
+                    run_perf_benchmark(name)
+            except Exception as exc:
+                print(f"[runner] Benchmark '{name}' failed: {exc}")
+        asyncio.run(run_benchmark())
+        return
+
+    if args.only:
+        if args.only == "tasks":
+            asyncio.run(run_benchmark())
+            return
+        if args.iterations is not None:
+            run_perf_benchmark(args.only, iterations=args.iterations)
+        else:
+            run_perf_benchmark(args.only)
+        return
+
+    # Default: print help.
+    _build_parser().print_help()
+
+
 if __name__ == "__main__":
-    asyncio.run(run_benchmark())
+    main()

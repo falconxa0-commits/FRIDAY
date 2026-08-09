@@ -1,7 +1,27 @@
+"""Future Simulator — EXPERIMENTAL, NOT WIRED INTO PRODUCTION.
+
+This module implements a speculative "future simulator" that branches a
+decision tree into multiple probable paths and ranks them by outcome
+desirability. It is **not wired into the main chat loop** and is
+retained for future experimentation.
+
+Importing this module emits a ``DeprecationWarning`` to flag its
+experimental status. It may be removed in v4.0 if no production wiring
+is added.
+"""
+
 import logging
 import json
+import warnings
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, field
+
+warnings.warn(
+    "core.simulator is experimental and not wired into the main loop. "
+    "It may be removed in v4.0.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 logger = logging.getLogger("FutureSimulator")
 

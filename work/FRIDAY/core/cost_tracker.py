@@ -12,7 +12,7 @@ Data is persisted to a JSON file so that costs accumulate across restarts.
 import json
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -59,8 +59,10 @@ class CostTracker:
         self._data_path = Path(data_path) if data_path else _DEFAULT_DATA_PATH
         self._data: Dict[str, Any] = {
             "providers": {},
-            "created_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat(),
+            # Timezone-aware UTC ISO timestamps (replaces deprecated
+            # datetime.utcnow() — see WAVE2-REFAC).
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
         }
         self._load()
 
@@ -83,7 +85,7 @@ class CostTracker:
 
     def _save(self):
         """Persist current data to the JSON file."""
-        self._data["updated_at"] = datetime.utcnow().isoformat()
+        self._data["updated_at"] = datetime.now(timezone.utc).isoformat()
         try:
             with open(self._data_path, "w") as f:
                 json.dump(self._data, f, indent=2, default=str)

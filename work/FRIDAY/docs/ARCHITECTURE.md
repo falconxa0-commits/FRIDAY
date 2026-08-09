@@ -289,3 +289,209 @@ sequenceDiagram
     Ledger-->>MCP: approved=True
     MCP-->>Agent: {status: "approved",<br/>action_id: "...",<br/>receipt: {...}}
 ```
+
+## Data Flow Diagrams
+
+The following diagrams trace the three most important request paths through
+FRIDAY. Each is annotated with the security controls that fire at each step.
+
+### A. Chat request flow (user → API → brain → GLM → response)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant User as User<br/>(CLI / Web / SDK)
+    participant Nginx as nginx<br/>(TLS + rate-limit)
+    participant API as FastAPI<br/>api/main.py
+    participant Auth as verify_token<br/>(hmac.compare_digest)
+    participant Brain as FridayBrain<br/>(singleton)
+    participant GLM as GLMBrain<br/>core/glm_brain.py
+    participant Zai as Z.ai API
+    participant Stats as CostTracker<br/>+ stats log
+    participant Memory as FridayMemory
+
+    User->>Nginx: POST /api/chat<br/>Authorization: Bearer <TOKEN><br/>{"message": "..."}
+    Nginx->>Nginx: limit_req zone=friday_api<br/>burst=10 nodelay
+    Nginx->>API: proxy_pass<br/>(X-Real-IP, X-Forwarded-For)
+
+    API->>Auth: verify_token(credentials)
+    Auth->>Auth: hmac.compare_digest(<br/>cred, FRIDAY_API_TOKEN)
+    alt token mismatch
+        Auth-->>API: 403 Forbidden
+        API-->>User: {"detail":"Invalid token"}
+    else token valid
+        Auth-->>API: token_string
+    end
+
+    API->>API: check_rate_limit(request)<br/>(slowapi 60/min)
+    API->>Brain: _get_brain() (singleton)
+    Brain->>Memory: retrieve_relevant_memories(msg)
+    Memory-->>Brain: context[]
+    Brain->>GLM: chat_stream(msg, history, context)
+    GLM->>Zai: POST /v4/chat/completions<br/>{model, messages, tools}
+    Zai-->>GLM: SSE chunks<br/>(text + tool_calls)
+    GLM-->>Brain: async generator<br/>(text + [System: tool_call])
+
+    loop for each chunk
+        Brain-->>API: yield chunk
+        API-->>User: text chunk (SSE or JSON)
+    end
+
+    API->>Stats: record_request(<br/>provider, model, tokens_in, tokens_out)
+    API->>Stats: CostTracker.record_usage(<br/>provider, in, out)
+    Stats->>Stats: append to cost_tracker_data.json
+    Stats-->>API: ok
+    API-->>User: final response (or [DONE] for SSE)
+```
+
+**Security controls fired**
+1. nginx rate limit (per-IP, 30r/m with burst 10)
+2. TLS termination + security headers
+3. Bearer token comparison (timing-safe)
+4. slowapi per-route rate limit (60/min for `/api/chat`)
+5. Memory context retrieval (no authz on memory yet — single-user)
+6. GLM call uses server-side API key (never exposed to client)
+7. Cost tracking records every request (audit trail)
+
+---
+
+### B. Plugin install flow (marketplace → AST scan → integrations/)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant User as Operator
+    participant CLI as friday CLI<br/>cli/commands.py
+    participant FS as Filesystem<br/>marketplace/plugins/<name>/
+    participant AST as ast.parse + ast.walk
+    participant IntDir as integrations/<name>.py
+    participant Conn as UniversalConnector<br/>(next startup)
+    participant Reg as UniversalRegistry
+
+    User->>CLI: friday plugin install <name>
+    CLI->>FS: read marketplace/plugins/<name>/<name>.py
+
+    alt plugin not found
+        FS-->>CLI: FileNotFoundError
+        CLI-->>User: "Plugin '<name>' not found in marketplace/"
+    else plugin exists
+        FS-->>CLI: source_text
+    end
+
+    CLI->>AST: ast.parse(source_text)
+    alt SyntaxError
+        AST-->>CLI: SyntaxError
+        CLI-->>User: "Plugin has a syntax error"
+    else parsed OK
+        AST-->>CLI: tree
+    end
+
+    CLI->>AST: ast.walk(tree) — visit EVERY node
+
+    loop for each node in tree
+        AST->>AST: check Import / ImportFrom<br/>against DANGEROUS_IMPORTS
+        AST->>AST: check Call against<br/>__import__/exec/eval/compile
+    end
+
+    alt dangerous pattern found
+        AST-->>CLI: found_dangerous=[...]
+        CLI-->>User: ⚠ REFUSED: dangerous imports/calls<br/>+ instructions for manual override
+    else scan passes
+        AST-->>CLI: found_dangerous=[]
+        CLI->>IntDir: shutil.copy(source, target)
+        IntDir-->>CLI: copied
+        CLI-->>User: ✓ Installed<br/>(Passed AST scan)
+    end
+
+    Note over Conn,Reg: On next FRIDAY startup:
+    Conn->>IntDir: pkgutil.iter_modules(integrations/)
+    Conn->>IntDir: importlib.import_module(name)
+    IntDir-->>Conn: module object
+    Conn->>Conn: inspect.getmembers(module)<br/>find BaseIntegration subclasses
+    Conn->>Conn: instance = cls()
+    Conn->>Reg: register instance.name → instance
+    Reg-->>Conn: ok
+    Conn-->>Conn: ready for execute_action dispatch
+```
+
+**Security controls fired**
+1. Static AST scan walks the **entire** tree (v3.2 fix — prior versions only visited top-level nodes)
+2. Blocked imports: `os`, `subprocess`, `socket`, `shlex`, `ctypes`, `sys`, `importlib`, `builtins`, `pty`, `multiprocessing`
+3. Blocked calls: `__import__`, `exec`, `eval`, `compile`
+4. On refusal: clear error message + manual override instructions (operator must consciously bypass)
+5. At runtime: every `execute()` call still goes through `UniversalConnector` → `EthicalSentinel` → `ActionLedger` gate
+6. `NEVER_AUTO_APPROVE_COMPONENTS` blocks auto-approval of high-risk components regardless of profile
+
+**Residual risk** (see [Threat Model T1](./THREAT_MODEL.md#t1-malicious-plugin-supply-chain-attack-critical))
+- Computed attribute access (`getattr(obj, "sub"+"process")`) bypasses the scan
+- Transitive imports (`import requests` → `requests` imports `socket`) are not blocked
+- No sandbox — plugins run in-process with full privileges
+- Manual override (`cp`) bypasses the scan entirely
+
+---
+
+### C. Deployment topology (Docker → nginx → FastAPI → GLM API)
+
+```mermaid
+graph TB
+    subgraph "Host (Ubuntu VPS)"
+        subgraph "Docker / systemd"
+            Nginx[nginx:443<br/>TLS + rate-limit]
+            Friday[FRIDAY uvicorn<br/>127.0.0.1:8000<br/>user=friday]
+            DB[(Supabase Postgres<br/>127.0.0.1:5432)]
+        end
+
+        subgraph "Filesystem (/opt/friday)"
+            Env[.env<br/>chmod 600]
+            Chain[action_ledger_chain.json]
+            Pending[action_ledger_pending.json]
+            Cost[cost_tracker_data.json]
+            Secret[~/.friday/ledger_secret<br/>chmod 600]
+            Log[friday.log]
+        end
+    end
+
+    subgraph "External"
+        User[User browser<br/>https://friday.example.com]
+        MCP[MCP client<br/>Claude Code, Cursor]
+        Zai[Z.ai API<br/>open.bigmodel.cn]
+        GH[GitHub webhooks]
+        Stripe[Stripe webhooks]
+    end
+
+    User -->|HTTPS + Bearer token| Nginx
+    MCP -.stdio.-> Friday
+    GH -->|POST /api/webhooks/github<br/>HMAC-SHA256| Nginx
+    Stripe -->|POST /api/webhooks/stripe<br/>signature (stub)| Nginx
+
+    Nginx -->|proxy_pass 127.0.0.1:8000| Friday
+    Friday -->|SELECT / INSERT| DB
+    Friday -->|HTTPS POST /v4/chat/completions| Zai
+    Friday -->|append| Chain
+    Friday -->|append| Pending
+    Friday -->|append| Cost
+    Friday -->|read/write| Env
+    Friday -->|read HMAC secret| Secret
+    Friday -->|append| Log
+
+    classDef secure fill:#51cf66,stroke:#2f9e44,color:#000
+    classDef neutral fill:#a5d8ff,stroke:#1971c2,color:#000
+    classDef external fill:#ffd43b,stroke:#f59f00,color:#000
+    class Chain,Pending,Secret,Env secure
+    class Nginx,Friday,DB neutral
+    class User,MCP,Zai,GH,Stripe external
+```
+
+**Security boundaries**
+- **Public → nginx:** only ports 80/443 exposed; 8000 (uvicorn) and 5432 (Postgres) bound to 127.0.0.1
+- **nginx → uvicorn:** proxy_pass on localhost; `X-Forwarded-For` chain preserved
+- **uvicorn → Z.ai:** outbound HTTPS only; API key in env, never logged
+- **uvicorn → filesystem:** runs as `friday` user with `ProtectSystem=strict`, `ReadWritePaths=/opt/friday/data`
+- **uvicorn → Postgres:** localhost only; credentials from env (not hardcoded in v3.2 — see [Deployment Guide §4.3](./DEPLOYMENT_GUIDE.md#step-2--create-friday-user--directory) for the docker-compose caveat)
+- **HMAC secret:** stored at `~/.friday/ledger_secret` with `chmod 600`; never written to logs
+
+**Resource limits (recommended)**
+- `MemoryMax=2G` (FridayBrain + integrations)
+- `CPUQuota=200%` (2 cores)
+- `LimitNOFILE=65536` (WebSocket connections + file handles)
+- nginx `client_max_body_size 10m` (visual-memory uploads)

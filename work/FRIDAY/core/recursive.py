@@ -1,15 +1,29 @@
-"""Recursive self-improvement module (stub).
+"""Recursive self-improvement module (STUB — DISABLED).
+
+EXPERIMENTAL — not wired into production. Kept for import compatibility.
 
 Previously contained the RecursiveModificationProtocol class.
 That functionality has been removed as it posed an unacceptable
 risk of autonomous code modification without human review.
 
 All core changes must go through the standard review process.
+
+This module emits a ``DeprecationWarning`` on import to make it clear
+that the code path is intentionally inert. May be removed in v4.0.
 """
 
 import logging
+import warnings
 
 logger = logging.getLogger(__name__)
+
+warnings.warn(
+    "core.recursive is a disabled stub — autonomous code modification "
+    "has been removed for safety. This module is kept only for import "
+    "compatibility and may be removed in v4.0.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 
 class RecursiveModificationProtocol:

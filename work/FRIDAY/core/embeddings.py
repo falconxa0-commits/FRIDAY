@@ -42,13 +42,21 @@ class ZaiEmbedder:
     When ``GLM_API_KEY`` is set and the ``zhipuai`` package is installed,
     embeddings are produced by the Embedding-3 API (1024-dimensional).
 
-    When either is missing, a deterministic 256-dimensional hash-based
-    embedding is used instead.  This is useful for testing and offline
-    operation but has **no semantic meaning**.
+    When either is missing, a deterministic hash-based embedding is used
+    instead.  The hash fallback is internally computed at 256 dimensions
+    (``FALLBACK_DIM``) and then **padded to ``EMBEDDING_DIM`` (1024)** by
+    repeating the pattern 4 times — this guarantees every vector produced
+    by :meth:`embed` has the same dimensionality regardless of which path
+    was taken, so :class:`~database.vector_store.InMemoryVectorStore` will
+    never crash with a dimension-mismatch ``ValueError`` if the embedder
+    toggles between API and fallback modes across runs.
+
+    The hash-based embedding has **no semantic meaning** — it is only
+    useful for testing and offline operation.
     """
 
-    EMBEDDING_DIM = 1024       # ZhipuAI Embedding-3 dimension
-    FALLBACK_DIM = 256         # Hash-based fallback dimension
+    EMBEDDING_DIM = 1024       # ZhipuAI Embedding-3 dimension (canonical)
+    FALLBACK_DIM = 256         # Hash-based fallback internal dimension
 
     def __init__(self, api_key: Optional[str] = None):
         self.api_key = api_key or GLM_API_KEY
@@ -118,10 +126,19 @@ class ZaiEmbedder:
     def _hash_embed(self, text: str) -> np.ndarray:
         """Deterministic hash-based embedding for offline / no-key fallback.
 
-        Produces a normalised float32 vector of ``FALLBACK_DIM`` dimensions.
-        **Not semantically meaningful** — only useful for exact-match lookups.
+        Produces a normalised float32 vector of ``EMBEDDING_DIM`` (1024)
+        dimensions.  The base hash pattern is computed at ``FALLBACK_DIM``
+        (256) dimensions and then **tiled 4×** to reach 1024 dimensions —
+        this ensures vectors produced by the fallback are byte-for-byte
+        compatible with vectors produced by the API path, so they can be
+        stored together in :class:`~database.vector_store.InMemoryVectorStore`
+        without raising ``ValueError: setting an array element with a
+        sequence`` when the embedder toggles modes across runs.
+
+        **Not semantically meaningful** — only useful for exact-match
+        lookups and unit tests.
         """
-        vec = np.zeros(self.FALLBACK_DIM, dtype=np.float32)
+        base = np.zeros(self.FALLBACK_DIM, dtype=np.float32)
         # Create multiple hashes to fill the vector
         for i in range(self.FALLBACK_DIM // 4):
             h = hashlib.sha256(f"{text}|chunk{i}".encode("utf-8")).digest()
@@ -132,12 +149,49 @@ class ZaiEmbedder:
                     # Use 4 bytes as a float via struct
                     raw = h[j * 4 : (j + 1) * 4]
                     val = struct.unpack("f", raw)[0]
-                    vec[idx] = val
+                    base[idx] = val
 
-        # Normalise to unit length
-        norm = np.linalg.norm(vec)
-        if norm > 0:
-            vec = vec / norm
+        # struct.unpack on random bytes can produce Inf / NaN / denormals;
+        # replace them with 0 so the norm and tile below stay finite.
+        base = np.where(np.isfinite(base), base, 0.0)
+
+        # Normalise the base pattern to unit length BEFORE tiling. After
+        # tiling N times the resulting norm is sqrt(N) * base_norm, so we
+        # re-normalise the final vector below to keep it unit-length.
+        # Compute the norm in float64 to avoid float32 overflow when
+        # squaring very large values (struct.unpack can produce ~1e38).
+        base64 = base.astype(np.float64)
+        norm = float(np.linalg.norm(base64))
+        if norm > 0 and np.isfinite(norm):
+            # Normalise in float64 (safe), then clip to float32's finite
+            # range before casting to avoid "overflow encountered in cast"
+            # warnings on denormals / huge magnitudes.
+            base64 = base64 / norm
+            base64 = np.clip(base64, np.finfo(np.float32).min, np.finfo(np.float32).max)
+            base = base64.astype(np.float32)
+        else:
+            base = base64.astype(np.float32)
+
+        # Pad to EMBEDDING_DIM by tiling the 256-dim pattern 4× → 1024 dim.
+        # (EMBEDDING_DIM must be an integer multiple of FALLBACK_DIM.)
+        if self.EMBEDDING_DIM % self.FALLBACK_DIM != 0:
+            # Defensive: if dims ever change to a non-multiple, fall back
+            # to zero-padding instead of tiling.
+            vec = np.zeros(self.EMBEDDING_DIM, dtype=np.float32)
+            vec[: self.FALLBACK_DIM] = base
+            return vec
+        vec = np.tile(base, self.EMBEDDING_DIM // self.FALLBACK_DIM)
+
+        # Re-normalise: tiling a unit vector N× produces a vector of norm
+        # sqrt(N); divide through so the final vector is unit-length.
+        vec64 = vec.astype(np.float64)
+        final_norm = float(np.linalg.norm(vec64))
+        if final_norm > 0 and np.isfinite(final_norm):
+            vec64 = vec64 / final_norm
+            vec64 = np.clip(vec64, np.finfo(np.float32).min, np.finfo(np.float32).max)
+            vec = vec64.astype(np.float32)
+        else:
+            vec = vec64.astype(np.float32)
         return vec
 
     # ------------------------------------------------------------------

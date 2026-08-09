@@ -3,6 +3,11 @@
 Goes beyond /healthz to actually test every integration end-to-end,
 measure real latency, report honest status per feature, and suggest
 specific fixes for anything that's failing.
+
+Security: ``/api/health/deep`` is authenticated via ``core.auth.require_auth``
+because it exposes the full system map (config, integrations, ledger
+state, memory count). The shallow ``/api/health`` and ``/api/ping``
+routes remain unauthenticated for liveness probes.
 """
 import asyncio
 import datetime
@@ -10,7 +15,9 @@ import logging
 import time
 from typing import Any, Dict, List
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+
+from core.auth import require_auth
 
 logger = logging.getLogger("friday.api.health")
 
@@ -18,8 +25,13 @@ router = APIRouter()
 
 
 @router.get("/deep")
-async def deep_health() -> dict:
-    """Deep health check — tests every integration + subsystem."""
+async def deep_health(_auth: str = Depends(require_auth)) -> dict:
+    """Deep health check — tests every integration + subsystem.
+
+    Requires authentication because the response includes the full
+    system map (live integrations, ledger state, memory count) which
+    is sensitive information for an attacker performing reconnaissance.
+    """
     checks: List[dict] = []
 
     # ---- Brain providers ------------------------------------------------

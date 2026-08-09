@@ -6,10 +6,50 @@ from pydantic import BaseModel
 from typing import Optional, AsyncGenerator
 import json
 import logging
+import time
+
+from core.observability import metrics as _prom_metrics
 
 logger = logging.getLogger("friday.api.chat")
 
 router = APIRouter()
+
+
+# ---------------------------------------------------------------------------
+# Metrics helpers — sanitize provider names into stable Prometheus labels.
+# In production ``provider`` is always a short string ("glm", "claude", …),
+# but in tests it can be a MagicMock whose repr is non-deterministic and
+# would explode label cardinality. Coerce to ``"unknown"`` in that case.
+# ---------------------------------------------------------------------------
+
+
+def _provider_label(provider) -> str:
+    """Coerce a provider identifier into a short, stable string label."""
+    if not isinstance(provider, str) or not provider:
+        return "unknown"
+    if provider.startswith("<") or len(provider) > 32:
+        return "unknown"
+    return provider.lower()
+
+
+def _observe_chat_request(provider_label: str, status_label: str, start_time: float) -> None:
+    """Record latency + counter for a chat request. Best-effort — never raises."""
+    try:
+        latency = time.perf_counter() - start_time
+        _prom_metrics.chat_latency_seconds.labels(provider=provider_label).observe(latency)
+        _prom_metrics.chat_requests_total.labels(
+            provider=provider_label, status=status_label
+        ).inc()
+    except Exception as metric_exc:
+        logger.debug("Failed to observe chat metrics: %s", metric_exc)
+
+
+def _record_chat_error(module: str, error: BaseException) -> None:
+    """Increment the errors_total counter. Best-effort — never raises."""
+    try:
+        _prom_metrics.record_error(module, error)
+    except Exception as metric_exc:
+        logger.debug("Failed to record chat error metric: %s", metric_exc)
 
 
 # Rate limiting: we get the limiter at call time (not import time) to
@@ -39,7 +79,12 @@ async def _get_brain():
 
 
 def _record_chat_request(provider: str, model: str, prompt: str, response: str) -> None:
-    """Estimate token counts and record a chat request in the stats log + cost tracker."""
+    """Estimate token counts and record a chat request in the stats log + cost tracker.
+
+    Also updates the ``friday_tokens_used_total`` and ``friday_cost_usd_total``
+    Prometheus counters so the observability stack has the same data as the
+    in-memory stats log.
+    """
     try:
         from api.routes.stats import record_request, _estimate_cost
         # Rough token estimate: 1 token ≈ 4 chars (industry-standard approximation)
@@ -47,6 +92,21 @@ def _record_chat_request(provider: str, model: str, prompt: str, response: str) 
         tokens_out = max(1, len(response) // 4)
         cost = _estimate_cost(provider, tokens_in, tokens_out)
         record_request(provider, model, tokens_in, tokens_out, cost)
+
+        # ---- Observability: token + cost counters ---------------------
+        # The provider label is sanitized to avoid label cardinality
+        # explosions (e.g. MagicMock reprs in tests, long error strings).
+        prov_label = _provider_label(provider)
+        try:
+            _prom_metrics.tokens_used_total.labels(
+                provider=prov_label, direction="input"
+            ).inc(tokens_in)
+            _prom_metrics.tokens_used_total.labels(
+                provider=prov_label, direction="output"
+            ).inc(tokens_out)
+            _prom_metrics.cost_usd_total.labels(provider=prov_label).inc(cost)
+        except Exception as metric_exc:
+            logger.debug("Failed to record token/cost metrics: %s", metric_exc)
 
         # Also record in the persistent CostTracker
         try:
@@ -96,6 +156,10 @@ async def chat(chat_req: ChatRequest, request: Request):
     """Chat endpoint with rate limiting."""
     from core.rate_limiter import check_rate_limit
     check_rate_limit(request)
+    # Observability: time the full request and record latency + outcome.
+    start_time = time.perf_counter()
+    provider_label = "unknown"
+    status_label = "success"
     try:
         brain = await _get_brain()
         responses = []
@@ -103,11 +167,16 @@ async def chat(chat_req: ChatRequest, request: Request):
             responses.append(chunk)
         full_response = "".join(responses)
         provider, model = _resolve_provider_and_model(brain)
+        provider_label = _provider_label(provider)
         _record_chat_request(provider, model, chat_req.message, full_response)
         return {"response": full_response}
     except Exception as e:
+        status_label = "error"
         logger.exception("Chat error")
+        _record_chat_error("api.routes.chat", e)
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        _observe_chat_request(provider_label, status_label, start_time)
 
 
 # Apply rate limiting after module load (avoids circular import)
@@ -137,6 +206,10 @@ async def chat_stream(
     check_rate_limit(request)
 
     async def event_generator() -> AsyncGenerator[str, None]:
+        # Observability: time the streaming response from first byte to DONE.
+        start_time = time.perf_counter()
+        provider_label = "unknown"
+        status_label = "success"
         try:
             brain = await _get_brain()
             collected = []
@@ -161,12 +234,17 @@ async def chat_stream(
 
             # Record stats after streaming completes
             provider, model = _resolve_provider_and_model(brain)
+            provider_label = _provider_label(provider)
             _record_chat_request(provider, model, message, "".join(collected))
 
         except Exception as e:
+            status_label = "error"
             logger.exception("SSE stream error")
+            _record_chat_error("api.routes.chat", e)
             error_payload = json.dumps({"type": "error", "message": str(e)})
             yield f"data: {error_payload}\n\n"
+        finally:
+            _observe_chat_request(provider_label, status_label, start_time)
 
     return StreamingResponse(
         event_generator(),

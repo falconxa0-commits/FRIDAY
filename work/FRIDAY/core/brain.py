@@ -1,3 +1,27 @@
+"""FridayBrain — orchestration layer for the FRIDAY assistant.
+
+Refactored in WAVE2-ARCH to delegate responsibilities to focused modules:
+
+* :class:`core.provider_router.ProviderRouter` — LLM provider dispatch
+* :class:`core.context_manager.ContextManager` — conversation history, summarisation, branching
+* :class:`core.creative_router.CreativeRouter` — image/video generation routing
+
+This module retains the orchestration responsibilities only:
+
+* skill discovery (``_discover_skills``)
+* tool building (``_build_universal_tools``)
+* tool execution (``_execute_tool``)
+* web search (``_web_search``)
+* system prompt construction (``_build_system_prompt``)
+* RAG injection (``_inject_rag_context``)
+* the GLM tool-calling loop (``_glm_stream_with_tools``) — kept here
+  because it depends on ``brain._execute_tool`` and ``brain.memory``
+
+Public API is unchanged — every existing method/attribute that callers
+or tests rely on (``chat_stream``, ``branch_conversation``, ``conversation_history``,
+``summarizer``, ``tools``, ``provider``, ``glm_brain``, …) still works.
+"""
+
 import asyncio
 import logging
 import os
@@ -5,8 +29,6 @@ import json
 import inspect
 import pkgutil
 import importlib
-import hashlib
-import re
 from typing import List, Dict, Any, AsyncGenerator, Optional
 from datetime import datetime
 
@@ -24,86 +46,17 @@ from core.glm_brain import GLMBrain
 from core.local_brain import LocalBrain
 from integrations.registry import UniversalRegistry
 from core.universal_connector import UniversalConnector
+from core.context_manager import ContextManager, ConversationSummarizer
+from core.creative_router import CreativeRouter
+from core.provider_router import ProviderRouter
 from skills.base import BaseSkill
 
 logger = logging.getLogger("FridayBrain")
 
 
-class ConversationSummarizer:
-    """Summarizes old conversation history to maintain context within token limits."""
-
-    def __init__(self, brain_client=None, max_unsummarized: int = 20, summary_max_tokens: int = 500):
-        self.brain_client = brain_client
-        self.max_unsummarized = max_unsummarized
-        self.summary_max_tokens = summary_max_tokens
-        self.summaries: List[str] = []
-
-    async def summarize_older_messages(self, messages: List[Dict]) -> List[Dict]:
-        """Keep recent messages intact, summarize older ones into a condensed block."""
-        if len(messages) <= self.max_unsummarized:
-            return messages
-
-        older = messages[:-self.max_unsummarized]
-        recent = messages[-self.max_unsummarized:]
-
-        # Build text to summarize
-        older_text = "\n".join(
-            f"{m.get('role', 'unknown')}: {m.get('content', '')}"
-            for m in older
-        )
-
-        summary = await self._generate_summary(older_text)
-        if summary:
-            self.summaries.append(summary)
-
-        return recent
-
-    async def _generate_summary(self, text: str) -> Optional[str]:
-        """Use the LLM to generate a conversation summary."""
-        if not self.brain_client:
-            # Heuristic fallback: just keep key facts
-            return self._heuristic_summary(text)
-
-        try:
-            response = await self.brain_client.messages.create(
-                model="claude-sonnet-4-20250514",
-                max_tokens=self.summary_max_tokens,
-                messages=[{
-                    "role": "user",
-                    "content": (
-                        "Summarize the key points, decisions, and facts from this "
-                        "conversation excerpt in a concise paragraph:\n\n" + text
-                    )
-                }]
-            )
-            return response.content[0].text
-        except Exception as e:
-            logger.warning(f"Summary generation failed: {e}")
-            return self._heuristic_summary(text)
-
-    def _heuristic_summary(self, text: str) -> str:
-        """Extract key sentences when LLM is unavailable."""
-        sentences = text.split('.')
-        keywords = [
-            'important', 'decided', 'remember', 'prefer', 'need', 'want',
-            'fact', 'name is', 'my name'
-        ]
-        key_sentences = [
-            s.strip() for s in sentences
-            if any(kw in s.lower() for kw in keywords)
-        ]
-        if key_sentences:
-            return "Key points: " + "; ".join(key_sentences[:5])
-        return ""
-
-    def get_context_block(self) -> str:
-        """Return all summaries as a context block for the system prompt."""
-        if not self.summaries:
-            return ""
-        return (
-            "\n\n## Previous Conversation Summaries\n"
-            + "\n---\n".join(self.summaries)
-        )
+# ---------------------------------------------------------------------------
+# RAG pipeline (kept here — tightly coupled to memory + learning system)
+# ---------------------------------------------------------------------------
 
 
 class RAGPipeline:
@@ -144,7 +97,19 @@ class RAGPipeline:
             return ""
 
 
+# ---------------------------------------------------------------------------
+# FridayBrain — orchestration only
+# ---------------------------------------------------------------------------
+
+
 class FridayBrain:
+    """Friday's main orchestration brain.
+
+    Public API is preserved exactly. Internal responsibilities
+    (provider routing, context management, creative routing) are
+    delegated to dedicated collaborator objects.
+    """
+
     # Default provider order: GLM (free, default), Claude, Gemini, GPT, Grok, Local/Ollama
     PROVIDER_ORDER = ["glm", "claude", "gemini", "gpt", "grok", "ollama"]
 
@@ -174,15 +139,24 @@ class FridayBrain:
         self.skills = {}
         self._discover_skills()
 
-        # Conversation management
-        self.conversation_history = []
+        # ------------------------------------------------------------------
+        # Conversation management — delegated to ContextManager
+        # ------------------------------------------------------------------
+        self.context = ContextManager(max_unsummarized=20)
         self.history_limit = int(os.getenv("HISTORY_LIMIT", "50"))
-        self.summarizer = ConversationSummarizer()
+
+        # RAG pipeline (kept in brain — depends on memory + learning system)
         self.rag_pipeline = RAGPipeline(memory=self.memory)
 
-        # Conversation branching
-        self._branches: Dict[str, dict] = {}  # branch_id → {history, parent_message_id, created_at}
-        self._active_branch_id: Optional[str] = None  # None = main conversation
+        # ------------------------------------------------------------------
+        # Routers — creative suite + provider dispatch
+        # ------------------------------------------------------------------
+        self.creative_router = CreativeRouter(self.connector)
+        self.router = ProviderRouter(
+            glm_brain=self.glm_brain,
+            gemini_brain=self.gemini_brain,
+            local_brain=self.local_brain,
+        )
 
         # Build tools
         self.tools = self._build_universal_tools()
@@ -191,6 +165,45 @@ class FridayBrain:
             f"FridayBrain initialized with provider={self.provider}, "
             f"model={self.claude_model}"
         )
+
+    # ------------------------------------------------------------------
+    # Backward-compatible properties delegating to ContextManager
+    # ------------------------------------------------------------------
+    # Tests and external callers mutate these attributes directly; we
+    # expose them as properties so that mutations route through the
+    # ContextManager's canonical state.
+
+    @property
+    def conversation_history(self) -> List[Dict[str, Any]]:
+        return self.context.history
+
+    @conversation_history.setter
+    def conversation_history(self, value: List[Dict[str, Any]]) -> None:
+        self.context.history = value
+
+    @property
+    def summarizer(self) -> ConversationSummarizer:
+        return self.context.summarizer
+
+    @summarizer.setter
+    def summarizer(self, value: ConversationSummarizer) -> None:
+        self.context.summarizer = value
+
+    @property
+    def _branches(self) -> Dict[str, Dict[str, Any]]:
+        return self.context._branches
+
+    @_branches.setter
+    def _branches(self, value: Dict[str, Dict[str, Any]]) -> None:
+        self.context._branches = value
+
+    @property
+    def _active_branch_id(self) -> Optional[str]:
+        return self.context._active_branch_id
+
+    @_active_branch_id.setter
+    def _active_branch_id(self, value: Optional[str]) -> None:
+        self.context._active_branch_id = value
 
     # ------------------------------------------------------------------
     # Lazy Claude client
@@ -579,7 +592,7 @@ class FridayBrain:
         return rag_context
 
     # ------------------------------------------------------------------
-    # GLM tool-calling loop — mirrors the Claude branch
+    # GLM tool-calling loop — kept in brain (depends on _execute_tool)
     # ------------------------------------------------------------------
 
     async def _glm_stream_with_tools(
@@ -686,27 +699,12 @@ class FridayBrain:
         yield "I reached the maximum reasoning steps. Please try rephrasing your request."
 
     # ------------------------------------------------------------------
-    # Creative suite routing — image / video generation
+    # Creative suite routing — thin delegating wrappers
     # ------------------------------------------------------------------
-
-    # Patterns that indicate the user wants an image generated
-    _IMAGE_PATTERNS = [
-        re.compile(r"generate\s+(?:an?\s+)?image\s+(?:of\s+)?(.+)", re.IGNORECASE),
-        re.compile(r"create\s+(?:an?\s+)?image\s+(?:of\s+)?(.+)", re.IGNORECASE),
-        re.compile(r"draw\s+(?:an?\s+)?(.+)", re.IGNORECASE),
-        re.compile(r"make\s+(?:an?\s+)?image\s+(?:of\s+)?(.+)", re.IGNORECASE),
-        re.compile(r"illustrate\s+(.+)", re.IGNORECASE),
-        re.compile(r"picture\s+(?:of\s+)?(.+)", re.IGNORECASE),
-        re.compile(r"show\s+(?:me\s+)?(?:an?\s+)?image\s+(?:of\s+)?(.+)", re.IGNORECASE),
-    ]
-
-    # Patterns that indicate the user wants a video generated
-    _VIDEO_PATTERNS = [
-        re.compile(r"generate\s+(?:an?\s+)?video\s+(?:of\s+)?(.+)", re.IGNORECASE),
-        re.compile(r"create\s+(?:an?\s+)?video\s+(?:of\s+)?(.+)", re.IGNORECASE),
-        re.compile(r"make\s+(?:an?\s+)?video\s+(?:of\s+)?(.+)", re.IGNORECASE),
-        re.compile(r"animate\s+(.+)", re.IGNORECASE),
-    ]
+    # Backward compatibility: ``scripts/verify_creative_routing.py`` and
+    # any external callers invoke ``brain._detect_creative_route`` /
+    # ``brain._handle_creative_route`` directly. We keep these as thin
+    # delegating wrappers around ``CreativeRouter``.
 
     def _detect_creative_route(self, message: str) -> Optional[Dict[str, Any]]:
         """Check if the message is a creative generation request.
@@ -715,65 +713,17 @@ class FridayBrain:
             A dict with ``type`` ("image" or "video") and ``prompt``,
             or ``None`` if the message is not a creative request.
         """
-        for pattern in self._IMAGE_PATTERNS:
-            match = pattern.search(message)
-            if match:
-                prompt = match.group(1).strip()
-                if prompt:
-                    return {"type": "image", "prompt": prompt}
-
-        for pattern in self._VIDEO_PATTERNS:
-            match = pattern.search(message)
-            if match:
-                prompt = match.group(1).strip()
-                if prompt:
-                    return {"type": "video", "prompt": prompt}
-
-        return None
+        return self.creative_router.detect(message)
 
     async def _handle_creative_route(
         self, route: Dict[str, Any]
     ) -> AsyncGenerator[str, None]:
-        """Handle an image or video generation request.
-
-        Uses the UniversalConnector to dispatch to the ImageGen or
-        VideoGen integration, which in turn uses GLM's CogView-3 or
-        CogVideoX.
-        """
-        route_type = route["type"]
-        prompt = route["prompt"]
-
-        self.logger.info("Creative route: %s generation for prompt: %s", route_type, prompt)
-
-        if route_type == "image":
-            result = await self.connector.execute_action(
-                "image_gen", "generate_image", {"prompt": prompt}
-            )
-        elif route_type == "video":
-            result = await self.connector.execute_action(
-                "video_gen", "generate_video", {"prompt": prompt}
-            )
-        else:
-            yield f"Unknown creative route type: {route_type}"
-            return
-
-        if result.get("status") == "success":
-            receipt = result.get("receipt", result)
-            # Try to extract URL from receipt
-            url = ""
-            if isinstance(receipt, dict):
-                url = receipt.get("image_url", receipt.get("video_url", ""))
-
-            if url:
-                yield f"Here's your {route_type}: {url}"
-            else:
-                yield f"{route_type.capitalize()} generated successfully! Details: {json.dumps(receipt, indent=2, default=str)}"
-        else:
-            error_msg = result.get("message", result.get("error", "Unknown error"))
-            yield f"Sorry, {route_type} generation failed: {error_msg}"
+        """Handle an image or video generation request (delegates to CreativeRouter)."""
+        async for chunk in self.creative_router.handle(route):
+            yield chunk
 
     # ------------------------------------------------------------------
-    # Main chat streaming method
+    # Main chat streaming method — orchestration only
     # ------------------------------------------------------------------
 
     async def chat_stream(
@@ -809,200 +759,18 @@ class FridayBrain:
                 yield chunk
             return
 
-        # Route to alternative providers
-        # GLM (Z.ai) — default, free-tier provider
-        if prov == "glm":
-            if self.glm_brain and self.glm_brain.available():
-                glm_system_prompt = self._build_system_prompt(user_name)
-                # Inject RAG context
-                rag_ctx = await self._inject_rag_context(message)
-                glm_message = f"{rag_ctx}\n\nUser's current message: {message}" if rag_ctx else message
-
-                # Persist the user's message to conversation history so
-                # that branching, summarisation, and history-based
-                # features work on the default GLM path (previously
-                # only the Claude path updated conversation_history).
-                self.conversation_history.append(
-                    {"role": "user", "content": message}
-                )
-                # Also store in long-term memory if available
-                if self.memory:
-                    try:
-                        self.memory.store_conversation("user", message)
-                    except Exception as e:
-                        self.logger.debug(f"Memory store failed: {e}")
-
-                # Use tool-calling loop when tools are configured
-                if self.tools:
-                    messages = [{"role": "user", "content": glm_message}]
-                    full_response = ""
-                    async for chunk in self._glm_stream_with_tools(
-                        messages, self.tools, glm_system_prompt
-                    ):
-                        full_response += chunk
-                        yield chunk
-                else:
-                    # No tools — simple streaming
-                    full_response = ""
-                    async for chunk in self.glm_brain.chat_stream(
-                        glm_message, system_prompt=glm_system_prompt
-                    ):
-                        full_response += chunk
-                        yield chunk
-                    # Store assistant response in memory + conversation history
-                    if full_response.strip():
-                        self.conversation_history.append(
-                            {"role": "assistant", "content": full_response}
-                        )
-                        if self.memory:
-                            try:
-                                self.memory.store_conversation("assistant", full_response)
-                            except Exception as e:
-                                self.logger.warning(f"Memory store failed: {e}")
-                return
-            # GLM not available — fall through to other providers
-            self.logger.info("GLM not available, trying fallback providers")
-
-        if prov == "ollama":
-            async for chunk in self.local_brain.chat_stream(message):
-                yield chunk
-            return
-
-        if (prov == "gemini" or len(message) > 5000) and self.gemini_brain:
-            async for chunk in self.gemini_brain.chat_stream(message):
-                yield chunk
-            return
-
-        if not ANTHROPIC_API_KEY:
-            # Try GLM as fallback before local brain
-            if self.glm_brain and self.glm_brain.available():
-                async for chunk in self.glm_brain.chat_stream(message):
-                    yield chunk
-            elif await self.local_brain.available():
-                async for chunk in self.local_brain.chat_stream(message):
-                    yield chunk
-            else:
-                yield (
-                    "Error: No brain providers available. "
-                    "Please set GLM_API_KEY, ANTHROPIC_API_KEY, or run Ollama locally."
-                )
-            return
-
-        # Build enriched system prompt
+        # ------------------------------------------------------------------
+        # Build system prompt once, delegate provider dispatch to ProviderRouter
+        # ------------------------------------------------------------------
         system_prompt = self._build_system_prompt(user_name)
 
-        # RAG: inject relevant memories
-        rag_context = await self._inject_rag_context(message)
-        if rag_context:
-            enriched_message = (
-                f"{rag_context}\n\nUser's current message: {message}"
-            )
-        else:
-            enriched_message = message
-
-        self.conversation_history.append({
-            "role": "user",
-            "content": enriched_message,
-        })
-
-        # Summarize older messages
-        self.conversation_history = (
-            await self.summarizer.summarize_older_messages(
-                self.conversation_history
-            )
-        )
-
-        # Trim if still too long
-        if len(self.conversation_history) > self.history_limit:
-            self.conversation_history = self.conversation_history[-self.history_limit:]
-
-        # Tool-calling loop
-        max_tool_rounds = 5  # Prevent infinite loops
-        for round_num in range(max_tool_rounds):
-            full_response = ""
-            tool_calls = []
-
-            try:
-                client = self.claude_client
-                if client is None:
-                    yield "Error: Claude client unavailable (no API key)"
-                    return
-
-                async with client.messages.stream(
-                    model=self.claude_model,
-                    max_tokens=4096,
-                    system=system_prompt,
-                    tools=self.tools,
-                    messages=self.conversation_history,
-                ) as stream:
-                    async for event in stream:
-                        if (
-                            event.type == "content_block_delta"
-                            and event.delta.type == "text_delta"
-                        ):
-                            text = event.delta.text
-                            full_response += text
-                            yield text
-
-                    final_msg = await stream.get_final_message()
-                    for content in final_msg.content:
-                        if content.type == "tool_use":
-                            tool_calls.append(content)
-
-                if not tool_calls:
-                    # No tools called — we're done
-                    self.conversation_history.append({
-                        "role": "assistant",
-                        "content": full_response,
-                    })
-
-                    # Store assistant response in memory
-                    if self.memory:
-                        try:
-                            self.memory.store_conversation(
-                                "assistant", full_response
-                            )
-                        except Exception as e:
-                            logger.debug(f"Non-critical error: {e}")
-
-                    break
-
-                # Process tool calls
-                self.conversation_history.append({
-                    "role": "assistant",
-                    "content": final_msg.content,
-                })
-
-                tool_results = []
-                for tool in tool_calls:
-                    yield f"\n[System: {tool.name}(...)]\n"
-                    result = await self._execute_tool(tool.name, tool.input)
-                    tool_results.append({
-                        "role": "user",
-                        "content": [{
-                            "type": "tool_result",
-                            "tool_use_id": tool.id,
-                            "content": result,
-                        }],
-                    })
-
-                self.conversation_history.extend(tool_results)
-
-            except (anthropic.RateLimitError if anthropic else Exception) as e:
-                yield "\n[System: Rate limited, waiting...]\n"
-                await asyncio.sleep(2)
-                continue
-            except (anthropic.APIError if anthropic else Exception) as e:
-                self.logger.error(f"API error: {e}")
-                yield f"\n[System: API error - {str(e)}]\n"
-                break
-            except Exception as e:
-                self.logger.error(f"Error in chat_stream: {e}", exc_info=True)
-                yield f"\n[System error: {str(e)}]\n"
-                break
+        async for chunk in self.router.route(
+            prov, message, system_prompt, self.tools, self
+        ):
+            yield chunk
 
     # ------------------------------------------------------------------
-    # Conversation branching
+    # Conversation branching — delegated to ContextManager
     # ------------------------------------------------------------------
 
     async def branch_conversation(self, branch_point_message_id: str, new_message: str = "") -> dict:
@@ -1011,8 +779,6 @@ class FridayBrain:
         Creates an independent branch with its own history.
         The original conversation is unchanged.
         """
-        import uuid as _uuid
-
         # Find the branch point in conversation history
         # message_id is the index as a string
         try:
@@ -1020,94 +786,22 @@ class FridayBrain:
         except (ValueError, TypeError):
             idx = len(self.conversation_history) - 1
 
-        # Clamp to valid range
-        idx = max(0, min(idx, len(self.conversation_history) - 1))
-
-        # Copy history up to and including the branch point
-        branch_history = list(self.conversation_history[:idx + 1])
-
-        branch_id = f"branch_{_uuid.uuid4().hex[:8]}"
-        self._branches[branch_id] = {
-            "history": branch_history,
-            "parent_message_id": branch_point_message_id,
-            "created_at": datetime.now().isoformat(),
-            "summaries": list(self.summarizer.summaries),
-        }
-
-        # Save main history before switching
-        if self._active_branch_id is None:
-            self._main_history = list(self.conversation_history)
-            self._main_summaries = list(self.summarizer.summaries)
-
-        # Switch to the new branch
-        self._active_branch_id = branch_id
-        self.conversation_history = branch_history
-        self.summarizer.summaries = list(self._branches[branch_id]["summaries"])
-
-        self.logger.info(
-            f"Created branch {branch_id} at message {idx} "
-            f"({len(branch_history)} messages copied)"
-        )
+        branch_id = await self.context.branch(idx)
 
         return {
             "branch_id": branch_id,
             "parent_message_id": branch_point_message_id,
-            "created_at": self._branches[branch_id]["created_at"],
-            "message_count": len(branch_history),
+            "created_at": self.context._branches[branch_id]["created_at"],
+            "message_count": len(self.context._branches[branch_id]["history"]),
         }
 
     async def get_branches(self) -> list:
         """List all active conversation branches with message counts."""
-        result = []
-        for bid, bdata in self._branches.items():
-            result.append({
-                "branch_id": bid,
-                "parent_message_id": bdata["parent_message_id"],
-                "created_at": bdata["created_at"],
-                "message_count": len(bdata["history"]),
-                "is_active": bid == self._active_branch_id,
-            })
-        # Include main conversation
-        result.append({
-            "branch_id": "main",
-            "parent_message_id": None,
-            "created_at": None,
-            "message_count": len(self.conversation_history) if self._active_branch_id is None else len(self._branches.get(self._active_branch_id, {}).get("history", [])),
-            "is_active": self._active_branch_id is None,
-        })
-        return result
+        return self.context.get_branches()
 
     async def switch_branch(self, branch_id: str) -> bool:
         """Switch the active conversation to a different branch."""
-        if branch_id == "main":
-            # Save current branch state
-            if self._active_branch_id and self._active_branch_id in self._branches:
-                self._branches[self._active_branch_id]["history"] = list(self.conversation_history)
-                self._branches[self._active_branch_id]["summaries"] = list(self.summarizer.summaries)
-            self._active_branch_id = None
-            # Restore main history (stored separately)
-            if hasattr(self, "_main_history"):
-                self.conversation_history = list(self._main_history)
-                self.summarizer.summaries = list(getattr(self, "_main_summaries", []))
-            return True
-
-        if branch_id not in self._branches:
-            return False
-
-        # Save current state
-        if self._active_branch_id is None:
-            self._main_history = list(self.conversation_history)
-            self._main_summaries = list(self.summarizer.summaries)
-        elif self._active_branch_id in self._branches:
-            self._branches[self._active_branch_id]["history"] = list(self.conversation_history)
-            self._branches[self._active_branch_id]["summaries"] = list(self.summarizer.summaries)
-
-        # Switch to target branch
-        self._active_branch_id = branch_id
-        self.conversation_history = list(self._branches[branch_id]["history"])
-        self.summarizer.summaries = list(self._branches[branch_id].get("summaries", []))
-        self.logger.info(f"Switched to branch {branch_id}")
-        return True
+        return self.context.switch_branch(branch_id)
 
     async def merge_branch_insight(self, branch_id: str) -> str:
         """Summarize what was learned in a branch and bring it back to main."""
@@ -1130,39 +824,24 @@ class FridayBrain:
 
         summary_parts = []
         if user_messages:
-            summary_parts.append(f"User explored: {' | '.join(m[:100] for m in user_messages[-3:])}")
+            summary_parts.append(
+                f"User explored: {' | '.join(m[:100] for m in user_messages[-3:])}"
+            )
         if assistant_messages:
-            summary_parts.append(f"Key findings: {' | '.join(m[:100] for m in assistant_messages[-3:])}")
+            summary_parts.append(
+                f"Key findings: {' | '.join(m[:100] for m in assistant_messages[-3:])}"
+            )
 
         insight = f"[Branch {branch_id} insight] " + " ".join(summary_parts)
 
-        # Add to main conversation as context
-        was_in_branch = self._active_branch_id == branch_id
-        if was_in_branch:
-            await self.switch_branch("main")
-        elif self._active_branch_id is not None:
-            # Save current, switch to main, add insight, switch back
-            await self.switch_branch("main")
-
-        self.conversation_history.append({
-            "role": "system",
-            "content": insight,
-        })
-
-        if was_in_branch:
-            await self.switch_branch(branch_id)
+        # Delegate the branch-switching + append + switch-back dance
+        self.context.merge_branch_insight(branch_id, insight)
 
         return insight
 
     async def delete_branch(self, branch_id: str) -> bool:
         """Delete a conversation branch."""
-        if branch_id == "main" or branch_id not in self._branches:
-            return False
-        if self._active_branch_id == branch_id:
-            await self.switch_branch("main")
-        del self._branches[branch_id]
-        self.logger.info(f"Deleted branch {branch_id}")
-        return True
+        return self.context.delete_branch(branch_id)
 
     # ------------------------------------------------------------------
     # Utility methods
@@ -1170,8 +849,7 @@ class FridayBrain:
 
     def clear_context(self):
         """Clear conversation history."""
-        self.conversation_history = []
-        self.summarizer.summaries = []
+        self.context.clear()
 
     def get_stats(self) -> Dict[str, Any]:
         """Return brain statistics."""

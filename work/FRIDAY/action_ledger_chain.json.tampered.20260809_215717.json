@@ -1,0 +1,54 @@
+[
+  {
+    "action_id": "522dd32c-ea2f-4fb7-a52b-e61fd263337c",
+    "component": "MCPChat",
+    "action": "chat",
+    "params": {
+      "message_length": 4
+    },
+    "timestamp": "2026-08-09T21:57:12.437375",
+    "status": "approved",
+    "approved_by": "human",
+    "prev_hash": "genesis",
+    "hash": "d8187763323356a2a99c7070cbe46d28e4bbd3c08175d301a02bdcbb93f70fb4"
+  },
+  {
+    "action_id": "60506909-a292-4562-99c8-bdd87f415aa1",
+    "component": "MCPChat",
+    "action": "chat",
+    "params": {
+      "message_length": 4
+    },
+    "timestamp": "2026-08-09T21:57:12.448966",
+    "status": "approved",
+    "approved_by": "human",
+    "prev_hash": "d8187763323356a2a99c7070cbe46d28e4bbd3c08175d301a02bdcbb93f70fb4",
+    "hash": "cc6c0cea685397d4f698cc4d4c6a24e8bfa7f2d10089f84c004f2b9cb9cef2c0"
+  },
+  {
+    "action_id": "3b4a52c6-c45c-4baf-b2e6-318853ab759c",
+    "component": "MCPVision",
+    "action": "vision_analyze",
+    "params": {
+      "prompt": "Describe this image in detail."
+    },
+    "timestamp": "2026-08-09T21:57:14.662022",
+    "status": "approved",
+    "approved_by": "human",
+    "prev_hash": "cc6c0cea685397d4f698cc4d4c6a24e8bfa7f2d10089f84c004f2b9cb9cef2c0",
+    "hash": "5c23a42c5c7f1fc420cdc0cb2bb2b6cc821445f1fe0094b430ce537fd5e16a61"
+  },
+  {
+    "action_id": "c4f29152-ea1b-42aa-aaa0-80e618bdd58b",
+    "component": "MCPSearch",
+    "action": "web_search",
+    "params": {
+      "query": "test"
+    },
+    "timestamp": "2026-08-09T21:57:14.667079",
+    "status": "approved",
+    "approved_by": "human",
+    "prev_hash": "5c23a42c5c7f1fc420cdc0cb2bb2b6cc821445f1fe0094b430ce537fd5e16a61",
+    "hash": "22c1737f46dc41bced02e6e1bc151a305b794b0450bf519b48023f692da46dd7"
+  }
+]

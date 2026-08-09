@@ -16,8 +16,13 @@ from api.routes import (
     team, health, patterns, visual_memory, nigeria,
     identity, subconscious, persona, goals,
     notify, webhooks, learning, self_improvement, privacy, proactive, branching,
+    metrics as metrics_route,
 )
 from config.settings import FRIDAY_API_TOKEN, BRAIN_PROVIDER, FRIDAY_DEV_MODE
+
+# Observability: structured logging, Prometheus metrics, correlation IDs,
+# and optional Sentry init. Imported here so ``init_sentry`` runs at startup.
+from core.observability import CorrelationIdMiddleware, init_sentry
 
 logger = logging.getLogger("friday.api")
 
@@ -55,6 +60,17 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
 )
+
+# Correlation ID middleware — added LAST so it is the OUTERMOST middleware
+# (Starlette runs the last-added middleware first). It sets a request-scoped
+# correlation ID from the ``X-Request-ID`` header (or a fresh UUID4) so that
+# every structured log line and Sentry event can be traced back to the
+# request that produced it. The ID is echoed back via the response header.
+app.add_middleware(CorrelationIdMiddleware)
+
+# Sentry — initialised at import time so errors are captured from the very
+# first request. No-ops gracefully if SENTRY_DSN is not set.
+init_sentry()
 
 # ------------------------------------------------------------------
 # Authentication
@@ -123,7 +139,11 @@ app.include_router(trust.router, prefix="/api", dependencies=[Depends(verify_tok
 # avoids the dual-token confusion where one header had to match two
 # different secrets.
 app.include_router(team.router, prefix="/api/team")
-app.include_router(health.router, prefix="/api/health")  # no auth — health checks are public
+# /api/health router: SHALLOW /api/health and /api/ping are public (liveness
+# probes), but the DEEP /api/health/deep endpoint is gated per-endpoint via
+# core.auth.require_auth (applied in api/routes/health.py) because it exposes
+# the full system map (integrations, ledger state, memory count).
+app.include_router(health.router, prefix="/api/health")
 app.include_router(patterns.router, prefix="/api/patterns", dependencies=[Depends(verify_token)])
 app.include_router(visual_memory.router, prefix="/api/visual-memory", dependencies=[Depends(verify_token)])
 app.include_router(nigeria.router, prefix="/api/nigeria", dependencies=[Depends(verify_token)])
@@ -138,6 +158,11 @@ app.include_router(self_improvement.router, prefix="/api/self-improvement", depe
 app.include_router(privacy.router, prefix="/api/privacy", dependencies=[Depends(verify_token)])
 app.include_router(proactive.router, prefix="/api/proactive", dependencies=[Depends(verify_token)])
 app.include_router(branching.router, prefix="/api", dependencies=[Depends(verify_token)])
+
+# Prometheus metrics endpoint — UNAUTHENTICATED (Prometheus scrapers need
+# anonymous access). The route itself restricts access to localhost unless
+# ``METRICS_ALLOW_EXTERNAL=1`` is set, so it is safe to expose without auth.
+app.include_router(metrics_route.router)
 
 # Apply rate limits after all routers are loaded (avoids circular import)
 try:

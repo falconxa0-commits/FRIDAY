@@ -1,10 +1,29 @@
+"""Evolution Engine — EXPERIMENTAL, NOT WIRED INTO PRODUCTION.
+
+This module implements an A/B-testing framework for prompt variants and
+LLM-powered self-evolution of agent system prompts. It is **not wired
+into the main chat loop** and is retained for future experimentation.
+
+Importing this module emits a ``DeprecationWarning`` to flag its
+experimental status. It may be removed in v4.0 if no production wiring
+is added.
+"""
+
 import logging
 import json
 import hashlib
 import time
+import warnings
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 from dataclasses import dataclass, field
+
+warnings.warn(
+    "core.evolution is experimental and not wired into the main loop. "
+    "It may be removed in v4.0.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 logger = logging.getLogger("EvolutionEngine")
 

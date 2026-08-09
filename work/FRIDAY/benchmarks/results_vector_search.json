@@ -1,0 +1,103 @@
+{
+  "benchmark": "vector_search",
+  "config": {
+    "embedding_dim": 1024,
+    "sizes": [
+      100,
+      1000,
+      10000
+    ],
+    "trials": 50,
+    "top_k": 5,
+    "vector_type": "float32 unit vectors (random Gaussian, normalised)"
+  },
+  "results": {
+    "n=100": {
+      "in_memory_store": {
+        "min_ms": 0.0899,
+        "p50_ms": 0.0939,
+        "p90_ms": 0.1127,
+        "p99_ms": 0.1328,
+        "mean_ms": 0.1017,
+        "trials": 50
+      },
+      "brute_force_numpy": {
+        "min_ms": 0.0581,
+        "p50_ms": 0.0609,
+        "p90_ms": 0.0749,
+        "p99_ms": 0.0761,
+        "mean_ms": 0.0636,
+        "trials": 50
+      },
+      "populate_ms": {
+        "in_memory_store": 1.95,
+        "brute_force_numpy": 2.75
+      },
+      "per_vector_kib": 4.0,
+      "top_k": 5
+    },
+    "n=1000": {
+      "in_memory_store": {
+        "min_ms": 2.7532,
+        "p50_ms": 2.8921,
+        "p90_ms": 3.0141,
+        "p99_ms": 22.454,
+        "mean_ms": 3.8471,
+        "trials": 50
+      },
+      "brute_force_numpy": {
+        "min_ms": 0.7774,
+        "p50_ms": 0.8121,
+        "p90_ms": 0.8454,
+        "p99_ms": 0.8879,
+        "mean_ms": 0.821,
+        "trials": 50
+      },
+      "populate_ms": {
+        "in_memory_store": 18.9,
+        "brute_force_numpy": 229.03
+      },
+      "per_vector_kib": 4.0,
+      "top_k": 5
+    },
+    "n=10000": {
+      "in_memory_store": {
+        "min_ms": 22.7652,
+        "p50_ms": 23.7516,
+        "p90_ms": 51.6497,
+        "p99_ms": 52.3783,
+        "mean_ms": 32.2515,
+        "trials": 50
+      },
+      "brute_force_numpy": {
+        "min_ms": 8.757,
+        "p50_ms": 10.4538,
+        "p90_ms": 32.6154,
+        "p99_ms": 38.8765,
+        "mean_ms": 13.5587,
+        "trials": 50
+      },
+      "populate_ms": {
+        "in_memory_store": 211.27,
+        "brute_force_numpy": 29451.49
+      },
+      "per_vector_kib": 4.0,
+      "top_k": 5
+    }
+  },
+  "scaling_analysis": {
+    "smallest_to_largest_size_ratio": 100.0,
+    "smallest_to_largest_time_ratio": 252.95,
+    "scaling_factor_time_per_size": 2.529,
+    "linear_scaling_confirmed": false,
+    "explanation": "scaling_factor \u2248 1.0 \u2192 O(n) linear scan confirmed. <0.5 \u2192 sub-linear (caching / SIMD wins). >2.0 \u2192 super-linear (pathological)."
+  },
+  "ann_recommendation": "Switch to ANN at n\u226510000. Current p99=52.4 ms exceeds the 50 ms SLO. Recommended: hnswlib (M=32, ef=64) or faiss IVF-PQ. Expected speedup: 5-50x at n=10k, 50-500x at n=100k.",
+  "methodology": {
+    "production_store": "database.vector_store.InMemoryVectorStore (numpy cosine)",
+    "reference_store": "BruteForceVectorStore (same maths, pre-stacked matrix)",
+    "warmup": "1 search before timing loop",
+    "queries": "pre-generated unit vectors, reused across stores",
+    "note": "InMemoryVectorStore rebuilds the matrix from a list of np.ndarray on every search (np.array(self.embeddings)) \u2014 this is the main reason it lags the brute-force reference, which keeps a single stacked matrix."
+  }
+}

@@ -13,14 +13,37 @@ class InMemoryVectorStore:
     """Simple in-memory vector store using numpy cosine similarity.
 
     Used as a fallback when Supabase is unavailable.
+
+    The store records the dimension of the first vector added and emits a
+    ``logging.warning`` whenever a subsequent vector with a mismatched
+    dimension is added — this catches accidental embedder-mode toggles
+    (e.g. API 1024-dim vs. fallback 256-dim) before they cause a
+    ``ValueError: setting an array element with a sequence`` at search
+    time.  See WAVE2-REFAC for the motivating bug.
     """
 
     def __init__(self) -> None:
         self.texts: List[str] = []
         self.embeddings: List[np.ndarray] = []
         self.metadatas: List[dict] = []
+        self._expected_dim: Optional[int] = None
 
     def add(self, text: str, embedding: np.ndarray, meta: dict) -> None:
+        # Track the dimension of the first vector added; warn on mismatch.
+        try:
+            dim = int(embedding.shape[0]) if embedding.ndim >= 1 else 0
+        except Exception:
+            dim = 0
+        if self._expected_dim is None:
+            self._expected_dim = dim
+        elif dim != self._expected_dim:
+            logger.warning(
+                "InMemoryVectorStore: dimension mismatch — expected %d, "
+                "got %d. Storing mismatched vectors together will crash "
+                "search() with ValueError. Caller should re-encode with a "
+                "consistent embedder.",
+                self._expected_dim, dim,
+            )
         self.texts.append(text)
         self.embeddings.append(embedding)
         self.metadatas.append(meta)

@@ -1,5 +1,11 @@
 # Project FRIDAY v3.2 — Personal AI Assistant
 
+![Production Readiness: Beta](https://img.shields.io/badge/Production_Readiness-Beta-yellow)
+![Tests: 304 passing](https://img.shields.io/badge/Tests-304_passing-brightgreen)
+![License: MIT](https://img.shields.io/badge/License-MIT-blue)
+![Python: 3.10+](https://img.shields.io/badge/Python-3.10+-blue)
+![Provider: Z.ai GLM-4-Flash](https://img.shields.io/badge/Provider-Z.ai_GLM_4_Flash-free-success)
+
 FRIDAY is a Python-based personal AI assistant built around ZhipuAI's free GLM-4-Flash model. It provides chat, web search, image generation, video generation, code execution, voice interaction, screen analysis, multi-agent orchestration, and a tamper-evident action ledger — all on a free Z.ai API key. It runs as a CLI, a REST API, a WebSocket server, an MCP server, and a web dashboard.
 
 ## What Makes It Different
@@ -34,12 +40,12 @@ FRIDAY is a Python-based personal AI assistant built around ZhipuAI's free GLM-4
 | Writing Style Adaptation | Real | Built-in | Free |
 | Socratic Teaching | Real | Built-in | Free |
 | Daily Journal | Real | Built-in | Free |
-| Tamper-evident Ledger | Real | Built-in | Free |
+| Tamper-evident Ledger (HMAC-SHA256) | Real | Built-in | Free |
 | MCP Server (8 tools) | Real | Built-in | Free |
-| Plugin Marketplace + Sandbox | Real | Built-in | Free |
+| Plugin Marketplace + AST scan | Real | Built-in | Free |
 | Team Mode | Real | Built-in | Free |
 | Push Notifications | Real | Telegram + Desktop | Free |
-| Webhook Receiver | Real | Built-in | Free |
+| Webhook Receiver (GitHub HMAC) | Real | Built-in | Free |
 | Nigerian Context | Real | Free APIs | Free |
 | Weather | Real | OpenWeatherMap | Free |
 | Calendar / Gmail | Real | Google APIs | Free |
@@ -61,6 +67,37 @@ FRIDAY is a Python-based personal AI assistant built around ZhipuAI's free GLM-4
 | Persistent Memory | Optional | Supabase | Free tier |
 | Autonomous Commerce | Demo | Stripe Sandbox | Paid |
 
+### Security fixes landed in v3.2
+
+| Fix | Status | Verified by |
+|---|---|---|
+| Audit chain uses HMAC-SHA256 with server secret | ✅ Done | `tests/test_ledger_security.py` |
+| `approved_by` included in hash content (7 fields) | ✅ Done | `tests/test_ledger_security.py` |
+| Plugin AST scan walks full tree (`ast.walk`) | ✅ Done | `tests/test_plugin_sandbox.py` |
+| `__import__`/`exec`/`eval`/`compile` calls blocked | ✅ Done | `tests/test_plugin_sandbox.py` |
+| MCP `risk_level` from caller is IGNORED | ✅ Done | `tests/test_mcp_security.py` |
+| EthicalSentinel wired into `UniversalConnector` | ✅ Done | `tests/test_sentinel.py` |
+| 8 MCP tools advertised in `tools/list` | ✅ Done | `scripts/verify_mcp_server.py` |
+| `FileManager._safe_path` uses `commonpath` | ✅ Done | Manual review |
+| CostTracker signature fixed in `chat.py` | ✅ Done | `tests/test_api.py` |
+| GLM path appends to `conversation_history` | ✅ Done | `tests/test_brain.py` |
+| GLM `web_search` parses `response.web_search` | ✅ Done | `tests/test_glm_tool_calling.py` |
+| 3 logger NameErrors fixed (CLI, tests, audit) | ✅ Done | Full test suite passes |
+| `skills/` module restored (was missing on disk) | ✅ Done | 304 tests pass |
+
+### Security fixes pending (planned for v4.0)
+
+| Item | Status | Tracking |
+|---|---|---|
+| Plugin process isolation (seccomp/bubblewrap) | Pending | [THREAT_MODEL.md T1](./docs/THREAT_MODEL.md#t1-malicious-plugin-supply-chain-attack-critical) |
+| Prompt-injection classifier | Pending | [THREAT_MODEL.md T4](./docs/THREAT_MODEL.md#t4-prompt-injection-via-user-message-high-partially-mitigated) |
+| MCP `initialize` handshake token | Pending | [SECURITY_MODEL.md §5.5](./docs/SECURITY_MODEL.md#55-auth-handshake-planned) |
+| Stripe webhook signature verification | Pending | [SECURITY_MODEL.md §6.2](./docs/SECURITY_MODEL.md#62-stripe-webhooks) |
+| RBAC (admin/member/viewer roles) | Pending | [SECURITY_MODEL.md §7.3](./docs/SECURITY_MODEL.md#73-no-rbac) |
+| `type_text` content inspection | Pending | [THREAT_MODEL.md T6](./docs/THREAT_MODEL.md#t6-keystroke-injection-via-pccontroltype_text-medium-partially-mitigated) |
+| `/metrics` Prometheus endpoint | ✅ Done | `tests/test_observability.py` |
+| Sentry error tracking | ✅ Done (opt-in via `SENTRY_DSN`) | `tests/test_observability.py` |
+
 ## Get Started in 5 Minutes
 
 ```bash
@@ -70,6 +107,23 @@ pip install -r requirements.txt
 echo "GLM_API_KEY=your_free_key_here" >> .env  # get free key at open.bigmodel.cn
 friday
 ```
+
+## Documentation
+
+Complete documentation lives in [`docs/`](./docs/). Quick links:
+
+| Document | What it covers |
+|----------|---------------|
+| [**API Reference**](./docs/API_REFERENCE.md) | Every HTTP endpoint, request/response schemas, error codes, rate limits — 75+ endpoints across 25 route files |
+| [**Deployment Guide**](./docs/DEPLOYMENT_GUIDE.md) | Quick start, Docker, systemd+nginx production deploy, env vars, security hardening, backup, monitoring, scaling |
+| [**Developer Guide**](./docs/DEVELOPER_GUIDE.md) | Project structure, adding integrations/skills/agents, plugin marketplace, testing, code style, contributing |
+| [**Security Model**](./docs/SECURITY_MODEL.md) | Authentication, authorization, audit chain, plugin security, MCP security, webhook security, known limitations |
+| [**Threat Model**](./docs/THREAT_MODEL.md) | Attack surface map, 8 ranked threat scenarios, mitigations, residual risk |
+| [**Architecture**](./docs/ARCHITECTURE.md) | System diagrams, data flow, MCP request_approval sequence |
+| [Plugin SDK](./docs/PLUGINS.md) | BaseIntegration contract, auto-discovery, example plugin |
+| [Skills Framework](./docs/SKILLS.md) | BaseSkill ABC, triggers, example skill |
+| [Limitations](./docs/LIMITATIONS.md) | Honest accounting of what FRIDAY cannot do |
+| [Remediation Plan](./docs/REMEDIATION_PLAN.md) | Roadmap to v4.0 Production Ready |
 
 ## Architecture
 

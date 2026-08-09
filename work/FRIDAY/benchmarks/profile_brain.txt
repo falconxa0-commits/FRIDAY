@@ -1,0 +1,161 @@
+# FRIDAY Brain cProfile Summary
+
+**Requests profiled:** 100
+**Total wall-clock:** 0.29 s (2.93 ms/request)
+**Mock:** GLM client replaced with MagicMock returning a 176-char canned response.
+**Tools:** disabled (``brain.tools = []``) to isolate brain overhead from the tool-routing loop.
+**Memory:** real FridayMemory (with hash-based embedding fallback).
+
+---
+
+## Top 20 by cumulative time
+
+```
+         313352 function calls (312152 primitive calls) in 0.293 seconds
+
+   Ordered by: cumulative time
+   List reduced from 366 to 20 due to restriction <20>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+      300    0.002    0.000    0.491    0.002 /home/z/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/asyncio/base_events.py:655(run_until_complete)
+      300    0.003    0.000    0.487    0.002 /home/z/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/asyncio/base_events.py:631(run_forever)
+     1000    0.006    0.000    0.369    0.000 /home/z/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/asyncio/base_events.py:1922(_run_once)
+      100    0.000    0.000    0.293    0.003 /home/z/my-project/work/FRIDAY/benchmarks/profile_brain.py:128(_drain_chat_stream_sync)
+      100    0.000    0.000    0.292    0.003 /home/z/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/asyncio/runners.py:160(run)
+      100    0.001    0.000    0.282    0.003 /home/z/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/asyncio/runners.py:61(__exit__)
+      100    0.001    0.000    0.279    0.003 /home/z/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/asyncio/runners.py:64(close)
+      100    0.000    0.000    0.216    0.002 /home/z/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/asyncio/runners.py:86(run)
+      400    0.000    0.000    0.102    0.000 /home/z/my-project/work/FRIDAY/database/vector_store.py:89(_encode)
+      400    0.000    0.000    0.102    0.000 /home/z/my-project/work/FRIDAY/core/embeddings.py:96(embed)
+     1300    0.002    0.000    0.102    0.000 /home/z/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/asyncio/events.py:86(_run)
+      400    0.061    0.000    0.101    0.000 /home/z/my-project/work/FRIDAY/core/embeddings.py:118(_hash_embed)
+     1300    0.003    0.000    0.097    0.000 {method 'run' of '_contextvars.Context' objects}
+      300    0.001    0.000    0.093    0.000 /home/z/my-project/work/FRIDAY/core/memory.py:119(store_conversation)
+      300    0.001    0.000    0.080    0.000 /home/z/my-project/work/FRIDAY/database/vector_store.py:98(add_memory)
+      200    0.001    0.000    0.071    0.000 /home/z/my-project/work/FRIDAY/benchmarks/profile_brain.py:136(_collect)
+      800    0.002    0.000    0.069    0.000 /home/z/my-project/work/FRIDAY/core/brain.py:779(chat_stream)
+      100    0.001    0.000    0.055    0.001 /home/z/my-project/work/FRIDAY/core/brain.py:549(_inject_rag_context)
+      100    0.003    0.000    0.052    0.001 /home/z/my-project/work/FRIDAY/core/brain.py:117(retrieve_context)
+      100    0.000    0.000    0.049    0.000 /home/z/my-project/work/FRIDAY/core/memory.py:160(retrieve_relevant_memories)
+
+
+```
+
+## Top 20 by total time (tottime)
+
+```
+         313352 function calls (312152 primitive calls) in 0.293 seconds
+
+   Ordered by: internal time
+   List reduced from 366 to 20 due to restriction <20>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+      400    0.061    0.000    0.101    0.000 /home/z/my-project/work/FRIDAY/core/embeddings.py:118(_hash_embed)
+   102400    0.015    0.000    0.015    0.000 {built-in method _struct.unpack}
+      600    0.013    0.000    0.018    0.000 /home/z/.venv/lib/python3.12/site-packages/numpy/linalg/_linalg.py:2624(norm)
+    25600    0.008    0.000    0.008    0.000 {method 'digest' of '_hashlib.HASH' objects}
+1900/1200    0.006    0.000    0.019    0.000 {method 'acquire' of '_thread.lock' objects}
+     1000    0.006    0.000    0.369    0.000 /home/z/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/asyncio/base_events.py:1922(_run_once)
+    25600    0.006    0.000    0.006    0.000 {built-in method _hashlib.openssl_sha256}
+      100    0.006    0.000    0.006    0.000 {built-in method numpy.array}
+    25700    0.005    0.000    0.005    0.000 {method 'encode' of 'str' objects}
+      200    0.005    0.000    0.005    0.000 {built-in method _thread.start_new_thread}
+     1000    0.004    0.000    0.040    0.000 {method 'poll' of 'select.epoll' objects}
+      100    0.004    0.000    0.025    0.000 /home/z/my-project/work/FRIDAY/database/vector_store.py:28(search)
+     1300    0.003    0.000    0.097    0.000 {method 'run' of '_contextvars.Context' objects}
+      300    0.003    0.000    0.487    0.002 /home/z/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/asyncio/base_events.py:631(run_forever)
+      200    0.003    0.000    0.009    0.000 /home/z/my-project/work/FRIDAY/core/memory.py:189(extract_and_store_facts)
+      100    0.003    0.000    0.052    0.001 /home/z/my-project/work/FRIDAY/core/brain.py:117(retrieve_context)
+      600    0.003    0.000    0.003    0.000 {method 'dot' of 'numpy.ndarray' objects}
+      400    0.003    0.000    0.003    0.000 {method 'recv' of '_socket.socket' objects}
+      800    0.003    0.000    0.003    0.000 /home/z/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/unittest/mock.py:2537(__new__)
+      100    0.003    0.000    0.003    0.000 {built-in method posix.cpu_count}
+
+
+```
+
+## Top 20 by call count
+
+```
+         313352 function calls (312152 primitive calls) in 0.293 seconds
+
+   Ordered by: call count
+   List reduced from 366 to 20 due to restriction <20>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+   102400    0.015    0.000    0.015    0.000 {built-in method _struct.unpack}
+    25700    0.005    0.000    0.005    0.000 {method 'encode' of 'str' objects}
+    25600    0.006    0.000    0.006    0.000 {built-in method _hashlib.openssl_sha256}
+    25600    0.008    0.000    0.008    0.000 {method 'digest' of '_hashlib.HASH' objects}
+     7295    0.001    0.000    0.001    0.000 {method 'append' of 'list' objects}
+5001/4801    0.001    0.000    0.001    0.000 {built-in method builtins.len}
+     4899    0.001    0.000    0.001    0.000 {built-in method builtins.isinstance}
+     3200    0.001    0.000    0.001    0.000 {built-in method builtins.hasattr}
+     2396    0.001    0.000    0.001    0.000 {method 'get' of 'dict' objects}
+     2300    0.000    0.000    0.000    0.000 /home/z/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/asyncio/base_events.py:543(_check_closed)
+     2000    0.001    0.000    0.001    0.000 {method 'finditer' of 're.Pattern' objects}
+     2000    0.002    0.000    0.003    0.000 /home/z/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/re/__init__.py:280(_compile)
+     2000    0.001    0.000    0.001    0.000 /home/z/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/enum.py:202(__get__)
+     2000    0.000    0.000    0.000    0.000 /home/z/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/enum.py:1291(value)
+     2000    0.001    0.000    0.006    0.000 /home/z/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/re/__init__.py:219(finditer)
+     2000    0.000    0.000    0.000    0.000 /home/z/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/asyncio/base_events.py:2017(get_debug)
+1900/1200    0.006    0.000    0.019    0.000 {method 'acquire' of '_thread.lock' objects}
+     1600    0.000    0.000    0.000    0.000 {method 'append' of 'collections.deque' objects}
+     1600    0.000    0.000    0.000    0.000 {method '__exit__' of '_thread.RLock' objects}
+     1500    0.000    0.000    0.000    0.000 {built-in method time.monotonic}
+
+
+```
+
+## Hotspots (tottime > 10 ms OR avg > 1 ms/call OR ncalls > 1000)
+
+| Function | ncalls | tottime (s) | % | avg/call (ms) | flags |
+|----------|--------|-------------|---|----------------|-------|
+| `_hash_embed (embeddings.py:118)` | 400 | 0.061 | 20.8% | 0.153 | TOT>10ms |
+| `<built-in method _struct.unpack> (~:0)` | 102400 | 0.0147 | 5.0% | 0.0 | TOT>10ms, NC>1000 |
+| `norm (_linalg.py:2624)` | 600 | 0.0126 | 4.3% | 0.021 | TOT>10ms |
+| `<method 'digest' of '_hashlib.HASH' objects> (~:0)` | 25600 | 0.0076 | 2.6% | 0.0 | NC>1000 |
+| `<method 'acquire' of '_thread.lock' objects> (~:0)` | 1900 | 0.006 | 2.1% | 0.003 | NC>1000 |
+| `<built-in method _hashlib.openssl_sha256> (~:0)` | 25600 | 0.0058 | 2.0% | 0.0 | NC>1000 |
+| `<method 'encode' of 'str' objects> (~:0)` | 25700 | 0.0052 | 1.8% | 0.0 | NC>1000 |
+| `<method 'run' of '_contextvars.Context' objects> (~:0)` | 1300 | 0.0033 | 1.1% | 0.003 | NC>1000 |
+| `_compile (__init__.py:280)` | 2000 | 0.0022 | 0.7% | 0.001 | NC>1000 |
+| `_run (events.py:86)` | 1300 | 0.0021 | 0.7% | 0.002 | NC>1000 |
+| `_call_soon (base_events.py:818)` | 1100 | 0.0016 | 0.5% | 0.001 | NC>1000 |
+| `<method 'append' of 'list' objects> (~:0)` | 7295 | 0.0014 | 0.5% | 0.0 | NC>1000 |
+| `__init__ (events.py:36)` | 1300 | 0.0013 | 0.4% | 0.001 | NC>1000 |
+| `finditer (__init__.py:219)` | 2000 | 0.0012 | 0.4% | 0.001 | NC>1000 |
+| `<built-in method builtins.isinstance> (~:0)` | 4899 | 0.0011 | 0.4% | 0.0 | NC>1000 |
+| `<method 'finditer' of 're.Pattern' objects> (~:0)` | 2000 | 0.0011 | 0.4% | 0.001 | NC>1000 |
+| `<built-in method builtins.len> (~:0)` | 5001 | 0.001 | 0.3% | 0.0 | NC>1000 |
+| `__enter__ (threading.py:299)` | 1300 | 0.0008 | 0.3% | 0.001 | NC>1000 |
+| `__exit__ (threading.py:302)` | 1300 | 0.0008 | 0.3% | 0.001 | NC>1000 |
+| `<built-in method builtins.hasattr> (~:0)` | 3200 | 0.0007 | 0.2% | 0.0 | NC>1000 |
+| `__get__ (enum.py:202)` | 2000 | 0.0007 | 0.2% | 0.0 | NC>1000 |
+| `<method 'get' of 'dict' objects> (~:0)` | 2396 | 0.0006 | 0.2% | 0.0 | NC>1000 |
+| `<method 'search' of 're.Pattern' objects> (~:0)` | 1100 | 0.0006 | 0.2% | 0.001 | NC>1000 |
+| `isfuture (base_futures.py:13)` | 1200 | 0.0006 | 0.2% | 0.001 | NC>1000 |
+| `time (base_events.py:738)` | 1300 | 0.0006 | 0.2% | 0.0 | NC>1000 |
+| `<built-in method builtins.max> (~:0)` | 1100 | 0.0005 | 0.2% | 0.0 | NC>1000 |
+| `<method 'add' of 'set' objects> (~:0)` | 1100 | 0.0004 | 0.1% | 0.0 | NC>1000 |
+| `<method 'append' of 'collections.deque' objects> (~:0)` | 1600 | 0.0004 | 0.1% | 0.0 | NC>1000 |
+| `<built-in method _thread.get_ident> (~:0)` | 1200 | 0.0004 | 0.1% | 0.0 | NC>1000 |
+| `<built-in method time.monotonic> (~:0)` | 1500 | 0.0004 | 0.1% | 0.0 | NC>1000 |
+| `<method 'popleft' of 'collections.deque' objects> (~:0)` | 1300 | 0.0003 | 0.1% | 0.0 | NC>1000 |
+| `<method '__exit__' of '_thread.lock' objects> (~:0)` | 1400 | 0.0003 | 0.1% | 0.0 | NC>1000 |
+| `<method '__exit__' of '_thread.RLock' objects> (~:0)` | 1600 | 0.0003 | 0.1% | 0.0 | NC>1000 |
+| `_check_closed (base_events.py:543)` | 2300 | 0.0003 | 0.1% | 0.0 | NC>1000 |
+| `value (enum.py:1291)` | 2000 | 0.0003 | 0.1% | 0.0 | NC>1000 |
+| `get_debug (base_events.py:2017)` | 2000 | 0.0003 | 0.1% | 0.0 | NC>1000 |
+| `<built-in method builtins.issubclass> (~:0)` | 1100 | 0.0002 | 0.1% | 0.0 | NC>1000 |
+
+---
+
+## Binary profile
+
+Load `profile_brain.prof` in ``pstats``, ``snakeviz``, or ``pyprof2calltree`` for interactive exploration:
+
+```
+python -m pstats benchmarks/profile_brain.prof
+snakeviz benchmarks/profile_brain.prof
+```

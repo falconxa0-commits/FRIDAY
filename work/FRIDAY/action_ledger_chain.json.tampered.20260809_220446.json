@@ -1,0 +1,187 @@
+[
+  {
+    "action_id": "acd5d2d7-82ed-47f5-9c12-115b3b9fdfb0",
+    "component": "Printer",
+    "action": "print_document",
+    "params": {
+      "file": "report.pdf"
+    },
+    "timestamp": "2026-08-09T22:00:03.873437",
+    "status": "approved",
+    "approved_by": "human",
+    "prev_hash": "genesis",
+    "hash": "b57fd96abf843e458318da49cd54774dae27d061e884970ff849cb7ab3247d3f"
+  },
+  {
+    "action_id": "acd5d2d7-82ed-47f5-9c12-115b3b9fdfb0",
+    "component": "Printer",
+    "action": "print_document",
+    "params": {
+      "file": "report.pdf"
+    },
+    "timestamp": "2026-08-09T22:00:03.873437",
+    "status": "approved",
+    "approved_by": "voice",
+    "prev_hash": "b57fd96abf843e458318da49cd54774dae27d061e884970ff849cb7ab3247d3f",
+    "hash": "9c435fc6ba9152b02d1239862e1b44fec32402b889bab535b9e603b59d66e5a5"
+  },
+  {
+    "action_id": "fc81de8b-4538-4084-9a9c-b78ed00565be",
+    "component": "Printer",
+    "action": "print_document",
+    "params": {
+      "file": "secret.pdf"
+    },
+    "timestamp": "2026-08-09T22:00:03.880457",
+    "status": "rejected",
+    "approved_by": "human_rejected",
+    "prev_hash": "9c435fc6ba9152b02d1239862e1b44fec32402b889bab535b9e603b59d66e5a5",
+    "hash": "03131c23591269cd0701e54e2fffcd5594700873d4d6e99179df3befb4fe8e21"
+  },
+  {
+    "action_id": "fc81de8b-4538-4084-9a9c-b78ed00565be",
+    "component": "Printer",
+    "action": "print_document",
+    "params": {
+      "file": "secret.pdf"
+    },
+    "timestamp": "2026-08-09T22:00:03.880457",
+    "status": "rejected",
+    "approved_by": "voice_rejected",
+    "prev_hash": "03131c23591269cd0701e54e2fffcd5594700873d4d6e99179df3befb4fe8e21",
+    "hash": "b48ef8d4ffb3d123af364de7975c4c3e4869a84f3ddbfdc6ab20d28c7d4dc53e"
+  },
+  {
+    "action_id": "c0265c3b-51e6-4fb2-9dd5-efafe1396b66",
+    "component": "Printer",
+    "action": "print_document",
+    "params": {
+      "file": "memo.txt"
+    },
+    "timestamp": "2026-08-09T22:00:03.885755",
+    "status": "rejected",
+    "approved_by": "human_rejected",
+    "prev_hash": "b48ef8d4ffb3d123af364de7975c4c3e4869a84f3ddbfdc6ab20d28c7d4dc53e",
+    "hash": "828c31f7ac24c3a9753fb99c1769b2672a111e2ee084090c21e28040a778dfef"
+  },
+  {
+    "action_id": "c0265c3b-51e6-4fb2-9dd5-efafe1396b66",
+    "component": "Printer",
+    "action": "print_document",
+    "params": {
+      "file": "memo.txt"
+    },
+    "timestamp": "2026-08-09T22:00:03.885755",
+    "status": "rejected",
+    "approved_by": "voice_rejected",
+    "prev_hash": "828c31f7ac24c3a9753fb99c1769b2672a111e2ee084090c21e28040a778dfef",
+    "hash": "3fbf06d272aeec4a94cc180c1be868af0bdf0a29199fd58727c075d27ffd0410"
+  },
+  {
+    "action_id": "ae16a8e4-3ef2-46e2-b071-d91b0a9afe7a",
+    "component": "Printer",
+    "action": "print_document",
+    "params": {
+      "file": "report.pdf"
+    },
+    "timestamp": "2026-08-09T22:00:03.891645",
+    "status": "rejected",
+    "approved_by": "human_rejected",
+    "prev_hash": "3fbf06d272aeec4a94cc180c1be868af0bdf0a29199fd58727c075d27ffd0410",
+    "hash": "f6b88bb191f0fdaed306f23191caf407832bde9dee470fd29c7e31fa1cb8a27b"
+  },
+  {
+    "action_id": "ae16a8e4-3ef2-46e2-b071-d91b0a9afe7a",
+    "component": "Printer",
+    "action": "print_document",
+    "params": {
+      "file": "report.pdf"
+    },
+    "timestamp": "2026-08-09T22:00:03.891645",
+    "status": "rejected",
+    "approved_by": "voice_rejected",
+    "prev_hash": "f6b88bb191f0fdaed306f23191caf407832bde9dee470fd29c7e31fa1cb8a27b",
+    "hash": "968f08bc5e8ca5f1bdd424d8ab98e5750d9a0f511993bc0b6df71977715ebc25"
+  },
+  {
+    "action_id": "671425b7-2891-46fd-a2ca-c2b56713829d",
+    "component": "Weather",
+    "action": "get_weather",
+    "params": {
+      "location": "Lagos"
+    },
+    "timestamp": "2026-08-09T22:00:07.127791",
+    "status": "approved",
+    "approved_by": "human",
+    "prev_hash": "968f08bc5e8ca5f1bdd424d8ab98e5750d9a0f511993bc0b6df71977715ebc25",
+    "hash": "cd29ff071ef8378fe3e05bbd921aa7a81d1508603c974ec4404efd7d08668010"
+  },
+  {
+    "action_id": "0ed1b424-ecf7-438c-b722-e19e04f02f74",
+    "component": "Printer",
+    "action": "print_document",
+    "params": {
+      "file": "report.pdf"
+    },
+    "timestamp": "2026-08-09T22:00:07.130472",
+    "status": "approved",
+    "approved_by": "human",
+    "prev_hash": "cd29ff071ef8378fe3e05bbd921aa7a81d1508603c974ec4404efd7d08668010",
+    "hash": "a234b325aeaac2b19c6bc73bd4118b6555041fc70bb2c0c7e88547dd42ca8a37"
+  },
+  {
+    "action_id": "61ecd4e1-5a90-4e7a-901c-db19dfdb450f",
+    "component": "Commerce",
+    "action": "checkout",
+    "params": {
+      "item": "widget",
+      "price": 9.99
+    },
+    "timestamp": "2026-08-09T22:00:07.132085",
+    "status": "approved",
+    "approved_by": "human",
+    "prev_hash": "a234b325aeaac2b19c6bc73bd4118b6555041fc70bb2c0c7e88547dd42ca8a37",
+    "hash": "636dd1f27ab0f9530e167ce01ba615451b207e728f21fd7e0985b6755dc50a99"
+  },
+  {
+    "action_id": "92dc2182-75fd-46bf-85c4-cd7e5109e37d",
+    "component": "Commerce",
+    "action": "checkout",
+    "params": {
+      "item": "expensive widget",
+      "price": 999.99
+    },
+    "timestamp": "2026-08-09T22:00:17.751384",
+    "status": "rejected",
+    "approved_by": "human_rejected",
+    "prev_hash": "636dd1f27ab0f9530e167ce01ba615451b207e728f21fd7e0985b6755dc50a99",
+    "hash": "bc3ae9d06d1a149592a0f94e835033e7eb9ba618b6d48d258c1494e7152821b9"
+  },
+  {
+    "action_id": "680c3b5f-b608-4422-94fd-7dd136376643",
+    "component": "Commerce",
+    "action": "checkout",
+    "params": {
+      "item": "test",
+      "price": 1.0
+    },
+    "timestamp": "2026-08-09T22:00:17.754083",
+    "status": "approved",
+    "approved_by": "human",
+    "prev_hash": "bc3ae9d06d1a149592a0f94e835033e7eb9ba618b6d48d258c1494e7152821b9",
+    "hash": "149dc1e87f856e8edd2bf6381b0e30c7a7ea6ff0f49fb2e67ec24f4f8ba020a2"
+  },
+  {
+    "action_id": "50531985-57b9-49f8-a390-d25ec3ed5a55",
+    "component": "Weather",
+    "action": "get_weather",
+    "params": {
+      "location": "Lagos"
+    },
+    "timestamp": "2026-08-09T22:00:17.756337",
+    "status": "approved",
+    "approved_by": "auto",
+    "prev_hash": "149dc1e87f856e8edd2bf6381b0e30c7a7ea6ff0f49fb2e67ec24f4f8ba020a2",
+    "hash": "fc1b17f7e7efaa15b5169e6f9f5dd75c1aaf7d004de3a307821b99135298c5b1"
+  }
+]
