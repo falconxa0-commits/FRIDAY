@@ -1,0 +1,18 @@
+{
+  "id": "d5315da7-b36c-499f-950f-d5c2fd1dfa56",
+  "type": "lesson",
+  "title": "Lesson 4 about performance",
+  "summary": "Performance optimisation lesson number 4",
+  "content": "Detailed content about performance tuning for module 4.",
+  "status": "accepted",
+  "tags": [
+    "performance",
+    "module-4"
+  ],
+  "related_tasks": [],
+  "related_entries": [],
+  "created_at": "2026-08-09T23:17:56.605600+00:00",
+  "updated_at": "2026-08-09T23:17:56.605609+00:00",
+  "author": "system",
+  "metadata": {}
+}

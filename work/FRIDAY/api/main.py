@@ -17,6 +17,7 @@ from api.routes import (
     identity, subconscious, persona, goals,
     notify, webhooks, learning, self_improvement, privacy, proactive, branching,
     metrics as metrics_route,
+    dashboard,
 )
 from config.settings import FRIDAY_API_TOKEN, BRAIN_PROVIDER, FRIDAY_DEV_MODE
 
@@ -158,6 +159,11 @@ app.include_router(self_improvement.router, prefix="/api/self-improvement", depe
 app.include_router(privacy.router, prefix="/api/privacy", dependencies=[Depends(verify_token)])
 app.include_router(proactive.router, prefix="/api/proactive", dependencies=[Depends(verify_token)])
 app.include_router(branching.router, prefix="/api", dependencies=[Depends(verify_token)])
+
+# Dashboard router — Mission Control. Auth is enforced per-endpoint via
+# ``core.auth.require_auth`` (returns 401 on missing token), so we don't
+# attach the global ``verify_token`` dependency here.
+app.include_router(dashboard.router, prefix="/api/dashboard")
 
 # Prometheus metrics endpoint — UNAUTHENTICATED (Prometheus scrapers need
 # anonymous access). The route itself restricts access to localhost unless

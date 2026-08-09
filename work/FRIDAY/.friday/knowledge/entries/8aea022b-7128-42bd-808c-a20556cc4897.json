@@ -1,0 +1,18 @@
+{
+  "id": "8aea022b-7128-42bd-808c-a20556cc4897",
+  "type": "lesson",
+  "title": "Lesson 43 about performance",
+  "summary": "Performance optimisation lesson number 43",
+  "content": "Detailed content about performance tuning for module 43.",
+  "status": "accepted",
+  "tags": [
+    "performance",
+    "module-43"
+  ],
+  "related_tasks": [],
+  "related_entries": [],
+  "created_at": "2026-08-09T23:17:56.637390+00:00",
+  "updated_at": "2026-08-09T23:17:56.637395+00:00",
+  "author": "system",
+  "metadata": {}
+}

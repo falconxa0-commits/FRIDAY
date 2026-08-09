@@ -1,0 +1,18 @@
+{
+  "id": "11be7088-262d-4551-a259-dcc29cab61ae",
+  "type": "lesson",
+  "title": "Lesson 22 about performance",
+  "summary": "Performance optimisation lesson number 22",
+  "content": "Detailed content about performance tuning for module 22.",
+  "status": "accepted",
+  "tags": [
+    "performance",
+    "module-22"
+  ],
+  "related_tasks": [],
+  "related_entries": [],
+  "created_at": "2026-08-09T23:17:56.617573+00:00",
+  "updated_at": "2026-08-09T23:17:56.617581+00:00",
+  "author": "system",
+  "metadata": {}
+}

@@ -1,0 +1,18 @@
+{
+  "id": "db24d246-aa6c-46c5-a43b-4f1bb73c5504",
+  "type": "lesson",
+  "title": "Lesson 14 about performance",
+  "summary": "Performance optimisation lesson number 14",
+  "content": "Detailed content about performance tuning for module 14.",
+  "status": "accepted",
+  "tags": [
+    "performance",
+    "module-14"
+  ],
+  "related_tasks": [],
+  "related_entries": [],
+  "created_at": "2026-08-09T23:17:56.612105+00:00",
+  "updated_at": "2026-08-09T23:17:56.612110+00:00",
+  "author": "system",
+  "metadata": {}
+}

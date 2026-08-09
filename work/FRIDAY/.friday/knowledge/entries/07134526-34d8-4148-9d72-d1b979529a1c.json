@@ -1,0 +1,18 @@
+{
+  "id": "07134526-34d8-4148-9d72-d1b979529a1c",
+  "type": "lesson",
+  "title": "Lesson 28 about performance",
+  "summary": "Performance optimisation lesson number 28",
+  "content": "Detailed content about performance tuning for module 28.",
+  "status": "accepted",
+  "tags": [
+    "performance",
+    "module-28"
+  ],
+  "related_tasks": [],
+  "related_entries": [],
+  "created_at": "2026-08-09T23:17:56.623177+00:00",
+  "updated_at": "2026-08-09T23:17:56.623184+00:00",
+  "author": "system",
+  "metadata": {}
+}

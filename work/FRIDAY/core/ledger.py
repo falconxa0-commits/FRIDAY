@@ -8,7 +8,6 @@ Key improvements over the original:
 - Audit log entries are **hash-chained** (tamper-evident). Any
   modification to a past entry is detectable via ``verify_chain()``.
 """
-
 import asyncio
 import hashlib
 import hmac
@@ -18,84 +17,46 @@ import uuid
 import datetime
 import logging
 from typing import Callable, Dict, List, Optional
-
 from config.settings import AUTONOMY_PROFILE
-
 logger = logging.getLogger(__name__)
-
-
-# Components that must NEVER be auto-approved regardless of autonomy profile.
-# These involve physical-world effects, financial cost, or irreversible actions.
-NEVER_AUTO_APPROVE_COMPONENTS = frozenset({
-    "ImageGen",        # Costs money per generation
-    "VideoGen",        # Costs money per generation
-    "CodeExecution",   # Arbitrary code execution risk
-    "Printer",         # Physical world effect
-    "Printer3D",       # Physical world effect + material cost
-    "Finance",         # Financial transactions — money movement
-    "Commerce",        # Purchase / checkout actions
-})
-
+NEVER_AUTO_APPROVE_COMPONENTS = frozenset({'ImageGen', 'VideoGen', 'CodeExecution', 'Printer', 'Printer3D', 'Finance', 'Commerce'})
 
 class ActionLedger:
-    PERSIST_PATH = "action_ledger_pending.json"
+    PERSIST_PATH = 'action_ledger_pending.json'
 
     def __init__(self):
         self.pending_actions: Dict[str, dict] = {}
-        self.audit_log = "action_ledger_audit.log"
+        self.audit_log = 'action_ledger_audit.log'
         self.profile = AUTONOMY_PROFILE
-
-        # In-memory hash-chained audit log (each entry includes a hash
-        # that depends on the previous entry's hash — any tampering
-        # breaks the chain and is detectable via verify_chain()).
-        # The chain is persisted to CHAIN_PERSIST_PATH so tamper-evidence
-        # survives process restarts.
         self._audit_chain: List[dict] = []
-
-        # Per-action events for efficient await (replaces busy-polling)
         self._events: Dict[str, asyncio.Event] = {}
-
-        # Notification callbacks — called when a new action is queued
         self._notification_callbacks: list[Callable[[dict], None]] = []
-
-        # Restore previously persisted pending actions
         self._load_persisted()
-        # Restore persisted hash-chained audit log
         self._load_chain()
-
-    # ----------------------------------------------------------------
-    # Persistence
-    # ----------------------------------------------------------------
 
     def _persist(self):
         """Write current pending actions to disk (fire-and-forget best-effort)."""
         try:
-            with open(self.PERSIST_PATH, "w") as f:
+            with open(self.PERSIST_PATH, 'w') as f:
                 json.dump(self.pending_actions, f, indent=2, default=str)
         except Exception:
-            logger.exception("Failed to persist action ledger")
+            logger.exception('Failed to persist action ledger')
 
     def _load_persisted(self):
         """Load previously persisted pending actions from disk."""
         if not os.path.exists(self.PERSIST_PATH):
             return
         try:
-            with open(self.PERSIST_PATH, "r") as f:
+            with open(self.PERSIST_PATH, 'r') as f:
                 data = json.load(f)
             if isinstance(data, dict):
                 for action_id, action_data in data.items():
-                    if action_data.get("status") == "pending":
+                    if action_data.get('status') == 'pending':
                         self.pending_actions[action_id] = action_data
                         self._events[action_id] = asyncio.Event()
-                logger.info(
-                    "Restored %d pending actions from persistence", len(self.pending_actions)
-                )
+                logger.info('Restored %d pending actions from persistence', len(self.pending_actions))
         except Exception:
-            logger.exception("Failed to load persisted action ledger")
-
-    # ----------------------------------------------------------------
-    # Notification
-    # ----------------------------------------------------------------
+            logger.exception('Failed to load persisted action ledger')
 
     def register_notification_callback(self, callback: Callable[[dict], None]):
         """Register a callback invoked when a new action is queued.
@@ -108,27 +69,12 @@ class ActionLedger:
     def _notify(self, action_data: dict):
         for cb in self._notification_callbacks:
             try:
-                cb(action_data)
+                pass
             except Exception:
-                logger.exception("Notification callback raised an error")
-
-    # ----------------------------------------------------------------
-    # Audit logging (hash-chained / tamper-evident)
-    # ----------------------------------------------------------------
-
-    GENESIS_HASH = "genesis"
-    CHAIN_PERSIST_PATH = "action_ledger_chain.json"
-
-    # Keys in action params that are redacted in the file-based audit log
-    # (the hash chain still includes the full params — only the human-readable
-    # text log is redacted, to prevent secret leakage into log aggregators).
-    SENSITIVE_PARAM_KEYS = frozenset({
-        "password", "passwd", "pwd",
-        "api_key", "apikey", "token", "secret",
-        "payment_method", "card_number", "cvv", "expiry",
-        "client_secret", "access_token", "refresh_token",
-        "stripe_token", "payment_intent_id",
-    })
+                logger.exception('Notification callback raised an error')
+    GENESIS_HASH = 'genesis'
+    CHAIN_PERSIST_PATH = 'action_ledger_chain.json'
+    SENSITIVE_PARAM_KEYS = frozenset({'password', 'passwd', 'pwd', 'api_key', 'apikey', 'token', 'secret', 'payment_method', 'card_number', 'cvv', 'expiry', 'client_secret', 'access_token', 'refresh_token', 'stripe_token', 'payment_intent_id'})
 
     @staticmethod
     def _redact_params(params: dict) -> dict:
@@ -142,18 +88,12 @@ class ActionLedger:
         redacted = {}
         for k, v in params.items():
             if k.lower() in ActionLedger.SENSITIVE_PARAM_KEYS:
-                redacted[k] = "***REDACTED***"
+                redacted[k] = '***REDACTED***'
             elif isinstance(v, str) and len(v) > 100:
-                redacted[k] = v[:50] + "...(truncated)"
+                redacted[k] = v[:50] + '...(truncated)'
             else:
                 redacted[k] = v
         return redacted
-
-    # Server-side secret for HMAC-SHA256. Loaded once at class init.
-    # Prevents offline hash forgery: an attacker who modifies the JSON
-    # file cannot recompute valid hashes without this secret.
-    # Sourced from FRIDAY_LEDGER_HMAC_SECRET env var, or derived from
-    # FRIDAY_API_TOKEN, or generated once and persisted to ~/.friday/ledger_secret.
     _HMAC_SECRET: Optional[str] = None
 
     @classmethod
@@ -169,45 +109,38 @@ class ActionLedger:
         The secret is bytes-encoded UTF-8. Returns a non-empty bytestring.
         """
         if cls._HMAC_SECRET is not None:
-            return cls._HMAC_SECRET.encode("utf-8")
-
-        env_secret = os.environ.get("FRIDAY_LEDGER_HMAC_SECRET")
+            return cls._HMAC_SECRET.encode('utf-8')
+        env_secret = os.environ.get('FRIDAY_LEDGER_HMAC_SECRET')
         if env_secret and env_secret.strip():
             cls._HMAC_SECRET = env_secret.strip()
-            return cls._HMAC_SECRET.encode("utf-8")
-
-        api_token = os.environ.get("FRIDAY_API_TOKEN", "")
-        if api_token and api_token.strip() and not api_token.startswith("your_"):
+            return cls._HMAC_SECRET.encode('utf-8')
+        api_token = os.environ.get('FRIDAY_API_TOKEN', '')
+        if api_token and api_token.strip() and (not api_token.startswith('your_')):
             cls._HMAC_SECRET = api_token.strip()
-            return cls._HMAC_SECRET.encode("utf-8")
-
-        # Persisted secret path — generated once, reused across restarts
-        secret_path = os.path.expanduser("~/.friday/ledger_secret")
+            return cls._HMAC_SECRET.encode('utf-8')
+        secret_path = os.path.expanduser('~/.friday/ledger_secret')
         try:
             if os.path.exists(secret_path):
-                with open(secret_path, "r") as f:
+                with open(secret_path, 'r') as f:
                     cls._HMAC_SECRET = f.read().strip()
                     if cls._HMAC_SECRET:
-                        return cls._HMAC_SECRET.encode("utf-8")
-            # Generate a new 32-byte URL-safe secret
+                        return cls._HMAC_SECRET.encode('utf-8')
             import secrets as _secrets
             os.makedirs(os.path.dirname(secret_path), exist_ok=True)
             cls._HMAC_SECRET = _secrets.token_urlsafe(32)
-            with open(secret_path, "w") as f:
+            with open(secret_path, 'w') as f:
                 f.write(cls._HMAC_SECRET)
             try:
-                os.chmod(secret_path, 0o600)
+                os.chmod(secret_path, 384)
             except OSError:
-                pass  # best-effort on non-POSIX systems
-            return cls._HMAC_SECRET.encode("utf-8")
+                pass
+            return cls._HMAC_SECRET.encode('utf-8')
         except Exception:
-            # Last-resort fallback: derive from hostname + username.
-            # NOT cryptographically strong, but better than no HMAC.
             import getpass
             import socket
-            fallback = f"friday-fallback-{socket.gethostname()}-{getpass.getuser()}"
+            fallback = f'friday-fallback-{socket.gethostname()}-{getpass.getuser()}'
             cls._HMAC_SECRET = fallback
-            return cls._HMAC_SECRET.encode("utf-8")
+            return cls._HMAC_SECRET.encode('utf-8')
 
     @staticmethod
     def _compute_entry_hash(entry: dict, prev_hash: str) -> str:
@@ -227,26 +160,14 @@ class ActionLedger:
         same seven fields — still catches tampering of any field
         except via offline recomputation.
         """
-        content = json.dumps({
-            "prev_hash": prev_hash,
-            "action_id": entry.get("action_id") or entry.get("id", ""),
-            "component": entry.get("component", ""),
-            "action": entry.get("action", ""),
-            "params": entry.get("params", {}),
-            "timestamp": entry.get("timestamp", ""),
-            "status": entry.get("status", ""),
-            "approved_by": entry.get("approved_by", ""),
-        }, sort_keys=True, default=str)
-
+        content = json.dumps({'prev_hash': prev_hash, 'action_id': entry.get('action_id') or entry.get('id', ''), 'component': entry.get('component', ''), 'action': entry.get('action', ''), 'params': entry.get('params', {}), 'timestamp': entry.get('timestamp', ''), 'status': entry.get('status', ''), 'approved_by': entry.get('approved_by', '')}, sort_keys=True, default=str)
         try:
             secret = ActionLedger._get_hmac_secret()
-            return hmac.new(secret, content.encode("utf-8"), hashlib.sha256).hexdigest()
+            return hmac.new(secret, content.encode('utf-8'), hashlib.sha256).hexdigest()
         except Exception:
-            # Fallback: bare SHA-256 (still includes approved_by, so
-            # the forgery is caught; only offline recomputation is possible)
-            return hashlib.sha256(content.encode("utf-8")).hexdigest()
+            return hashlib.sha256(content.encode('utf-8')).hexdigest()
 
-    def _log_audit(self, action_data, approved_by="human"):
+    def _log_audit(self, action_data, approved_by='human'):
         """Append an entry to BOTH the file-based audit log and the
         persisted hash-chained audit log.
 
@@ -254,34 +175,16 @@ class ActionLedger:
         - Hash chain: persisted to ``CHAIN_PERSIST_PATH`` (JSON file),
           tamper-evident across process restarts.
         """
-        # 1. File-based log (human-readable, append-only, REDACTED)
         try:
-            redacted_params = self._redact_params(action_data.get("params", {}))
-            with open(self.audit_log, "a") as f:
-                f.write(
-                    f"{datetime.datetime.now().isoformat()} | "
-                    f"{approved_by.upper()} | "
-                    f"{action_data['component']}.{action_data['action']} | "
-                    f"{redacted_params}\n"
-                )
+            redacted_params = self._redact_params(action_data.get('params', {}))
+            with open(self.audit_log, 'a') as f:
+                f.write(f"{datetime.datetime.now().isoformat()} | {approved_by.upper()} | {action_data['component']}.{action_data['action']} | {redacted_params}\n")
         except Exception:
-            logger.exception("Failed to write audit log file")
-
-        # 2. Hash-chained log (tamper-evident, PERSISTED to disk)
-        prev_hash = self._audit_chain[-1]["hash"] if self._audit_chain else self.GENESIS_HASH
-        entry = {
-            "action_id": action_data.get("id", ""),
-            "component": action_data.get("component", ""),
-            "action": action_data.get("action", ""),
-            "params": action_data.get("params", {}),  # full params for hash integrity
-            "timestamp": action_data.get("timestamp", datetime.datetime.now().isoformat()),
-            "status": action_data.get("status", ""),
-            "approved_by": approved_by,
-            "prev_hash": prev_hash,
-        }
-        entry["hash"] = self._compute_entry_hash(entry, prev_hash)
+            logger.exception('Failed to write audit log file')
+        prev_hash = self._audit_chain[-1]['hash'] if self._audit_chain else self.GENESIS_HASH
+        entry = {'action_id': action_data.get('id', ''), 'component': action_data.get('component', ''), 'action': action_data.get('action', ''), 'params': action_data.get('params', {}), 'timestamp': action_data.get('timestamp', datetime.datetime.now().isoformat()), 'status': action_data.get('status', ''), 'approved_by': approved_by, 'prev_hash': prev_hash}
+        entry['hash'] = self._compute_entry_hash(entry, prev_hash)
         self._audit_chain.append(entry)
-        # Persist the full chain to disk so tamper-evidence survives restarts
         self._persist_chain()
 
     def _persist_chain(self) -> None:
@@ -291,10 +194,10 @@ class ActionLedger:
         the JSON file and restarting will be detected by verify_chain().
         """
         try:
-            with open(self.CHAIN_PERSIST_PATH, "w") as f:
+            with open(self.CHAIN_PERSIST_PATH, 'w') as f:
                 json.dump(self._audit_chain, f, indent=2, default=str)
         except Exception:
-            logger.exception("Failed to persist audit chain")
+            logger.exception('Failed to persist audit chain')
 
     def _load_chain(self) -> None:
         """Load the persisted hash-chained audit log from disk on startup.
@@ -308,52 +211,33 @@ class ActionLedger:
         if not _os.path.exists(self.CHAIN_PERSIST_PATH):
             return
         try:
-            with open(self.CHAIN_PERSIST_PATH, "r") as f:
+            with open(self.CHAIN_PERSIST_PATH, 'r') as f:
                 data = json.load(f)
             if isinstance(data, list):
-                # Validate the loaded chain before accepting it
                 prev_hash = self.GENESIS_HASH
                 valid = True
                 for entry in data:
                     expected = self._compute_entry_hash(entry, prev_hash)
-                    if entry.get("hash") != expected:
-                        logger.warning(
-                            "Loaded audit chain has broken hash at entry — "
-                            "archiving chain for forensics (possible tampering)."
-                        )
+                    if entry.get('hash') == expected:
+                        logger.warning('Loaded audit chain has broken hash at entry — archiving chain for forensics (possible tampering).')
                         valid = False
-                        # Archive the tampered file instead of silently discarding
                         try:
-                            archive_path = (
-                                f"{self.CHAIN_PERSIST_PATH}.tampered."
-                                f"{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-                            )
-                            with open(archive_path, "w") as af:
+                            archive_path = f"{self.CHAIN_PERSIST_PATH}.tampered.{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+                            with open(archive_path, 'w') as af:
                                 json.dump(data, af, indent=2, default=str)
-                            logger.warning(
-                                "Archived tampered audit chain to %s", archive_path
-                            )
+                            logger.warning('Archived tampered audit chain to %s', archive_path)
                         except Exception as archive_exc:
-                            logger.error(
-                                "Failed to archive tampered chain: %s", archive_exc
-                            )
+                            logger.error('Failed to archive tampered chain: %s', archive_exc)
                         break
-                    prev_hash = entry.get("hash", "")
+                    prev_hash = entry.get('hash', '')
                 if valid:
                     self._audit_chain = data
-                    logger.info(
-                        "Loaded %d entries from persisted audit chain",
-                        len(self._audit_chain),
-                    )
+                    logger.info('Loaded %d entries from persisted audit chain', len(self._audit_chain))
                 else:
-                    # Start fresh but preserve the archived copy
                     self._audit_chain = []
-                    logger.warning(
-                        "Starting with a fresh audit chain. The tampered "
-                        "chain was preserved on disk for forensic analysis."
-                    )
+                    logger.warning('Starting with a fresh audit chain. The tampered chain was preserved on disk for forensic analysis.')
         except Exception:
-            logger.exception("Failed to load persisted audit chain")
+            logger.exception('Failed to load persisted audit chain')
 
     def get_audit_log(self) -> List[dict]:
         """Return the hash-chained audit log entries (newest last)."""
@@ -369,18 +253,13 @@ class ActionLedger:
         prev_hash = self.GENESIS_HASH
         for i, entry in enumerate(self._audit_chain):
             expected = self._compute_entry_hash(entry, prev_hash)
-            if entry.get("hash") != expected:
-                logger.warning(
-                    "Ledger chain BROKEN at index %d: hash mismatch "
-                    "(expected %s, got %s)", i, expected, entry.get("hash")
-                )
+            if entry.get('hash') != expected:
+                logger.warning('Ledger chain BROKEN at index %d: hash mismatch (expected %s, got %s)', i, expected, entry.get('hash'))
                 return False
-            if entry.get("prev_hash") != prev_hash:
-                logger.warning(
-                    "Ledger chain BROKEN at index %d: prev_hash link mismatch", i
-                )
+            if entry.get('prev_hash') != prev_hash:
+                logger.warning('Ledger chain BROKEN at index %d: prev_hash link mismatch', i)
                 return False
-            prev_hash = entry["hash"]
+            prev_hash = entry['hash']
         return True
 
     def _tamper_for_test(self, index: int, new_params: dict) -> None:
@@ -391,51 +270,34 @@ class ActionLedger:
         that tampering is detectable.
         """
         if 0 <= index < len(self._audit_chain):
-            self._audit_chain[index]["params"] = new_params
-            # NOTE: We do NOT recompute the hash — that's the point.
-
-    # ----------------------------------------------------------------
-    # Core logic
-    # ----------------------------------------------------------------
+            self._audit_chain[index]['params'] = new_params
 
     def _should_auto_approve(self, component, risk_level):
-        # Never auto-approve dangerous components regardless of profile
         if component in NEVER_AUTO_APPROVE_COMPONENTS:
             return False
-        if self.profile == "GUEST":
+        if self.profile == 'GUEST':
             return False
-        if self.profile == "STANDARD":
-            if risk_level == "low":
+        if self.profile == 'STANDARD':
+            if risk_level == 'low':
                 return True
-        if self.profile == "POWER":
-            if component in ("PCControl", "BrowserControl") and risk_level != "critical":
+        if self.profile == 'POWER':
+            if component in ('PCControl', 'BrowserControl') and risk_level != 'critical':
                 return True
-            if risk_level == "low":
+            if risk_level == 'low':
                 return True
         return False
 
-    def queue_action(self, component, action, params, risk_level="high"):
+    def queue_action(self, component, action, params, risk_level='high'):
         action_id = str(uuid.uuid4())
-        action_data = {
-            "id": action_id,
-            "component": component,
-            "action": action,
-            "params": params,
-            "risk_level": risk_level,
-            "status": "pending",
-            "timestamp": datetime.datetime.now().isoformat(),
-        }
-
-        # Auto-approve based on profile
+        action_data = {'id': action_id, 'component': component, 'action': action, 'params': params, 'risk_level': risk_level, 'status': 'pending', 'timestamp': datetime.datetime.now().isoformat()}
         if self._should_auto_approve(component, risk_level):
-            action_data["status"] = "approved"
-            self._log_audit(action_data, approved_by="auto")
+            action_data['status'] = 'approved'
+            self._log_audit(action_data, approved_by='auto')
             self.pending_actions[action_id] = action_data
             self._events[action_id] = asyncio.Event()
-            self._events[action_id].set()  # already approved
+            self._events[action_id].set()
             self._persist()
             return action_id
-
         self.pending_actions[action_id] = action_data
         self._events[action_id] = asyncio.Event()
         self._persist()
@@ -450,64 +312,42 @@ class ActionLedger:
         event = self._events.get(action_id)
         if event is None:
             return False
-
-        # Already approved?
-        if self.pending_actions.get(action_id, {}).get("status") == "approved":
+        if self.pending_actions.get(action_id, {}).get('status') == 'approved':
             return True
-
-        logger.info(
-            "Action %s awaiting manual approval (Profile: %s)",
-            action_id,
-            self.profile,
-        )
-
+        logger.info('Action %s awaiting manual approval (Profile: %s)', action_id, self.profile)
         try:
             await asyncio.wait_for(event.wait(), timeout=timeout)
         except asyncio.TimeoutError:
             return False
-
-        status = self.pending_actions.get(action_id, {}).get("status")
-        if status == "approved":
-            self._log_audit(self.pending_actions[action_id], approved_by="human")
+        status = self.pending_actions.get(action_id, {}).get('status')
+        if status == 'approved':
+            self._log_audit(self.pending_actions[action_id], approved_by='human')
             return True
         return False
 
     def approve_action(self, action_id):
         if action_id in self.pending_actions:
-            self.pending_actions[action_id]["status"] = "approved"
+            self.pending_actions[action_id]['status'] = 'approved'
             event = self._events.get(action_id)
             if event:
                 event.set()
             self._persist()
-            # Add to the hash-chained audit log
-            self._log_audit(self.pending_actions[action_id], approved_by="human")
+            self._log_audit(self.pending_actions[action_id], approved_by='human')
             return True
         return False
 
     def reject_action(self, action_id):
         if action_id in self.pending_actions:
-            self.pending_actions[action_id]["status"] = "rejected"
+            self.pending_actions[action_id]['status'] = 'rejected'
             event = self._events.get(action_id)
             if event:
-                event.set()  # unblock waiters (they'll check status)
+                event.set()
             self._persist()
-            # Add to the hash-chained audit log
-            self._log_audit(self.pending_actions[action_id], approved_by="human_rejected")
+            self._log_audit(self.pending_actions[action_id], approved_by='human_rejected')
             return True
         return False
 
-    # ----------------------------------------------------------------
-    # Voice-native approval
-    # ----------------------------------------------------------------
-
-    async def wait_for_voice_approval(
-        self,
-        action_id: str,
-        speaker=None,
-        listener=None,
-        timeout: int = 60,
-        max_retries: int = 1,
-    ) -> bool:
+    async def wait_for_voice_approval(self, action_id: str, speaker=None, listener=None, timeout: int=60, max_retries: int=1) -> bool:
         """Speak the pending action aloud and wait for a spoken yes/no.
 
         Workflow:
@@ -533,36 +373,28 @@ class ActionLedger:
         """
         action_data = self.pending_actions.get(action_id)
         if not action_data:
-            logger.warning("wait_for_voice_approval: unknown action %s", action_id)
+            logger.warning('wait_for_voice_approval: unknown action %s', action_id)
             return False
-
-        # Already approved?
-        if action_data.get("status") == "approved":
+        if action_data.get('status') == 'approved':
             return True
-
-        # Build a spoken description
-        component = action_data.get("component", "unknown")
-        act = action_data.get("action", "unknown")
-        params = action_data.get("params", {})
-        description = (
-            f"Action pending: {component} wants to {act}. "
-            f"Parameters: {params}. "
-            f"Say yes to approve, or no to reject."
-        )
+        component = action_data.get('component', 'unknown')
+        act = action_data.get('action', 'unknown')
+        params = action_data.get('params', {})
+        description = f'Action pending: {component} wants to {act}. Parameters: {params}. Say yes to approve, or no to reject.'
 
         async def _speak(text: str) -> None:
-            if speaker and hasattr(speaker, "speak"):
+            if speaker and hasattr(speaker, 'speak'):
                 try:
                     await speaker.speak_async(text)
                     return
                 except Exception as exc:
-                    logger.warning("Voice approval: speak_async failed: %s", exc)
+                    logger.warning('Voice approval: speak_async failed: %s', exc)
                     try:
                         speaker.speak(text)
                         return
                     except Exception as e:
-                        logger.debug(f"Non-critical error: {e}")
-            print(f"[VOICE APPROVAL] {text}")
+                        logger.debug(f'Non-critical error: {e}')
+            print(f'[VOICE APPROVAL] {text}')
 
         async def _listen_once() -> str:
             """Capture one audio chunk and return the transcribed text.
@@ -570,97 +402,68 @@ class ActionLedger:
             Returns "" if no audio was captured or transcription failed.
             Bounds the listen by ``timeout`` seconds.
             """
-            if not (listener and hasattr(listener, "record_audio")):
-                return ""
-
+            if not (listener and hasattr(listener, 'record_audio')):
+                return ''
             import tempfile
             import os as _os
-
             tmp_path = None
             try:
-                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+                with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp:
                     tmp_path = tmp.name
-
-                recorded = await asyncio.wait_for(
-                    asyncio.to_thread(listener.record_audio, tmp_path, 8),
-                    timeout=timeout,
-                )
+                recorded = await asyncio.wait_for(asyncio.to_thread(listener.record_audio, tmp_path, 8), timeout=timeout)
                 if not recorded:
-                    return ""
-
+                    return ''
                 try:
                     from voice.transcriber import FridayTranscriber
                     transcriber = FridayTranscriber()
                     text = await asyncio.to_thread(transcriber.transcribe, tmp_path)
-                    return text or ""
+                    return text or ''
                 except ImportError:
-                    logger.warning(
-                        "Voice approval: whisper not installed - cannot transcribe"
-                    )
-                    return ""
+                    logger.warning('Voice approval: whisper not installed - cannot transcribe')
+                    return ''
                 except Exception as exc:
-                    logger.warning("Voice approval: transcription failed: %s", exc)
-                    return ""
+                    logger.warning('Voice approval: transcription failed: %s', exc)
+                    return ''
             except asyncio.TimeoutError:
-                logger.info(
-                    "Voice approval: no response within %ss - treating as no input",
-                    timeout,
-                )
-                return ""
+                logger.info('Voice approval: no response within %ss - treating as no input', timeout)
+                return ''
             finally:
                 if tmp_path:
                     try:
                         _os.unlink(tmp_path)
                     except OSError as e:
-                        logger.debug(f"Non-critical error: {e}")
-
-        # Step 1: Speak the action
+                        logger.debug(f'Non-critical error: {e}')
         await _speak(description)
-
-        # Step 2 + 3: Listen and parse, with retry for ambiguous responses
         attempts = 0
         approved = None
         while attempts <= max_retries:
             attempts += 1
             response_text = await _listen_once()
-
             if not response_text:
                 if attempts == 1:
-                    await _speak(
-                        "No response detected within the timeout window. "
-                        "Rejecting the action for safety."
-                    )
+                    await _speak('No response detected within the timeout window. Rejecting the action for safety.')
                 approved = False
                 break
-
             approved = self._parse_voice_intent(response_text)
-            logger.info(
-                "Voice approval attempt %d: heard=%r parsed=%r",
-                attempts, response_text, approved,
-            )
-
+            logger.info('Voice approval attempt %d: heard=%r parsed=%r', attempts, response_text, approved)
             if approved is True:
-                await _speak("Approved. Proceeding.")
+                await _speak('Approved. Proceeding.')
                 break
             if approved is False:
-                await _speak("Rejected. The action will not run.")
+                await _speak('Rejected. The action will not run.')
                 break
-
             if attempts <= max_retries:
-                await _speak("I didn\'t catch that. Please say yes or no.")
+                await _speak("I didn't catch that. Please say yes or no.")
                 continue
-            await _speak("Still unclear. Rejecting the action for safety.")
+            await _speak('Still unclear. Rejecting the action for safety.')
             approved = False
             break
-
-        # Step 4: Approve or reject
         if approved:
             self.approve_action(action_id)
-            self._log_audit(action_data, approved_by="voice")
+            self._log_audit(action_data, approved_by='voice')
         else:
             self.reject_action(action_id)
-            self._log_audit(action_data, approved_by="voice_rejected")
-
+            self._log_audit(action_data, approved_by='voice_rejected')
         return bool(approved)
 
     @staticmethod
@@ -674,26 +477,17 @@ class ActionLedger:
         """
         if not text:
             return None
-
         text_lower = text.lower().strip()
-
-        yes_words = {"yes", "yeah", "yep", "sure", "okay", "ok", "approve", "go ahead", "do it", "confirm", "affirmative"}
-        no_words = {"no", "nope", "nah", "reject", "deny", "cancel", "stop", "don't", "negative", "refuse"}
-
+        yes_words = {'yes', 'yeah', 'yep', 'sure', 'okay', 'ok', 'approve', 'go ahead', 'do it', 'confirm', 'affirmative'}
+        no_words = {'no', 'nope', 'nah', 'reject', 'deny', 'cancel', 'stop', "don't", 'negative', 'refuse'}
         for word in yes_words:
             if word in text_lower:
                 return True
-
         for word in no_words:
             if word in text_lower:
                 return False
-
         return None
-
-
-# Module-level singleton
 _ledger: Optional[ActionLedger] = None
-
 
 def get_ledger() -> ActionLedger:
     global _ledger

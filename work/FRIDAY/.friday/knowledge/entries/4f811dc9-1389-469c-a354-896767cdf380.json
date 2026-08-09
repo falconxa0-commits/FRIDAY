@@ -1,0 +1,18 @@
+{
+  "id": "4f811dc9-1389-469c-a354-896767cdf380",
+  "type": "lesson",
+  "title": "Lesson 7 about performance",
+  "summary": "Performance optimisation lesson number 7",
+  "content": "Detailed content about performance tuning for module 7.",
+  "status": "accepted",
+  "tags": [
+    "performance",
+    "module-7"
+  ],
+  "related_tasks": [],
+  "related_entries": [],
+  "created_at": "2026-08-09T23:17:56.607691+00:00",
+  "updated_at": "2026-08-09T23:17:56.607697+00:00",
+  "author": "system",
+  "metadata": {}
+}

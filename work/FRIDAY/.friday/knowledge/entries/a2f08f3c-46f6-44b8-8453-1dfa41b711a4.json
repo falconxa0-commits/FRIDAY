@@ -1,0 +1,22 @@
+{
+  "id": "a2f08f3c-46f6-44b8-8453-1dfa41b711a4",
+  "type": "lesson",
+  "title": "Task completed: Test task",
+  "summary": "Phase: quality, Duration: 1.0s, Tests: 5 passed / 0 failed",
+  "content": "Task test-id was completed by the engineering org.\n\nReceipt hash: test-hash...\nCompleted at: 2026-01-01T00:00:00Z\nDuration: 1.00s\nTests passed: 5\nTests failed: 0\n",
+  "status": "accepted",
+  "tags": [
+    "task-completion",
+    "quality"
+  ],
+  "related_tasks": [
+    "test-id"
+  ],
+  "related_entries": [],
+  "created_at": "2026-08-09T23:12:30.583264+00:00",
+  "updated_at": "2026-08-09T23:12:30.583280+00:00",
+  "author": "system",
+  "metadata": {
+    "receipt_hash": "test-hash"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "id": "7c582d45-d7e6-48a2-baf0-d8bf8136296c",
+  "type": "lesson",
+  "title": "Lesson 48 about performance",
+  "summary": "Performance optimisation lesson number 48",
+  "content": "Detailed content about performance tuning for module 48.",
+  "status": "accepted",
+  "tags": [
+    "performance",
+    "module-48"
+  ],
+  "related_tasks": [],
+  "related_entries": [],
+  "created_at": "2026-08-09T23:17:56.642130+00:00",
+  "updated_at": "2026-08-09T23:17:56.642140+00:00",
+  "author": "system",
+  "metadata": {}
+}

@@ -1,0 +1,18 @@
+{
+  "id": "cee2b021-edc3-4d36-96de-b5fe772e3871",
+  "type": "lesson",
+  "title": "Lesson 46 about performance",
+  "summary": "Performance optimisation lesson number 46",
+  "content": "Detailed content about performance tuning for module 46.",
+  "status": "accepted",
+  "tags": [
+    "performance",
+    "module-46"
+  ],
+  "related_tasks": [],
+  "related_entries": [],
+  "created_at": "2026-08-09T23:17:56.640183+00:00",
+  "updated_at": "2026-08-09T23:17:56.640188+00:00",
+  "author": "system",
+  "metadata": {}
+}

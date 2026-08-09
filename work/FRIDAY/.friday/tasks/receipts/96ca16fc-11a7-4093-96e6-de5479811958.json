@@ -1,0 +1,13 @@
+{
+  "task_id": "96ca16fc-11a7-4093-96e6-de5479811958",
+  "title": "Counted task",
+  "phase": "quality",
+  "completed_at": "2026-08-09T23:26:43.596117+00:00",
+  "duration_seconds": 4.965000152878929e-05,
+  "tests_passed": 0,
+  "tests_failed": 0,
+  "hash": "9421d543c5ee200aba328e2fe0b06ca2df61069023cb4c4a715c5f93733bac09",
+  "metadata": {
+    "lead": "Testing Lead"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "id": "1683405d-cfef-4f12-93be-62e6532a834e",
+  "type": "lesson",
+  "title": "Seed 1",
+  "summary": "seed summary 1",
+  "content": "content",
+  "status": "accepted",
+  "tags": [],
+  "related_tasks": [],
+  "related_entries": [],
+  "created_at": "2026-08-09T23:17:56.686643+00:00",
+  "updated_at": "2026-08-09T23:17:56.686651+00:00",
+  "author": "system",
+  "metadata": {}
+}
