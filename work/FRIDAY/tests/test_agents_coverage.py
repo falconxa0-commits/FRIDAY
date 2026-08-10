@@ -628,7 +628,7 @@ class TestTacticalManager:
         from agents.tactical_manager import TacticalManager
         tm = TacticalManager(brain=None, agent_manager=None)
         import asyncio
-        asyncio.get_event_loop().run_until_complete(tm.coordinate("random no keywords"))
+        asyncio.run(tm.coordinate("random no keywords"))
         assert len(tm.tactical_history) == 1
         entry = tm.tactical_history[0]
         assert entry["task"] == "random no keywords"
