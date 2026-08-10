@@ -64,23 +64,29 @@ class CalendarIntegration(BaseIntegration):
     # ---- action implementations -------------------------------------
 
     async def _get_todays_events(self, params: dict) -> dict:
-        now = datetime.datetime.utcnow().isoformat() + "Z"
+        import asyncio
+        from datetime import timezone
+        now = datetime.datetime.now(timezone.utc).isoformat()
         end_of_day = (
-            datetime.datetime.utcnow().replace(hour=23, minute=59, second=59)
-        ).isoformat() + "Z"
+            datetime.datetime.now(timezone.utc).replace(hour=23, minute=59, second=59)
+        ).isoformat()
 
-        events_result = (
-            self.service.events()
-            .list(
-                calendarId="primary",
-                timeMin=now,
-                timeMax=end_of_day,
-                maxResults=10,
-                singleEvents=True,
-                orderBy="startTime",
+        # Wrap sync googleapiclient call in asyncio.to_thread to avoid
+        # blocking the event loop (Google API makes HTTP requests).
+        def _fetch():
+            return (
+                self.service.events()
+                .list(
+                    calendarId="primary",
+                    timeMin=now,
+                    timeMax=end_of_day,
+                    maxResults=10,
+                    singleEvents=True,
+                    orderBy="startTime",
+                )
+                .execute()
             )
-            .execute()
-        )
+        events_result = await asyncio.to_thread(_fetch)
         events = events_result.get("items", [])
         return self._make_response(
             "success",
@@ -89,20 +95,24 @@ class CalendarIntegration(BaseIntegration):
         )
 
     async def _get_upcoming_events(self, params: dict) -> dict:
+        import asyncio
+        from datetime import timezone
         max_results = params.get("max_results", 10)
-        now = datetime.datetime.utcnow().isoformat() + "Z"
+        now = datetime.datetime.now(timezone.utc).isoformat()
 
-        events_result = (
-            self.service.events()
-            .list(
-                calendarId="primary",
-                timeMin=now,
-                maxResults=max_results,
-                singleEvents=True,
-                orderBy="startTime",
+        def _fetch():
+            return (
+                self.service.events()
+                .list(
+                    calendarId="primary",
+                    timeMin=now,
+                    maxResults=max_results,
+                    singleEvents=True,
+                    orderBy="startTime",
+                )
+                .execute()
             )
-            .execute()
-        )
+        events_result = await asyncio.to_thread(_fetch)
         events = events_result.get("items", [])
         return self._make_response(
             "success",
@@ -111,6 +121,7 @@ class CalendarIntegration(BaseIntegration):
         )
 
     async def _create_event(self, params: dict) -> dict:
+        import asyncio
         summary = params.get("summary")
         start = params.get("start")
         end = params.get("end")
@@ -126,11 +137,13 @@ class CalendarIntegration(BaseIntegration):
             "end": {"dateTime": end, "timeZone": "UTC"},
         }
 
-        result = (
-            self.service.events()
-            .insert(calendarId="primary", body=event_body)
-            .execute()
-        )
+        def _insert():
+            return (
+                self.service.events()
+                .insert(calendarId="primary", body=event_body)
+                .execute()
+            )
+        result = await asyncio.to_thread(_insert)
         return self._make_response(
             "success",
             f"Event '{summary}' created.",

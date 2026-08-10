@@ -1,18 +1,38 @@
-FROM python:3.11-slim
+# ── Stage 1: Builder ──────────────────────────────────────────────────────────
+# Includes build tools (gcc) that are NOT needed in the final image.
+# This reduces the final image size and attack surface.
+FROM python:3.11-slim AS builder
 
-# System dependencies — minimal set (no torch, no sentence-transformers)
+# Build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+
+# Install Python dependencies to a virtualenv that we can copy later
+COPY requirements.txt .
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# ── Stage 2: Runtime ──────────────────────────────────────────────────────────
+# Minimal image — no gcc, no build tools, smaller attack surface.
+FROM python:3.11-slim AS runtime
+
+# Runtime dependencies only (curl for healthcheck)
+RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Copy the virtualenv from builder (includes all installed packages)
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
 WORKDIR /app
 
-# Install Python dependencies first (layer caching)
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy application code
+# Copy application code (respects .dockerignore)
 COPY . .
 
 # Create workspace directory

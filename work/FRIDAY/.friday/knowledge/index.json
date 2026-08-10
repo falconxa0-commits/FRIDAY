@@ -1230,5 +1230,113 @@
     ],
     "created_at": "2026-08-10T08:32:37.493476+00:00",
     "updated_at": "2026-08-10T08:32:37.493493+00:00"
+  },
+  {
+    "id": "9669e670-abaa-41c7-aaf1-e0decd935772",
+    "type": "lesson",
+    "title": "Task completed: Test task",
+    "status": "accepted",
+    "tags": [
+      "task-completion",
+      "quality"
+    ],
+    "created_at": "2026-08-10T08:57:42.865060+00:00",
+    "updated_at": "2026-08-10T08:57:42.865085+00:00"
+  },
+  {
+    "id": "8dc27ced-e936-46b1-a60b-05b27c376c45",
+    "type": "lesson",
+    "title": "Task completed: Test task",
+    "status": "accepted",
+    "tags": [
+      "task-completion",
+      "quality"
+    ],
+    "created_at": "2026-08-10T08:59:46.008963+00:00",
+    "updated_at": "2026-08-10T08:59:46.008997+00:00"
+  },
+  {
+    "id": "df1b1b85-2a7d-48a4-a9df-7b97104377ac",
+    "type": "lesson",
+    "title": "Task completed: Test task",
+    "status": "accepted",
+    "tags": [
+      "task-completion",
+      "quality"
+    ],
+    "created_at": "2026-08-10T09:01:51.925404+00:00",
+    "updated_at": "2026-08-10T09:01:51.925424+00:00"
+  },
+  {
+    "id": "357125dd-0ed9-49ed-b62b-24aa790f6b00",
+    "type": "lesson",
+    "title": "Task completed: Test task",
+    "status": "accepted",
+    "tags": [
+      "task-completion",
+      "quality"
+    ],
+    "created_at": "2026-08-10T09:03:54.648331+00:00",
+    "updated_at": "2026-08-10T09:03:54.648353+00:00"
+  },
+  {
+    "id": "af19d93b-f90d-4e26-b9e2-0047bdfd77c9",
+    "type": "lesson",
+    "title": "Task completed: Test task",
+    "status": "accepted",
+    "tags": [
+      "task-completion",
+      "quality"
+    ],
+    "created_at": "2026-08-10T09:06:01.597954+00:00",
+    "updated_at": "2026-08-10T09:06:01.597990+00:00"
+  },
+  {
+    "id": "0863fe0c-e362-46af-83ee-06928462433c",
+    "type": "lesson",
+    "title": "Task completed: Test task",
+    "status": "accepted",
+    "tags": [
+      "task-completion",
+      "quality"
+    ],
+    "created_at": "2026-08-10T09:08:08.122604+00:00",
+    "updated_at": "2026-08-10T09:08:08.122623+00:00"
+  },
+  {
+    "id": "0f1e9e83-037a-4923-a86b-0f6a9675ca69",
+    "type": "lesson",
+    "title": "Task completed: Test task",
+    "status": "accepted",
+    "tags": [
+      "task-completion",
+      "quality"
+    ],
+    "created_at": "2026-08-10T09:11:21.176843+00:00",
+    "updated_at": "2026-08-10T09:11:21.176868+00:00"
+  },
+  {
+    "id": "17919092-5f92-4ea8-aff2-b7c463b6f2a5",
+    "type": "lesson",
+    "title": "Task completed: Test task",
+    "status": "accepted",
+    "tags": [
+      "task-completion",
+      "quality"
+    ],
+    "created_at": "2026-08-10T09:13:26.115794+00:00",
+    "updated_at": "2026-08-10T09:13:26.115814+00:00"
+  },
+  {
+    "id": "49049b7f-8fdd-448a-a421-657a791c89e2",
+    "type": "lesson",
+    "title": "Task completed: Test task",
+    "status": "accepted",
+    "tags": [
+      "task-completion",
+      "quality"
+    ],
+    "created_at": "2026-08-10T09:14:59.962025+00:00",
+    "updated_at": "2026-08-10T09:14:59.962049+00:00"
   }
 ]

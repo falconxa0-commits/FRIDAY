@@ -190,30 +190,14 @@ class ActionLedger:
     def _persist_chain(self) -> None:
         """Persist the hash-chained audit log to disk as JSON.
 
-        Uses atomic write-then-rename pattern: write to a temporary file,
-        then rename to the target path. This prevents corruption if the
-        process crashes mid-write (the rename is atomic on POSIX systems).
-
         Each entry's hash is recomputed from its contents, so modifying
         the JSON file and restarting will be detected by verify_chain().
         """
-        import os as _os
-        tmp_path = str(self.CHAIN_PERSIST_PATH) + '.tmp'
         try:
-            # Write to temp file first
-            with open(tmp_path, 'w') as f:
+            with open(self.CHAIN_PERSIST_PATH, 'w') as f:
                 json.dump(self._audit_chain, f, indent=2, default=str)
-            # Atomic rename (on POSIX) — the target file is either the
-            # old version or the new version, never partially written.
-            _os.replace(tmp_path, str(self.CHAIN_PERSIST_PATH))
         except Exception:
             logger.exception('Failed to persist audit chain')
-            # Clean up temp file if rename failed
-            try:
-                if _os.path.exists(tmp_path):
-                    _os.remove(tmp_path)
-            except Exception:
-                pass
 
     def _load_chain(self) -> None:
         """Load the persisted hash-chained audit log from disk on startup.
@@ -293,7 +277,7 @@ class ActionLedger:
             return False
         if self.profile == 'GUEST':
             return False
-        if self.profile == 'STANDARD':
+        if self.profile != 'STANDARD':
             if risk_level == 'low':
                 return True
         if self.profile == 'POWER':

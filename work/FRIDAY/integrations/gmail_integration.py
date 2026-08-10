@@ -65,13 +65,17 @@ class GmailIntegration(BaseIntegration):
     # ---- action implementations -------------------------------------
 
     async def _get_unread_emails(self, params: dict) -> dict:
+        import asyncio
         max_results = params.get("max_results", 10)
-        results = (
-            self.service.users()
-            .messages()
-            .list(userId="me", q="is:unread", maxResults=max_results)
-            .execute()
-        )
+
+        def _fetch():
+            return (
+                self.service.users()
+                .messages()
+                .list(userId="me", q="is:unread", maxResults=max_results)
+                .execute()
+            )
+        results = await asyncio.to_thread(_fetch)
         messages = results.get("messages", [])
         return self._make_response(
             "success",
@@ -80,16 +84,20 @@ class GmailIntegration(BaseIntegration):
         )
 
     async def _search_emails(self, params: dict) -> dict:
+        import asyncio
         query = params.get("query", "")
         if not query:
             return self._make_response("error", "Missing 'query' parameter.")
         max_results = params.get("max_results", 10)
-        results = (
-            self.service.users()
-            .messages()
-            .list(userId="me", q=query, maxResults=max_results)
-            .execute()
-        )
+
+        def _fetch():
+            return (
+                self.service.users()
+                .messages()
+                .list(userId="me", q=query, maxResults=max_results)
+                .execute()
+            )
+        results = await asyncio.to_thread(_fetch)
         messages = results.get("messages", [])
         return self._make_response(
             "success",
