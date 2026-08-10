@@ -115,8 +115,269 @@
     "status": "pending",
     "timestamp": "2026-08-10T21:27:46.216340"
   },
-  "a9b329c5-f0ac-4fd4-a1e3-0e53043a4638": {
-    "id": "a9b329c5-f0ac-4fd4-a1e3-0e53043a4638",
+  "92fa3fb1-4e7c-4860-975b-a7ecd9495984": {
+    "id": "92fa3fb1-4e7c-4860-975b-a7ecd9495984",
+    "component": "Test",
+    "action": "test_action",
+    "params": {},
+    "risk_level": "low",
+    "status": "pending",
+    "timestamp": "2026-08-10T22:02:46.586919"
+  },
+  "904f6027-e290-4c07-814c-624d27eacb0a": {
+    "id": "904f6027-e290-4c07-814c-624d27eacb0a",
+    "component": "Test",
+    "action": "test",
+    "params": {},
+    "risk_level": "medium",
+    "status": "pending",
+    "timestamp": "2026-08-10T22:02:47.590595"
+  },
+  "e55eec54-8e9e-4023-acf0-317f96d8bd13": {
+    "id": "e55eec54-8e9e-4023-acf0-317f96d8bd13",
+    "component": "PrivacyAudit",
+    "action": "purge_provider",
+    "params": {
+      "provider": "glm"
+    },
+    "risk_level": "high",
+    "status": "pending",
+    "timestamp": "2026-08-10T22:03:02.259614"
+  },
+  "88ce1cd5-b53f-4330-8933-b91a143b2bb5": {
+    "id": "88ce1cd5-b53f-4330-8933-b91a143b2bb5",
+    "component": "Test",
+    "action": "test_action",
+    "params": {},
+    "risk_level": "low",
+    "status": "pending",
+    "timestamp": "2026-08-10T22:05:54.402849"
+  },
+  "a6d8573e-3612-4bcc-ae99-a34b381d655a": {
+    "id": "a6d8573e-3612-4bcc-ae99-a34b381d655a",
+    "component": "Test",
+    "action": "test",
+    "params": {},
+    "risk_level": "medium",
+    "status": "pending",
+    "timestamp": "2026-08-10T22:05:55.406736"
+  },
+  "8cc1c8a6-efdb-41d3-857b-7549f44d1acb": {
+    "id": "8cc1c8a6-efdb-41d3-857b-7549f44d1acb",
+    "component": "PrivacyAudit",
+    "action": "purge_provider",
+    "params": {
+      "provider": "glm"
+    },
+    "risk_level": "high",
+    "status": "pending",
+    "timestamp": "2026-08-10T22:06:10.390086"
+  },
+  "1768be9a-88a9-4b43-894a-e239f3a2b5c2": {
+    "id": "1768be9a-88a9-4b43-894a-e239f3a2b5c2",
+    "component": "Test",
+    "action": "test_action",
+    "params": {},
+    "risk_level": "low",
+    "status": "pending",
+    "timestamp": "2026-08-10T22:11:09.016629"
+  },
+  "ad0b0e09-b373-4856-99a0-78c90e43af1e": {
+    "id": "ad0b0e09-b373-4856-99a0-78c90e43af1e",
+    "component": "Test",
+    "action": "test",
+    "params": {},
+    "risk_level": "medium",
+    "status": "pending",
+    "timestamp": "2026-08-10T22:11:10.020479"
+  },
+  "299bf9c5-e244-47cc-8954-1d24c10af5ec": {
+    "id": "299bf9c5-e244-47cc-8954-1d24c10af5ec",
+    "component": "PrivacyAudit",
+    "action": "purge_provider",
+    "params": {
+      "provider": "glm"
+    },
+    "risk_level": "high",
+    "status": "pending",
+    "timestamp": "2026-08-10T22:11:24.782132"
+  },
+  "d6ed7ad6-2099-47b9-8807-a61532e73992": {
+    "id": "d6ed7ad6-2099-47b9-8807-a61532e73992",
+    "component": "Test",
+    "action": "test_action",
+    "params": {},
+    "risk_level": "low",
+    "status": "pending",
+    "timestamp": "2026-08-10T22:13:10.843929"
+  },
+  "a91206fa-6494-40dd-a0f2-abd7e0545173": {
+    "id": "a91206fa-6494-40dd-a0f2-abd7e0545173",
+    "component": "Test",
+    "action": "test",
+    "params": {},
+    "risk_level": "medium",
+    "status": "pending",
+    "timestamp": "2026-08-10T22:13:11.847981"
+  },
+  "7928185b-fbf1-4ca8-818d-c4223d02b935": {
+    "id": "7928185b-fbf1-4ca8-818d-c4223d02b935",
+    "component": "PrivacyAudit",
+    "action": "purge_provider",
+    "params": {
+      "provider": "glm"
+    },
+    "risk_level": "high",
+    "status": "pending",
+    "timestamp": "2026-08-10T22:13:26.422357"
+  },
+  "d4f3bc29-235e-4666-b3e3-0801c2b9bdaa": {
+    "id": "d4f3bc29-235e-4666-b3e3-0801c2b9bdaa",
+    "component": "Test",
+    "action": "test_action",
+    "params": {},
+    "risk_level": "low",
+    "status": "pending",
+    "timestamp": "2026-08-10T22:15:15.087830"
+  },
+  "c7cee711-2d15-4190-a912-804cb71a3cf5": {
+    "id": "c7cee711-2d15-4190-a912-804cb71a3cf5",
+    "component": "Test",
+    "action": "test",
+    "params": {},
+    "risk_level": "medium",
+    "status": "pending",
+    "timestamp": "2026-08-10T22:15:16.091691"
+  },
+  "1b13cf01-8b07-4427-8ca0-dfdb4379a424": {
+    "id": "1b13cf01-8b07-4427-8ca0-dfdb4379a424",
+    "component": "PrivacyAudit",
+    "action": "purge_provider",
+    "params": {
+      "provider": "glm"
+    },
+    "risk_level": "high",
+    "status": "pending",
+    "timestamp": "2026-08-10T22:15:31.068076"
+  },
+  "8ef71abb-682d-4e52-87b8-c3538b85e3c8": {
+    "id": "8ef71abb-682d-4e52-87b8-c3538b85e3c8",
+    "component": "Test",
+    "action": "test_action",
+    "params": {},
+    "risk_level": "low",
+    "status": "pending",
+    "timestamp": "2026-08-10T22:19:30.496015"
+  },
+  "858d7c10-f09e-4898-b8f8-c8a55e7bf651": {
+    "id": "858d7c10-f09e-4898-b8f8-c8a55e7bf651",
+    "component": "Test",
+    "action": "test",
+    "params": {},
+    "risk_level": "medium",
+    "status": "pending",
+    "timestamp": "2026-08-10T22:19:31.500029"
+  },
+  "f9f7a57f-0374-46dc-8c69-e195a5a216e4": {
+    "id": "f9f7a57f-0374-46dc-8c69-e195a5a216e4",
+    "component": "PrivacyAudit",
+    "action": "purge_provider",
+    "params": {
+      "provider": "glm"
+    },
+    "risk_level": "high",
+    "status": "pending",
+    "timestamp": "2026-08-10T22:19:46.393421"
+  },
+  "87bbf42a-4a65-4a74-be78-d630a85c9317": {
+    "id": "87bbf42a-4a65-4a74-be78-d630a85c9317",
+    "component": "Test",
+    "action": "test_action",
+    "params": {},
+    "risk_level": "low",
+    "status": "pending",
+    "timestamp": "2026-08-10T22:22:41.582057"
+  },
+  "ad58ab0d-9b93-4bcf-86ab-baefad957807": {
+    "id": "ad58ab0d-9b93-4bcf-86ab-baefad957807",
+    "component": "Test",
+    "action": "test",
+    "params": {},
+    "risk_level": "medium",
+    "status": "pending",
+    "timestamp": "2026-08-10T22:22:42.586359"
+  },
+  "c89f4756-638d-47a0-9059-0e8a90989a02": {
+    "id": "c89f4756-638d-47a0-9059-0e8a90989a02",
+    "component": "PrivacyAudit",
+    "action": "purge_provider",
+    "params": {
+      "provider": "glm"
+    },
+    "risk_level": "high",
+    "status": "pending",
+    "timestamp": "2026-08-10T22:22:58.403553"
+  },
+  "a920b6e5-3677-4bb3-b8b0-143b9fd23b83": {
+    "id": "a920b6e5-3677-4bb3-b8b0-143b9fd23b83",
+    "component": "Test",
+    "action": "test_action",
+    "params": {},
+    "risk_level": "low",
+    "status": "pending",
+    "timestamp": "2026-08-10T22:24:47.391515"
+  },
+  "fd6d088a-e586-413a-b6c2-bb730da740a0": {
+    "id": "fd6d088a-e586-413a-b6c2-bb730da740a0",
+    "component": "Test",
+    "action": "test",
+    "params": {},
+    "risk_level": "medium",
+    "status": "pending",
+    "timestamp": "2026-08-10T22:24:48.395642"
+  },
+  "444bc8c8-e3d3-40c6-9d8c-bd2635a140e8": {
+    "id": "444bc8c8-e3d3-40c6-9d8c-bd2635a140e8",
+    "component": "PrivacyAudit",
+    "action": "purge_provider",
+    "params": {
+      "provider": "glm"
+    },
+    "risk_level": "high",
+    "status": "pending",
+    "timestamp": "2026-08-10T22:25:09.009110"
+  },
+  "f7a03b37-940e-45b6-a79a-3f36654a400a": {
+    "id": "f7a03b37-940e-45b6-a79a-3f36654a400a",
+    "component": "Test",
+    "action": "test_action",
+    "params": {},
+    "risk_level": "low",
+    "status": "pending",
+    "timestamp": "2026-08-10T22:26:20.867352"
+  },
+  "7ec6c05c-2d1c-4c50-bc35-95a9a73d6916": {
+    "id": "7ec6c05c-2d1c-4c50-bc35-95a9a73d6916",
+    "component": "Test",
+    "action": "test",
+    "params": {},
+    "risk_level": "medium",
+    "status": "pending",
+    "timestamp": "2026-08-10T22:26:21.871682"
+  },
+  "004992d7-f881-4161-8f38-540fbafff475": {
+    "id": "004992d7-f881-4161-8f38-540fbafff475",
+    "component": "PrivacyAudit",
+    "action": "purge_provider",
+    "params": {
+      "provider": "glm"
+    },
+    "risk_level": "high",
+    "status": "pending",
+    "timestamp": "2026-08-10T22:26:37.483651"
+  },
+  "ed507266-5f4c-48d1-9ef9-f74e306450c6": {
+    "id": "ed507266-5f4c-48d1-9ef9-f74e306450c6",
     "component": "MCPChat",
     "action": "chat",
     "params": {
@@ -124,6 +385,6 @@
     },
     "risk_level": "low",
     "status": "approved",
-    "timestamp": "2026-08-10T21:28:35.413709"
+    "timestamp": "2026-08-10T22:27:31.706125"
   }
 }
