@@ -218,7 +218,10 @@ class AmbientEngine:
                 suggestions = self.evaluate_patterns(screen_context)
                 for s in suggestions:
                     self._default_surface(s)
-                await asyncio.sleep(self.CHECK_INTERVAL)
+                # Only sleep if we're going to loop again (avoids
+                # hanging for CHECK_INTERVAL on the last iteration)
+                if max_iterations is None or iterations < max_iterations:
+                    await asyncio.sleep(self.CHECK_INTERVAL)
         except (KeyboardInterrupt, asyncio.CancelledError):
             print("\nAmbient engine stopped.")
         finally:

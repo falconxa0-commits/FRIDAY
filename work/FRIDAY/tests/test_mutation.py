@@ -817,6 +817,7 @@ class TestLedgerMutationScore:
         self.source = self.project_root / "core" / "ledger.py"
         self.tests = self.project_root / "tests" / "test_ledger_security.py"
 
+    @pytest.mark.slow
     def test_mutation_score_above_threshold(self):
         # Cap mutants so this completes in a reasonable time. Each mutant
         # run includes ~3-5s of pytest startup overhead, so 25 mutants

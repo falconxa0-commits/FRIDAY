@@ -73,7 +73,12 @@ class ActionLedger:
             except Exception:
                 logger.exception('Notification callback raised an error')
     GENESIS_HASH = 'genesis'
-    CHAIN_PERSIST_PATH = 'action_ledger_chain.json'
+    # Default path for the persisted audit chain. Can be overridden via
+    # FRIDAY_CHAIN_PATH env var (used by tests to isolate persistence).
+    CHAIN_PERSIST_PATH = os.environ.get(
+        'FRIDAY_CHAIN_PATH',
+        'action_ledger_chain.json'
+    )
     SENSITIVE_PARAM_KEYS = frozenset({'password', 'passwd', 'pwd', 'api_key', 'apikey', 'token', 'secret', 'payment_method', 'card_number', 'cvv', 'expiry', 'client_secret', 'access_token', 'refresh_token', 'stripe_token', 'payment_intent_id'})
 
     @staticmethod
@@ -110,6 +115,15 @@ class ActionLedger:
         """
         if cls._HMAC_SECRET is not None:
             return cls._HMAC_SECRET.encode('utf-8')
+
+        # Ensure .env is loaded so FRIDAY_API_TOKEN is available
+        # even if config.settings wasn't imported first.
+        try:
+            from dotenv import load_dotenv
+            load_dotenv()
+        except ImportError:
+            pass  # python-dotenv not installed
+
         env_secret = os.environ.get('FRIDAY_LEDGER_HMAC_SECRET')
         if env_secret and env_secret.strip():
             cls._HMAC_SECRET = env_secret.strip()
@@ -277,7 +291,7 @@ class ActionLedger:
             return False
         if self.profile == 'GUEST':
             return False
-        if self.profile != 'STANDARD':
+        if self.profile == 'STANDARD':
             if risk_level == 'low':
                 return True
         if self.profile == 'POWER':

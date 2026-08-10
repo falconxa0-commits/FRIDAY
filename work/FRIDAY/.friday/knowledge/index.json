@@ -1136,7 +1136,7 @@
     "updated_at": "2026-08-09T23:28:52.661099+00:00"
   },
   {
-    "id": "d9ddfaf1-277d-45f0-9286-75e6acd1f19e",
+    "id": "46f06fdf-ee1e-4b74-bfb4-d98edc935e82",
     "type": "lesson",
     "title": "Task completed: Test task",
     "status": "accepted",
@@ -1144,191 +1144,746 @@
       "task-completion",
       "quality"
     ],
-    "created_at": "2026-08-10T08:11:12.370554+00:00",
-    "updated_at": "2026-08-10T08:11:12.370577+00:00"
+    "created_at": "2026-08-10T20:06:28.959195+00:00",
+    "updated_at": "2026-08-10T20:06:28.959212+00:00"
   },
   {
-    "id": "8b9c12ba-bd68-457b-935b-1e63e3a1b66b",
+    "id": "dbe58ff7-e9d3-4b1b-93a7-7b3e7526fcfe",
     "type": "lesson",
-    "title": "Task completed: Test task",
+    "title": "Lesson 0 about performance",
     "status": "accepted",
     "tags": [
-      "task-completion",
-      "quality"
+      "performance",
+      "module-0"
     ],
-    "created_at": "2026-08-10T08:16:13.823698+00:00",
-    "updated_at": "2026-08-10T08:16:13.823720+00:00"
+    "created_at": "2026-08-10T20:18:12.987359+00:00",
+    "updated_at": "2026-08-10T20:18:12.987371+00:00"
   },
   {
-    "id": "77f96b63-34b0-4487-8f12-cc4b282f4977",
+    "id": "467e4561-f8be-4fc9-9451-d5e83be0a599",
     "type": "lesson",
-    "title": "Task completed: Test task",
+    "title": "Lesson 1 about performance",
     "status": "accepted",
     "tags": [
-      "task-completion",
-      "quality"
+      "performance",
+      "module-1"
     ],
-    "created_at": "2026-08-10T08:19:46.047985+00:00",
-    "updated_at": "2026-08-10T08:19:46.048006+00:00"
+    "created_at": "2026-08-10T20:18:12.988648+00:00",
+    "updated_at": "2026-08-10T20:18:12.988657+00:00"
   },
   {
-    "id": "f12062fd-bb81-492c-9f68-bc29e7d97463",
+    "id": "8cdd6205-aabe-4614-afd2-62dd20ab37cb",
     "type": "lesson",
-    "title": "Task completed: Test task",
+    "title": "Lesson 2 about performance",
     "status": "accepted",
     "tags": [
-      "task-completion",
-      "quality"
+      "performance",
+      "module-2"
     ],
-    "created_at": "2026-08-10T08:21:39.802411+00:00",
-    "updated_at": "2026-08-10T08:21:39.802436+00:00"
+    "created_at": "2026-08-10T20:18:12.989777+00:00",
+    "updated_at": "2026-08-10T20:18:12.989786+00:00"
   },
   {
-    "id": "f03cac83-9555-4ef1-806f-241ba97deab2",
+    "id": "5cce9983-8744-4454-883a-edbd702b28cd",
     "type": "lesson",
-    "title": "Task completed: Test task",
+    "title": "Lesson 3 about performance",
     "status": "accepted",
     "tags": [
-      "task-completion",
-      "quality"
+      "performance",
+      "module-3"
     ],
-    "created_at": "2026-08-10T08:23:33.984929+00:00",
-    "updated_at": "2026-08-10T08:23:33.984950+00:00"
+    "created_at": "2026-08-10T20:18:12.990950+00:00",
+    "updated_at": "2026-08-10T20:18:12.990959+00:00"
   },
   {
-    "id": "790176e1-f367-417f-a24a-a0fdcfd28188",
+    "id": "a689075d-475f-41cc-8331-3c8aa1c99890",
     "type": "lesson",
-    "title": "Task completed: Test task",
+    "title": "Lesson 4 about performance",
     "status": "accepted",
     "tags": [
-      "task-completion",
-      "quality"
+      "performance",
+      "module-4"
     ],
-    "created_at": "2026-08-10T08:28:37.005731+00:00",
-    "updated_at": "2026-08-10T08:28:37.005754+00:00"
+    "created_at": "2026-08-10T20:18:12.992073+00:00",
+    "updated_at": "2026-08-10T20:18:12.992079+00:00"
   },
   {
-    "id": "57092499-3337-41fa-8374-b7d199094428",
+    "id": "bcb249f7-1931-4ec9-8e3e-8d46867fc4be",
     "type": "lesson",
-    "title": "Task completed: Test task",
+    "title": "Lesson 5 about performance",
     "status": "accepted",
     "tags": [
-      "task-completion",
-      "quality"
+      "performance",
+      "module-5"
     ],
-    "created_at": "2026-08-10T08:30:23.598624+00:00",
-    "updated_at": "2026-08-10T08:30:23.598644+00:00"
+    "created_at": "2026-08-10T20:18:12.993219+00:00",
+    "updated_at": "2026-08-10T20:18:12.993225+00:00"
   },
   {
-    "id": "81d9014f-4d7b-49af-a1ad-9623699f36e9",
+    "id": "f6868098-f1a0-47d6-99a9-c3321d6b3087",
     "type": "lesson",
-    "title": "Task completed: Test task",
+    "title": "Lesson 6 about performance",
     "status": "accepted",
     "tags": [
-      "task-completion",
-      "quality"
+      "performance",
+      "module-6"
     ],
-    "created_at": "2026-08-10T08:32:37.493476+00:00",
-    "updated_at": "2026-08-10T08:32:37.493493+00:00"
+    "created_at": "2026-08-10T20:18:12.994353+00:00",
+    "updated_at": "2026-08-10T20:18:12.994362+00:00"
   },
   {
-    "id": "9669e670-abaa-41c7-aaf1-e0decd935772",
+    "id": "14d8ed7f-b751-45d4-a25d-66883fc26061",
     "type": "lesson",
-    "title": "Task completed: Test task",
+    "title": "Lesson 7 about performance",
     "status": "accepted",
     "tags": [
-      "task-completion",
-      "quality"
+      "performance",
+      "module-7"
     ],
-    "created_at": "2026-08-10T08:57:42.865060+00:00",
-    "updated_at": "2026-08-10T08:57:42.865085+00:00"
+    "created_at": "2026-08-10T20:18:12.996127+00:00",
+    "updated_at": "2026-08-10T20:18:12.996136+00:00"
   },
   {
-    "id": "8dc27ced-e936-46b1-a60b-05b27c376c45",
+    "id": "10d1b4be-9ed3-47e3-9f43-745cc5e3f035",
     "type": "lesson",
-    "title": "Task completed: Test task",
+    "title": "Lesson 8 about performance",
     "status": "accepted",
     "tags": [
-      "task-completion",
-      "quality"
+      "performance",
+      "module-8"
     ],
-    "created_at": "2026-08-10T08:59:46.008963+00:00",
-    "updated_at": "2026-08-10T08:59:46.008997+00:00"
+    "created_at": "2026-08-10T20:18:12.997364+00:00",
+    "updated_at": "2026-08-10T20:18:12.997370+00:00"
   },
   {
-    "id": "df1b1b85-2a7d-48a4-a9df-7b97104377ac",
+    "id": "086d5a6c-617a-4cfd-8935-183ea305ab55",
     "type": "lesson",
-    "title": "Task completed: Test task",
+    "title": "Lesson 9 about performance",
     "status": "accepted",
     "tags": [
-      "task-completion",
-      "quality"
+      "performance",
+      "module-9"
     ],
-    "created_at": "2026-08-10T09:01:51.925404+00:00",
-    "updated_at": "2026-08-10T09:01:51.925424+00:00"
+    "created_at": "2026-08-10T20:18:12.999146+00:00",
+    "updated_at": "2026-08-10T20:18:12.999153+00:00"
   },
   {
-    "id": "357125dd-0ed9-49ed-b62b-24aa790f6b00",
+    "id": "3a44da20-4489-4284-a963-03ca534601cb",
     "type": "lesson",
-    "title": "Task completed: Test task",
+    "title": "Lesson 10 about performance",
     "status": "accepted",
     "tags": [
-      "task-completion",
-      "quality"
+      "performance",
+      "module-10"
     ],
-    "created_at": "2026-08-10T09:03:54.648331+00:00",
-    "updated_at": "2026-08-10T09:03:54.648353+00:00"
+    "created_at": "2026-08-10T20:18:13.000337+00:00",
+    "updated_at": "2026-08-10T20:18:13.000343+00:00"
   },
   {
-    "id": "af19d93b-f90d-4e26-b9e2-0047bdfd77c9",
+    "id": "35edf899-d349-4574-8200-4d332b492553",
     "type": "lesson",
-    "title": "Task completed: Test task",
+    "title": "Lesson 11 about performance",
     "status": "accepted",
     "tags": [
-      "task-completion",
-      "quality"
+      "performance",
+      "module-11"
     ],
-    "created_at": "2026-08-10T09:06:01.597954+00:00",
-    "updated_at": "2026-08-10T09:06:01.597990+00:00"
+    "created_at": "2026-08-10T20:18:13.001562+00:00",
+    "updated_at": "2026-08-10T20:18:13.001567+00:00"
   },
   {
-    "id": "0863fe0c-e362-46af-83ee-06928462433c",
+    "id": "c66ad549-55c8-4fca-a7f6-d99a719da2eb",
     "type": "lesson",
-    "title": "Task completed: Test task",
+    "title": "Lesson 12 about performance",
     "status": "accepted",
     "tags": [
-      "task-completion",
-      "quality"
+      "performance",
+      "module-12"
     ],
-    "created_at": "2026-08-10T09:08:08.122604+00:00",
-    "updated_at": "2026-08-10T09:08:08.122623+00:00"
+    "created_at": "2026-08-10T20:18:13.002827+00:00",
+    "updated_at": "2026-08-10T20:18:13.002837+00:00"
   },
   {
-    "id": "0f1e9e83-037a-4923-a86b-0f6a9675ca69",
+    "id": "901c98ba-2603-48b3-bd06-888da956bd47",
     "type": "lesson",
-    "title": "Task completed: Test task",
+    "title": "Lesson 13 about performance",
     "status": "accepted",
     "tags": [
-      "task-completion",
-      "quality"
+      "performance",
+      "module-13"
     ],
-    "created_at": "2026-08-10T09:11:21.176843+00:00",
-    "updated_at": "2026-08-10T09:11:21.176868+00:00"
+    "created_at": "2026-08-10T20:18:13.004007+00:00",
+    "updated_at": "2026-08-10T20:18:13.004016+00:00"
   },
   {
-    "id": "17919092-5f92-4ea8-aff2-b7c463b6f2a5",
+    "id": "05d4caca-eace-4ff7-b62d-f961cb7449e1",
     "type": "lesson",
-    "title": "Task completed: Test task",
+    "title": "Lesson 14 about performance",
     "status": "accepted",
     "tags": [
-      "task-completion",
-      "quality"
+      "performance",
+      "module-14"
     ],
-    "created_at": "2026-08-10T09:13:26.115794+00:00",
-    "updated_at": "2026-08-10T09:13:26.115814+00:00"
+    "created_at": "2026-08-10T20:18:13.005219+00:00",
+    "updated_at": "2026-08-10T20:18:13.005224+00:00"
   },
   {
-    "id": "49049b7f-8fdd-448a-a421-657a791c89e2",
+    "id": "651e0f32-3302-4727-a052-4acad16f252a",
+    "type": "lesson",
+    "title": "Lesson 15 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-15"
+    ],
+    "created_at": "2026-08-10T20:18:13.006421+00:00",
+    "updated_at": "2026-08-10T20:18:13.006429+00:00"
+  },
+  {
+    "id": "962cd696-6d07-43ce-9ff7-b007f6f11f95",
+    "type": "lesson",
+    "title": "Lesson 16 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-16"
+    ],
+    "created_at": "2026-08-10T20:18:13.007705+00:00",
+    "updated_at": "2026-08-10T20:18:13.007710+00:00"
+  },
+  {
+    "id": "e41db5bb-0d08-4bea-8be8-a14e0eb5e437",
+    "type": "lesson",
+    "title": "Lesson 17 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-17"
+    ],
+    "created_at": "2026-08-10T20:18:13.009077+00:00",
+    "updated_at": "2026-08-10T20:18:13.009086+00:00"
+  },
+  {
+    "id": "12420725-ace3-4ca4-ad5f-0e8130be660a",
+    "type": "lesson",
+    "title": "Lesson 18 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-18"
+    ],
+    "created_at": "2026-08-10T20:18:13.011006+00:00",
+    "updated_at": "2026-08-10T20:18:13.011016+00:00"
+  },
+  {
+    "id": "e57d3218-6e29-4e7a-a0d5-0f012bfd8e6f",
+    "type": "lesson",
+    "title": "Lesson 19 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-19"
+    ],
+    "created_at": "2026-08-10T20:18:13.012832+00:00",
+    "updated_at": "2026-08-10T20:18:13.012840+00:00"
+  },
+  {
+    "id": "d648d1a6-42e9-447b-893f-91d2aa98d59a",
+    "type": "lesson",
+    "title": "Lesson 20 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-20"
+    ],
+    "created_at": "2026-08-10T20:18:13.014277+00:00",
+    "updated_at": "2026-08-10T20:18:13.014287+00:00"
+  },
+  {
+    "id": "8b95da4d-3988-4277-8ddb-aa3a16dc12d7",
+    "type": "lesson",
+    "title": "Lesson 21 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-21"
+    ],
+    "created_at": "2026-08-10T20:18:13.015743+00:00",
+    "updated_at": "2026-08-10T20:18:13.015753+00:00"
+  },
+  {
+    "id": "79d3fe5c-047b-4fb6-a6de-af0b8967ed09",
+    "type": "lesson",
+    "title": "Lesson 22 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-22"
+    ],
+    "created_at": "2026-08-10T20:18:13.017083+00:00",
+    "updated_at": "2026-08-10T20:18:13.017093+00:00"
+  },
+  {
+    "id": "72b3e6a4-df59-4f3e-b13f-f69c98a3ab5e",
+    "type": "lesson",
+    "title": "Lesson 23 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-23"
+    ],
+    "created_at": "2026-08-10T20:18:13.019250+00:00",
+    "updated_at": "2026-08-10T20:18:13.019257+00:00"
+  },
+  {
+    "id": "cb79b6d6-aaa6-4edd-b4c9-79182cf19c1a",
+    "type": "lesson",
+    "title": "Lesson 24 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-24"
+    ],
+    "created_at": "2026-08-10T20:18:13.020510+00:00",
+    "updated_at": "2026-08-10T20:18:13.020518+00:00"
+  },
+  {
+    "id": "9d42a1ca-994c-41b7-9521-bed5254eeb31",
+    "type": "lesson",
+    "title": "Lesson 25 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-25"
+    ],
+    "created_at": "2026-08-10T20:18:13.021855+00:00",
+    "updated_at": "2026-08-10T20:18:13.021865+00:00"
+  },
+  {
+    "id": "83d4f65a-daca-4962-9c68-04709a97d2e8",
+    "type": "lesson",
+    "title": "Lesson 26 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-26"
+    ],
+    "created_at": "2026-08-10T20:18:13.023429+00:00",
+    "updated_at": "2026-08-10T20:18:13.023442+00:00"
+  },
+  {
+    "id": "0475a1d4-c838-403f-b3f7-02803d4a869a",
+    "type": "lesson",
+    "title": "Lesson 27 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-27"
+    ],
+    "created_at": "2026-08-10T20:18:13.025903+00:00",
+    "updated_at": "2026-08-10T20:18:13.025911+00:00"
+  },
+  {
+    "id": "d3cb411b-b166-4ef1-895b-9cf605aa2b22",
+    "type": "lesson",
+    "title": "Lesson 28 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-28"
+    ],
+    "created_at": "2026-08-10T20:18:13.028295+00:00",
+    "updated_at": "2026-08-10T20:18:13.028302+00:00"
+  },
+  {
+    "id": "2ef0c421-3fd8-4a07-af0a-c718203cc572",
+    "type": "lesson",
+    "title": "Lesson 29 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-29"
+    ],
+    "created_at": "2026-08-10T20:18:13.030078+00:00",
+    "updated_at": "2026-08-10T20:18:13.030084+00:00"
+  },
+  {
+    "id": "70aac2aa-58b9-49b4-b78b-529dc5663bb6",
+    "type": "lesson",
+    "title": "Lesson 30 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-30"
+    ],
+    "created_at": "2026-08-10T20:18:13.031388+00:00",
+    "updated_at": "2026-08-10T20:18:13.031393+00:00"
+  },
+  {
+    "id": "e9dcf9d4-1c7e-48db-b96c-662ae98e460d",
+    "type": "lesson",
+    "title": "Lesson 31 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-31"
+    ],
+    "created_at": "2026-08-10T20:18:13.032947+00:00",
+    "updated_at": "2026-08-10T20:18:13.032956+00:00"
+  },
+  {
+    "id": "bf8a4d15-1c1d-4869-8ba9-a5967d4fbe40",
+    "type": "lesson",
+    "title": "Lesson 32 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-32"
+    ],
+    "created_at": "2026-08-10T20:18:13.034392+00:00",
+    "updated_at": "2026-08-10T20:18:13.034400+00:00"
+  },
+  {
+    "id": "dc860aae-745f-4984-a4ba-ca0d9172d31c",
+    "type": "lesson",
+    "title": "Lesson 33 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-33"
+    ],
+    "created_at": "2026-08-10T20:18:13.035827+00:00",
+    "updated_at": "2026-08-10T20:18:13.035838+00:00"
+  },
+  {
+    "id": "a123435c-0ab3-4f12-876f-3fd75ead24d6",
+    "type": "lesson",
+    "title": "Lesson 34 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-34"
+    ],
+    "created_at": "2026-08-10T20:18:13.037384+00:00",
+    "updated_at": "2026-08-10T20:18:13.037394+00:00"
+  },
+  {
+    "id": "e6ea430b-5c02-4123-bec6-2f07f5808ffb",
+    "type": "lesson",
+    "title": "Lesson 35 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-35"
+    ],
+    "created_at": "2026-08-10T20:18:13.038860+00:00",
+    "updated_at": "2026-08-10T20:18:13.038871+00:00"
+  },
+  {
+    "id": "eff42ff6-d2ab-429d-949c-c027f643e5ed",
+    "type": "lesson",
+    "title": "Lesson 36 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-36"
+    ],
+    "created_at": "2026-08-10T20:18:13.040609+00:00",
+    "updated_at": "2026-08-10T20:18:13.040618+00:00"
+  },
+  {
+    "id": "498c50c8-d27c-4672-84e3-c4697d7421b4",
+    "type": "lesson",
+    "title": "Lesson 37 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-37"
+    ],
+    "created_at": "2026-08-10T20:18:13.042293+00:00",
+    "updated_at": "2026-08-10T20:18:13.042301+00:00"
+  },
+  {
+    "id": "9f85c43a-f80f-45e7-bbbb-0865c579e8f8",
+    "type": "lesson",
+    "title": "Lesson 38 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-38"
+    ],
+    "created_at": "2026-08-10T20:18:13.043721+00:00",
+    "updated_at": "2026-08-10T20:18:13.043733+00:00"
+  },
+  {
+    "id": "671f2c61-5932-4c72-b2d9-617f933afa74",
+    "type": "lesson",
+    "title": "Lesson 39 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-39"
+    ],
+    "created_at": "2026-08-10T20:18:13.045186+00:00",
+    "updated_at": "2026-08-10T20:18:13.045193+00:00"
+  },
+  {
+    "id": "87bbfc10-175d-4cdf-8473-a3685e41edbb",
+    "type": "lesson",
+    "title": "Lesson 40 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-40"
+    ],
+    "created_at": "2026-08-10T20:18:13.046742+00:00",
+    "updated_at": "2026-08-10T20:18:13.046749+00:00"
+  },
+  {
+    "id": "0bf53cb1-d849-4574-84f3-963de01e670b",
+    "type": "lesson",
+    "title": "Lesson 41 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-41"
+    ],
+    "created_at": "2026-08-10T20:18:13.048152+00:00",
+    "updated_at": "2026-08-10T20:18:13.048156+00:00"
+  },
+  {
+    "id": "b5df3f3c-c380-48ad-9048-5601503d5038",
+    "type": "lesson",
+    "title": "Lesson 42 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-42"
+    ],
+    "created_at": "2026-08-10T20:18:13.049899+00:00",
+    "updated_at": "2026-08-10T20:18:13.049907+00:00"
+  },
+  {
+    "id": "629824a0-4564-410b-9976-615199fe66b0",
+    "type": "lesson",
+    "title": "Lesson 43 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-43"
+    ],
+    "created_at": "2026-08-10T20:18:13.051438+00:00",
+    "updated_at": "2026-08-10T20:18:13.051447+00:00"
+  },
+  {
+    "id": "9df7e7bd-2e8c-4a9f-8092-d188975ea158",
+    "type": "lesson",
+    "title": "Lesson 44 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-44"
+    ],
+    "created_at": "2026-08-10T20:18:13.052847+00:00",
+    "updated_at": "2026-08-10T20:18:13.052855+00:00"
+  },
+  {
+    "id": "1e45d857-cfbc-4cce-973f-a250eec8867f",
+    "type": "lesson",
+    "title": "Lesson 45 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-45"
+    ],
+    "created_at": "2026-08-10T20:18:13.054248+00:00",
+    "updated_at": "2026-08-10T20:18:13.054257+00:00"
+  },
+  {
+    "id": "84420e1f-ec06-46f8-837e-36d6fe9c162f",
+    "type": "lesson",
+    "title": "Lesson 46 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-46"
+    ],
+    "created_at": "2026-08-10T20:18:13.055754+00:00",
+    "updated_at": "2026-08-10T20:18:13.055760+00:00"
+  },
+  {
+    "id": "ea9af42b-de21-4834-b30a-f0fc1d2c8ecd",
+    "type": "lesson",
+    "title": "Lesson 47 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-47"
+    ],
+    "created_at": "2026-08-10T20:18:13.057332+00:00",
+    "updated_at": "2026-08-10T20:18:13.057341+00:00"
+  },
+  {
+    "id": "5400ec0f-a23c-4626-a4ba-e866f536448f",
+    "type": "lesson",
+    "title": "Lesson 48 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-48"
+    ],
+    "created_at": "2026-08-10T20:18:13.058844+00:00",
+    "updated_at": "2026-08-10T20:18:13.058852+00:00"
+  },
+  {
+    "id": "307d3003-b891-4ff9-b735-732a2803b761",
+    "type": "lesson",
+    "title": "Lesson 49 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-49"
+    ],
+    "created_at": "2026-08-10T20:18:13.060474+00:00",
+    "updated_at": "2026-08-10T20:18:13.060484+00:00"
+  },
+  {
+    "id": "ba8e8409-b0c1-4c9e-9e0c-d2c2d38d2774",
+    "type": "lesson",
+    "title": "Seed 0",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:18:13.082384+00:00",
+    "updated_at": "2026-08-10T20:18:13.082394+00:00"
+  },
+  {
+    "id": "3c4ca8e9-3601-43ae-ac6a-8f825f48e96d",
+    "type": "lesson",
+    "title": "Seed 1",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:18:13.084126+00:00",
+    "updated_at": "2026-08-10T20:18:13.084136+00:00"
+  },
+  {
+    "id": "ca14f5d1-6125-40c0-adb0-d00c5dc349ec",
+    "type": "lesson",
+    "title": "Seed 2",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:18:13.085717+00:00",
+    "updated_at": "2026-08-10T20:18:13.085734+00:00"
+  },
+  {
+    "id": "419e332f-58d4-4a0e-81fc-87a71def1d7d",
+    "type": "lesson",
+    "title": "Seed 3",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:18:13.087259+00:00",
+    "updated_at": "2026-08-10T20:18:13.087265+00:00"
+  },
+  {
+    "id": "afbd4a7e-6ce3-4662-a4cc-03d7277da9fa",
+    "type": "lesson",
+    "title": "Seed 4",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:18:13.088886+00:00",
+    "updated_at": "2026-08-10T20:18:13.088894+00:00"
+  },
+  {
+    "id": "a85644a4-85c9-4ba8-9964-fe43405ca342",
+    "type": "lesson",
+    "title": "Seed 5",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:18:13.090624+00:00",
+    "updated_at": "2026-08-10T20:18:13.090633+00:00"
+  },
+  {
+    "id": "92e0befc-aa91-40b4-a3d2-e4e5357bb8b1",
+    "type": "lesson",
+    "title": "Seed 6",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:18:13.092270+00:00",
+    "updated_at": "2026-08-10T20:18:13.092277+00:00"
+  },
+  {
+    "id": "300a485c-9c01-41ef-b444-789109b076a5",
+    "type": "lesson",
+    "title": "Seed 7",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:18:13.093898+00:00",
+    "updated_at": "2026-08-10T20:18:13.093907+00:00"
+  },
+  {
+    "id": "31ef5212-d483-4660-a825-ee93d2fdaa21",
+    "type": "lesson",
+    "title": "Seed 8",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:18:13.095483+00:00",
+    "updated_at": "2026-08-10T20:18:13.095494+00:00"
+  },
+  {
+    "id": "a6585e9f-237c-4aa6-a76e-d8eec04f1a1d",
+    "type": "lesson",
+    "title": "Seed 9",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:18:13.097556+00:00",
+    "updated_at": "2026-08-10T20:18:13.097567+00:00"
+  },
+  {
+    "id": "1bf2905f-9413-4cb2-bb6d-dce0af266abc",
+    "type": "lesson",
+    "title": "Concurrent 0",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:18:13.100131+00:00",
+    "updated_at": "2026-08-10T20:18:13.100140+00:00"
+  },
+  {
+    "id": "f95d85ea-4eb1-4659-87a3-e3226482db07",
+    "type": "lesson",
+    "title": "Concurrent 1",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:18:13.102217+00:00",
+    "updated_at": "2026-08-10T20:18:13.102231+00:00"
+  },
+  {
+    "id": "af141917-0ee4-4c13-a64f-d9a4d69c20a7",
+    "type": "lesson",
+    "title": "Concurrent 2",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:18:13.104129+00:00",
+    "updated_at": "2026-08-10T20:18:13.104141+00:00"
+  },
+  {
+    "id": "83111f62-6eca-49c0-8b83-bc4b33093748",
+    "type": "lesson",
+    "title": "Concurrent 3",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:18:13.109530+00:00",
+    "updated_at": "2026-08-10T20:18:13.109543+00:00"
+  },
+  {
+    "id": "f20c1ac5-42f7-425d-bf2c-811940c7c7fb",
+    "type": "lesson",
+    "title": "Concurrent 4",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:18:13.116916+00:00",
+    "updated_at": "2026-08-10T20:18:13.116930+00:00"
+  },
+  {
+    "id": "6abeb5d1-cc8f-47e5-955c-a451b7cd266a",
     "type": "lesson",
     "title": "Task completed: Test task",
     "status": "accepted",
@@ -1336,7 +1891,1597 @@
       "task-completion",
       "quality"
     ],
-    "created_at": "2026-08-10T09:14:59.962025+00:00",
-    "updated_at": "2026-08-10T09:14:59.962049+00:00"
+    "created_at": "2026-08-10T20:19:54.137922+00:00",
+    "updated_at": "2026-08-10T20:19:54.137941+00:00"
+  },
+  {
+    "id": "58f5a9bb-0f97-4195-9929-cda8d0ed35a2",
+    "type": "lesson",
+    "title": "Task completed: Test task",
+    "status": "accepted",
+    "tags": [
+      "task-completion",
+      "quality"
+    ],
+    "created_at": "2026-08-10T20:21:27.383854+00:00",
+    "updated_at": "2026-08-10T20:21:27.383877+00:00"
+  },
+  {
+    "id": "d69fe493-138b-46fa-8870-9397a50c8e1f",
+    "type": "lesson",
+    "title": "Task completed: Test task",
+    "status": "accepted",
+    "tags": [
+      "task-completion",
+      "quality"
+    ],
+    "created_at": "2026-08-10T20:23:01.088126+00:00",
+    "updated_at": "2026-08-10T20:23:01.088151+00:00"
+  },
+  {
+    "id": "3c78435d-5ee0-4be0-98af-fdd6bcf435b2",
+    "type": "lesson",
+    "title": "Task completed: Test task",
+    "status": "accepted",
+    "tags": [
+      "task-completion",
+      "quality"
+    ],
+    "created_at": "2026-08-10T20:24:35.231517+00:00",
+    "updated_at": "2026-08-10T20:24:35.231535+00:00"
+  },
+  {
+    "id": "7697851d-3678-4a3c-9c00-d0271e0b456d",
+    "type": "lesson",
+    "title": "Task completed: Test task",
+    "status": "accepted",
+    "tags": [
+      "task-completion",
+      "quality"
+    ],
+    "created_at": "2026-08-10T20:26:08.779857+00:00",
+    "updated_at": "2026-08-10T20:26:08.779876+00:00"
+  },
+  {
+    "id": "3fa1fca9-858e-462a-9058-05cc060f80e1",
+    "type": "lesson",
+    "title": "Task completed: Test task",
+    "status": "accepted",
+    "tags": [
+      "task-completion",
+      "quality"
+    ],
+    "created_at": "2026-08-10T20:27:42.531477+00:00",
+    "updated_at": "2026-08-10T20:27:42.531502+00:00"
+  },
+  {
+    "id": "3363a0a1-e0e4-40ae-8bcf-ab815d9aa97c",
+    "type": "lesson",
+    "title": "Task completed: Test task",
+    "status": "accepted",
+    "tags": [
+      "task-completion",
+      "quality"
+    ],
+    "created_at": "2026-08-10T20:29:21.117799+00:00",
+    "updated_at": "2026-08-10T20:29:21.117817+00:00"
+  },
+  {
+    "id": "332ada13-20db-4b5e-a4bc-77d2fe7fe184",
+    "type": "lesson",
+    "title": "Task completed: Test task",
+    "status": "accepted",
+    "tags": [
+      "task-completion",
+      "quality"
+    ],
+    "created_at": "2026-08-10T20:31:59.837032+00:00",
+    "updated_at": "2026-08-10T20:31:59.837048+00:00"
+  },
+  {
+    "id": "2d0eb8e7-d9b3-4f7c-b539-079d4b4a3b52",
+    "type": "lesson",
+    "title": "Task completed: Test task",
+    "status": "accepted",
+    "tags": [
+      "task-completion",
+      "quality"
+    ],
+    "created_at": "2026-08-10T20:33:27.520052+00:00",
+    "updated_at": "2026-08-10T20:33:27.520074+00:00"
+  },
+  {
+    "id": "d0f59a95-5be0-4020-9e22-4c252f5617b5",
+    "type": "lesson",
+    "title": "Task completed: Test task",
+    "status": "accepted",
+    "tags": [
+      "task-completion",
+      "quality"
+    ],
+    "created_at": "2026-08-10T20:35:03.661024+00:00",
+    "updated_at": "2026-08-10T20:35:03.661045+00:00"
+  },
+  {
+    "id": "f30ea117-55d7-41a4-82b1-6ceec05b4852",
+    "type": "lesson",
+    "title": "Lesson 0 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-0"
+    ],
+    "created_at": "2026-08-10T20:36:23.490451+00:00",
+    "updated_at": "2026-08-10T20:36:23.490463+00:00"
+  },
+  {
+    "id": "cbc61568-5464-413c-a15b-f8e781f524f9",
+    "type": "lesson",
+    "title": "Lesson 1 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-1"
+    ],
+    "created_at": "2026-08-10T20:36:23.492434+00:00",
+    "updated_at": "2026-08-10T20:36:23.492448+00:00"
+  },
+  {
+    "id": "1e1077c1-218d-4d89-bc10-f22583a7cb08",
+    "type": "lesson",
+    "title": "Lesson 2 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-2"
+    ],
+    "created_at": "2026-08-10T20:36:23.494325+00:00",
+    "updated_at": "2026-08-10T20:36:23.494333+00:00"
+  },
+  {
+    "id": "4a6babe7-6264-495a-9505-c1e56e9d417c",
+    "type": "lesson",
+    "title": "Lesson 3 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-3"
+    ],
+    "created_at": "2026-08-10T20:36:23.502158+00:00",
+    "updated_at": "2026-08-10T20:36:23.502168+00:00"
+  },
+  {
+    "id": "75e513ff-1e50-4700-ac15-09d956582c3d",
+    "type": "lesson",
+    "title": "Lesson 4 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-4"
+    ],
+    "created_at": "2026-08-10T20:36:23.503916+00:00",
+    "updated_at": "2026-08-10T20:36:23.503923+00:00"
+  },
+  {
+    "id": "cece96da-2b0b-491a-8ecb-e3002cd610c3",
+    "type": "lesson",
+    "title": "Lesson 5 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-5"
+    ],
+    "created_at": "2026-08-10T20:36:23.505596+00:00",
+    "updated_at": "2026-08-10T20:36:23.505601+00:00"
+  },
+  {
+    "id": "939b436d-9471-4a6a-8945-7a2070f2e6ef",
+    "type": "lesson",
+    "title": "Lesson 6 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-6"
+    ],
+    "created_at": "2026-08-10T20:36:23.507414+00:00",
+    "updated_at": "2026-08-10T20:36:23.507425+00:00"
+  },
+  {
+    "id": "711f96a3-ca72-4125-87ef-09d3dd8001cd",
+    "type": "lesson",
+    "title": "Lesson 7 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-7"
+    ],
+    "created_at": "2026-08-10T20:36:23.509162+00:00",
+    "updated_at": "2026-08-10T20:36:23.509168+00:00"
+  },
+  {
+    "id": "d5d00835-51c4-4893-9198-dd8c2500aa54",
+    "type": "lesson",
+    "title": "Lesson 8 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-8"
+    ],
+    "created_at": "2026-08-10T20:36:23.510899+00:00",
+    "updated_at": "2026-08-10T20:36:23.510906+00:00"
+  },
+  {
+    "id": "19606e0e-31c9-40bd-be5e-549cefe9f135",
+    "type": "lesson",
+    "title": "Lesson 9 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-9"
+    ],
+    "created_at": "2026-08-10T20:36:23.512591+00:00",
+    "updated_at": "2026-08-10T20:36:23.512597+00:00"
+  },
+  {
+    "id": "02d24644-4fab-4938-a633-4fedb6e47817",
+    "type": "lesson",
+    "title": "Lesson 10 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-10"
+    ],
+    "created_at": "2026-08-10T20:36:23.514338+00:00",
+    "updated_at": "2026-08-10T20:36:23.514344+00:00"
+  },
+  {
+    "id": "b442c92b-a1e1-4ce2-a216-5a637632061d",
+    "type": "lesson",
+    "title": "Lesson 11 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-11"
+    ],
+    "created_at": "2026-08-10T20:36:23.516198+00:00",
+    "updated_at": "2026-08-10T20:36:23.516204+00:00"
+  },
+  {
+    "id": "412ef68e-903c-4eb5-a5c1-bb05fb0da47a",
+    "type": "lesson",
+    "title": "Lesson 12 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-12"
+    ],
+    "created_at": "2026-08-10T20:36:23.517962+00:00",
+    "updated_at": "2026-08-10T20:36:23.517967+00:00"
+  },
+  {
+    "id": "ab2c6dad-f15e-46ac-ad08-3a2119eda767",
+    "type": "lesson",
+    "title": "Lesson 13 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-13"
+    ],
+    "created_at": "2026-08-10T20:36:23.519827+00:00",
+    "updated_at": "2026-08-10T20:36:23.519835+00:00"
+  },
+  {
+    "id": "f639fe1b-d522-4a95-85b2-3393c4365f3d",
+    "type": "lesson",
+    "title": "Lesson 14 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-14"
+    ],
+    "created_at": "2026-08-10T20:36:23.521678+00:00",
+    "updated_at": "2026-08-10T20:36:23.521684+00:00"
+  },
+  {
+    "id": "a17fa099-dc3a-4187-ac22-8ff40b6ac937",
+    "type": "lesson",
+    "title": "Lesson 15 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-15"
+    ],
+    "created_at": "2026-08-10T20:36:23.523562+00:00",
+    "updated_at": "2026-08-10T20:36:23.523572+00:00"
+  },
+  {
+    "id": "52d23e3e-0da2-4a21-aa40-a21671578c89",
+    "type": "lesson",
+    "title": "Lesson 16 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-16"
+    ],
+    "created_at": "2026-08-10T20:36:23.525342+00:00",
+    "updated_at": "2026-08-10T20:36:23.525347+00:00"
+  },
+  {
+    "id": "787880b1-f74c-4b0f-9116-688b4eb425f7",
+    "type": "lesson",
+    "title": "Lesson 17 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-17"
+    ],
+    "created_at": "2026-08-10T20:36:23.527171+00:00",
+    "updated_at": "2026-08-10T20:36:23.527177+00:00"
+  },
+  {
+    "id": "9b04e642-1d68-41f7-9ed3-22b5b63da12b",
+    "type": "lesson",
+    "title": "Lesson 18 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-18"
+    ],
+    "created_at": "2026-08-10T20:36:23.529046+00:00",
+    "updated_at": "2026-08-10T20:36:23.529052+00:00"
+  },
+  {
+    "id": "a79d6bda-6497-4513-b86c-2be59c8e9603",
+    "type": "lesson",
+    "title": "Lesson 19 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-19"
+    ],
+    "created_at": "2026-08-10T20:36:23.530886+00:00",
+    "updated_at": "2026-08-10T20:36:23.530892+00:00"
+  },
+  {
+    "id": "c1fc6655-1890-46b4-a547-a495e182220f",
+    "type": "lesson",
+    "title": "Lesson 20 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-20"
+    ],
+    "created_at": "2026-08-10T20:36:23.532734+00:00",
+    "updated_at": "2026-08-10T20:36:23.532740+00:00"
+  },
+  {
+    "id": "e8c8d84e-fccb-47ef-bdf1-ad0fc7da77d5",
+    "type": "lesson",
+    "title": "Lesson 21 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-21"
+    ],
+    "created_at": "2026-08-10T20:36:23.534646+00:00",
+    "updated_at": "2026-08-10T20:36:23.534652+00:00"
+  },
+  {
+    "id": "b01a6574-26da-426e-9e62-fa2b422e9a4a",
+    "type": "lesson",
+    "title": "Lesson 22 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-22"
+    ],
+    "created_at": "2026-08-10T20:36:23.536568+00:00",
+    "updated_at": "2026-08-10T20:36:23.536574+00:00"
+  },
+  {
+    "id": "d420d1f9-3026-4533-8cac-55f4e10f9c2f",
+    "type": "lesson",
+    "title": "Lesson 23 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-23"
+    ],
+    "created_at": "2026-08-10T20:36:23.538404+00:00",
+    "updated_at": "2026-08-10T20:36:23.538410+00:00"
+  },
+  {
+    "id": "a6a45a47-1dc6-42e9-877a-63db5402ce32",
+    "type": "lesson",
+    "title": "Lesson 24 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-24"
+    ],
+    "created_at": "2026-08-10T20:36:23.540363+00:00",
+    "updated_at": "2026-08-10T20:36:23.540371+00:00"
+  },
+  {
+    "id": "5e312775-aea8-466b-99c0-c667cd022413",
+    "type": "lesson",
+    "title": "Lesson 25 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-25"
+    ],
+    "created_at": "2026-08-10T20:36:23.542236+00:00",
+    "updated_at": "2026-08-10T20:36:23.542242+00:00"
+  },
+  {
+    "id": "fc7b0b96-5225-4a57-ba7b-356de4ba6610",
+    "type": "lesson",
+    "title": "Lesson 26 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-26"
+    ],
+    "created_at": "2026-08-10T20:36:23.544154+00:00",
+    "updated_at": "2026-08-10T20:36:23.544160+00:00"
+  },
+  {
+    "id": "c44b26dd-a131-49d7-a805-34f0091985db",
+    "type": "lesson",
+    "title": "Lesson 27 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-27"
+    ],
+    "created_at": "2026-08-10T20:36:23.546185+00:00",
+    "updated_at": "2026-08-10T20:36:23.546194+00:00"
+  },
+  {
+    "id": "59f93cfd-4448-4f53-9491-dbf352782eb5",
+    "type": "lesson",
+    "title": "Lesson 28 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-28"
+    ],
+    "created_at": "2026-08-10T20:36:23.548149+00:00",
+    "updated_at": "2026-08-10T20:36:23.548155+00:00"
+  },
+  {
+    "id": "0667a5d3-a3c2-4e3e-abdd-a91573a1f8fa",
+    "type": "lesson",
+    "title": "Lesson 29 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-29"
+    ],
+    "created_at": "2026-08-10T20:36:23.550095+00:00",
+    "updated_at": "2026-08-10T20:36:23.550106+00:00"
+  },
+  {
+    "id": "44c6640b-aeed-417a-a51f-c57220e12b36",
+    "type": "lesson",
+    "title": "Lesson 30 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-30"
+    ],
+    "created_at": "2026-08-10T20:36:23.552200+00:00",
+    "updated_at": "2026-08-10T20:36:23.552209+00:00"
+  },
+  {
+    "id": "3478131a-80b9-4f19-a14d-5a6d6665f26d",
+    "type": "lesson",
+    "title": "Lesson 31 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-31"
+    ],
+    "created_at": "2026-08-10T20:36:23.554299+00:00",
+    "updated_at": "2026-08-10T20:36:23.554306+00:00"
+  },
+  {
+    "id": "8d4ffe68-6d2c-401d-90a3-cd03dd8e603a",
+    "type": "lesson",
+    "title": "Lesson 32 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-32"
+    ],
+    "created_at": "2026-08-10T20:36:23.556347+00:00",
+    "updated_at": "2026-08-10T20:36:23.556353+00:00"
+  },
+  {
+    "id": "bd732098-e132-4b98-b491-f9f1ad2dd510",
+    "type": "lesson",
+    "title": "Lesson 33 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-33"
+    ],
+    "created_at": "2026-08-10T20:36:23.558259+00:00",
+    "updated_at": "2026-08-10T20:36:23.558264+00:00"
+  },
+  {
+    "id": "5a8b7299-5af0-4b14-89c7-73a58711017d",
+    "type": "lesson",
+    "title": "Lesson 34 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-34"
+    ],
+    "created_at": "2026-08-10T20:36:23.561156+00:00",
+    "updated_at": "2026-08-10T20:36:23.561163+00:00"
+  },
+  {
+    "id": "9f87c43e-abe3-401a-9663-529c5170236f",
+    "type": "lesson",
+    "title": "Lesson 35 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-35"
+    ],
+    "created_at": "2026-08-10T20:36:23.563158+00:00",
+    "updated_at": "2026-08-10T20:36:23.563166+00:00"
+  },
+  {
+    "id": "548486f6-9163-4e54-adc0-d0e6bd3b1258",
+    "type": "lesson",
+    "title": "Lesson 36 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-36"
+    ],
+    "created_at": "2026-08-10T20:36:23.565175+00:00",
+    "updated_at": "2026-08-10T20:36:23.565182+00:00"
+  },
+  {
+    "id": "111325d2-8b43-475b-b973-ec0cded49ec5",
+    "type": "lesson",
+    "title": "Lesson 37 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-37"
+    ],
+    "created_at": "2026-08-10T20:36:23.567097+00:00",
+    "updated_at": "2026-08-10T20:36:23.567104+00:00"
+  },
+  {
+    "id": "04904c7e-348e-47e6-a8f6-8262eb96d602",
+    "type": "lesson",
+    "title": "Lesson 38 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-38"
+    ],
+    "created_at": "2026-08-10T20:36:23.569171+00:00",
+    "updated_at": "2026-08-10T20:36:23.569177+00:00"
+  },
+  {
+    "id": "6326872a-c621-4a5c-8d09-5d79e2fc7788",
+    "type": "lesson",
+    "title": "Lesson 39 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-39"
+    ],
+    "created_at": "2026-08-10T20:36:23.571102+00:00",
+    "updated_at": "2026-08-10T20:36:23.571107+00:00"
+  },
+  {
+    "id": "6e0f6291-bd13-4749-8186-187d0a95c080",
+    "type": "lesson",
+    "title": "Lesson 40 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-40"
+    ],
+    "created_at": "2026-08-10T20:36:23.573051+00:00",
+    "updated_at": "2026-08-10T20:36:23.573058+00:00"
+  },
+  {
+    "id": "10fa82c4-3572-41b6-96d6-2e2c281a1202",
+    "type": "lesson",
+    "title": "Lesson 41 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-41"
+    ],
+    "created_at": "2026-08-10T20:36:23.575134+00:00",
+    "updated_at": "2026-08-10T20:36:23.575141+00:00"
+  },
+  {
+    "id": "3bb0201a-4aab-40be-bd51-6eb920a63cc6",
+    "type": "lesson",
+    "title": "Lesson 42 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-42"
+    ],
+    "created_at": "2026-08-10T20:36:23.577161+00:00",
+    "updated_at": "2026-08-10T20:36:23.577169+00:00"
+  },
+  {
+    "id": "6b930f87-5da0-47f7-be56-53eced5b25dd",
+    "type": "lesson",
+    "title": "Lesson 43 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-43"
+    ],
+    "created_at": "2026-08-10T20:36:23.579148+00:00",
+    "updated_at": "2026-08-10T20:36:23.579153+00:00"
+  },
+  {
+    "id": "5668b850-b312-42bc-8333-b3b8231425fa",
+    "type": "lesson",
+    "title": "Lesson 44 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-44"
+    ],
+    "created_at": "2026-08-10T20:36:23.581120+00:00",
+    "updated_at": "2026-08-10T20:36:23.581125+00:00"
+  },
+  {
+    "id": "deafc1d3-d924-4463-97d6-b787252b13bf",
+    "type": "lesson",
+    "title": "Lesson 45 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-45"
+    ],
+    "created_at": "2026-08-10T20:36:23.583086+00:00",
+    "updated_at": "2026-08-10T20:36:23.583091+00:00"
+  },
+  {
+    "id": "644efb22-6f2b-4176-8684-abafbe710d44",
+    "type": "lesson",
+    "title": "Lesson 46 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-46"
+    ],
+    "created_at": "2026-08-10T20:36:23.585118+00:00",
+    "updated_at": "2026-08-10T20:36:23.585124+00:00"
+  },
+  {
+    "id": "62d5309b-7d63-4ef2-a684-d1c92abe12f8",
+    "type": "lesson",
+    "title": "Lesson 47 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-47"
+    ],
+    "created_at": "2026-08-10T20:36:23.587185+00:00",
+    "updated_at": "2026-08-10T20:36:23.587191+00:00"
+  },
+  {
+    "id": "13124e30-cd2b-41ef-92ae-ddff3a943087",
+    "type": "lesson",
+    "title": "Lesson 48 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-48"
+    ],
+    "created_at": "2026-08-10T20:36:23.589268+00:00",
+    "updated_at": "2026-08-10T20:36:23.589273+00:00"
+  },
+  {
+    "id": "2ba89881-6bee-4290-b06d-8e4920a25ab3",
+    "type": "lesson",
+    "title": "Lesson 49 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-49"
+    ],
+    "created_at": "2026-08-10T20:36:23.591322+00:00",
+    "updated_at": "2026-08-10T20:36:23.591330+00:00"
+  },
+  {
+    "id": "cfd8d298-cb37-4268-9ca3-b01cf60184f6",
+    "type": "lesson",
+    "title": "Seed 0",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:36:23.621607+00:00",
+    "updated_at": "2026-08-10T20:36:23.621622+00:00"
+  },
+  {
+    "id": "051a95df-7198-48b6-8da5-dbc21ff125b0",
+    "type": "lesson",
+    "title": "Seed 1",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:36:23.623972+00:00",
+    "updated_at": "2026-08-10T20:36:23.623982+00:00"
+  },
+  {
+    "id": "9841deb6-b94e-45ca-951f-91c5df20ef1b",
+    "type": "lesson",
+    "title": "Seed 2",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:36:23.626158+00:00",
+    "updated_at": "2026-08-10T20:36:23.626164+00:00"
+  },
+  {
+    "id": "af5c737a-5b15-4b10-9593-40faafa74ac5",
+    "type": "lesson",
+    "title": "Seed 3",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:36:23.628276+00:00",
+    "updated_at": "2026-08-10T20:36:23.628282+00:00"
+  },
+  {
+    "id": "fe827fd4-a626-488b-85c2-958f21c3b7f2",
+    "type": "lesson",
+    "title": "Seed 4",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:36:23.630416+00:00",
+    "updated_at": "2026-08-10T20:36:23.630421+00:00"
+  },
+  {
+    "id": "9ee71c50-1d24-4c8f-8196-a8a07ed6b2e2",
+    "type": "lesson",
+    "title": "Seed 5",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:36:23.632710+00:00",
+    "updated_at": "2026-08-10T20:36:23.632716+00:00"
+  },
+  {
+    "id": "956732a5-3163-4ad3-9ade-57919ac9f5b9",
+    "type": "lesson",
+    "title": "Seed 6",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:36:23.634897+00:00",
+    "updated_at": "2026-08-10T20:36:23.634904+00:00"
+  },
+  {
+    "id": "f19a33b7-bde9-4680-8f76-2de42ee9c692",
+    "type": "lesson",
+    "title": "Seed 7",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:36:23.637066+00:00",
+    "updated_at": "2026-08-10T20:36:23.637072+00:00"
+  },
+  {
+    "id": "b7d5d886-62fd-4f0e-b868-97b61f7b9688",
+    "type": "lesson",
+    "title": "Seed 8",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:36:23.639352+00:00",
+    "updated_at": "2026-08-10T20:36:23.639363+00:00"
+  },
+  {
+    "id": "58319ccc-e0c6-4439-b5c2-a5d511fdcd1c",
+    "type": "lesson",
+    "title": "Seed 9",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:36:23.641529+00:00",
+    "updated_at": "2026-08-10T20:36:23.641536+00:00"
+  },
+  {
+    "id": "ba9e6ab1-67fd-4326-9690-b4673c500dea",
+    "type": "lesson",
+    "title": "Concurrent 0",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:36:23.644086+00:00",
+    "updated_at": "2026-08-10T20:36:23.644094+00:00"
+  },
+  {
+    "id": "60e58e7d-3a5a-4eaf-ad11-853845352c3e",
+    "type": "lesson",
+    "title": "Concurrent 1",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:36:23.646597+00:00",
+    "updated_at": "2026-08-10T20:36:23.646609+00:00"
+  },
+  {
+    "id": "def8efd5-4e47-4c4f-9842-8947f546db08",
+    "type": "lesson",
+    "title": "Concurrent 2",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:36:23.649054+00:00",
+    "updated_at": "2026-08-10T20:36:23.649061+00:00"
+  },
+  {
+    "id": "bd32a6d0-aa5d-4398-8ed6-d2539cac3e05",
+    "type": "lesson",
+    "title": "Concurrent 3",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:36:23.651500+00:00",
+    "updated_at": "2026-08-10T20:36:23.651507+00:00"
+  },
+  {
+    "id": "ef1f987e-b1b2-4828-8a46-b0b002b965db",
+    "type": "lesson",
+    "title": "Concurrent 4",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:36:23.653961+00:00",
+    "updated_at": "2026-08-10T20:36:23.653967+00:00"
+  },
+  {
+    "id": "2b462f5c-1b92-45c6-a53f-d36a49d623c0",
+    "type": "lesson",
+    "title": "Task completed: Test task",
+    "status": "accepted",
+    "tags": [
+      "task-completion",
+      "quality"
+    ],
+    "created_at": "2026-08-10T20:38:24.877388+00:00",
+    "updated_at": "2026-08-10T20:38:24.877404+00:00"
+  },
+  {
+    "id": "9b904bb0-2e19-4f5f-81cf-55e3bc7bbc74",
+    "type": "lesson",
+    "title": "Lesson 0 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-0"
+    ],
+    "created_at": "2026-08-10T20:39:42.709538+00:00",
+    "updated_at": "2026-08-10T20:39:42.709558+00:00"
+  },
+  {
+    "id": "2cf39a84-3075-4f67-952f-ca29cf4bd892",
+    "type": "lesson",
+    "title": "Lesson 1 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-1"
+    ],
+    "created_at": "2026-08-10T20:39:42.712166+00:00",
+    "updated_at": "2026-08-10T20:39:42.712178+00:00"
+  },
+  {
+    "id": "b3d8339b-19a0-4942-ae55-51e27153d799",
+    "type": "lesson",
+    "title": "Lesson 2 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-2"
+    ],
+    "created_at": "2026-08-10T20:39:42.715043+00:00",
+    "updated_at": "2026-08-10T20:39:42.715058+00:00"
+  },
+  {
+    "id": "b6bf943b-8de2-4161-a6ca-a8d1e5a8b12a",
+    "type": "lesson",
+    "title": "Lesson 3 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-3"
+    ],
+    "created_at": "2026-08-10T20:39:42.717558+00:00",
+    "updated_at": "2026-08-10T20:39:42.717572+00:00"
+  },
+  {
+    "id": "2764b2a3-dd9a-49f1-830d-51b88f3c3971",
+    "type": "lesson",
+    "title": "Lesson 4 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-4"
+    ],
+    "created_at": "2026-08-10T20:39:42.719965+00:00",
+    "updated_at": "2026-08-10T20:39:42.719975+00:00"
+  },
+  {
+    "id": "1a57fb03-a057-4760-a639-130ffa94cbd7",
+    "type": "lesson",
+    "title": "Lesson 5 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-5"
+    ],
+    "created_at": "2026-08-10T20:39:42.722378+00:00",
+    "updated_at": "2026-08-10T20:39:42.722391+00:00"
+  },
+  {
+    "id": "47181123-dc55-4fb0-b6b2-944bb7d53482",
+    "type": "lesson",
+    "title": "Lesson 6 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-6"
+    ],
+    "created_at": "2026-08-10T20:39:42.724900+00:00",
+    "updated_at": "2026-08-10T20:39:42.724914+00:00"
+  },
+  {
+    "id": "edaf5550-fa34-4722-afbe-98563325339a",
+    "type": "lesson",
+    "title": "Lesson 7 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-7"
+    ],
+    "created_at": "2026-08-10T20:39:42.727269+00:00",
+    "updated_at": "2026-08-10T20:39:42.727278+00:00"
+  },
+  {
+    "id": "f40a09ce-407a-47d5-b3fa-4c75d8ecc3b8",
+    "type": "lesson",
+    "title": "Lesson 8 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-8"
+    ],
+    "created_at": "2026-08-10T20:39:42.729600+00:00",
+    "updated_at": "2026-08-10T20:39:42.729608+00:00"
+  },
+  {
+    "id": "a1e20131-a51f-4ffa-8f4e-16c530e2c297",
+    "type": "lesson",
+    "title": "Lesson 9 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-9"
+    ],
+    "created_at": "2026-08-10T20:39:42.731951+00:00",
+    "updated_at": "2026-08-10T20:39:42.731959+00:00"
+  },
+  {
+    "id": "6f867dd9-d24d-4006-8dc8-e8de62031a5a",
+    "type": "lesson",
+    "title": "Lesson 10 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-10"
+    ],
+    "created_at": "2026-08-10T20:39:42.734363+00:00",
+    "updated_at": "2026-08-10T20:39:42.734374+00:00"
+  },
+  {
+    "id": "457ffb81-7aa8-45f4-9239-f5fd8b43d378",
+    "type": "lesson",
+    "title": "Lesson 11 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-11"
+    ],
+    "created_at": "2026-08-10T20:39:42.736753+00:00",
+    "updated_at": "2026-08-10T20:39:42.736762+00:00"
+  },
+  {
+    "id": "4d27e616-7d5d-4b75-a8b3-07c92acbbda5",
+    "type": "lesson",
+    "title": "Lesson 12 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-12"
+    ],
+    "created_at": "2026-08-10T20:39:42.739128+00:00",
+    "updated_at": "2026-08-10T20:39:42.739135+00:00"
+  },
+  {
+    "id": "55529099-4f20-4c89-a023-33d3635aff0c",
+    "type": "lesson",
+    "title": "Lesson 13 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-13"
+    ],
+    "created_at": "2026-08-10T20:39:42.741512+00:00",
+    "updated_at": "2026-08-10T20:39:42.741520+00:00"
+  },
+  {
+    "id": "a88e6001-c768-440b-a08f-dded142f7951",
+    "type": "lesson",
+    "title": "Lesson 14 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-14"
+    ],
+    "created_at": "2026-08-10T20:39:42.743932+00:00",
+    "updated_at": "2026-08-10T20:39:42.743943+00:00"
+  },
+  {
+    "id": "fadf5bad-559d-4492-9f97-990f5b1d29f6",
+    "type": "lesson",
+    "title": "Lesson 15 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-15"
+    ],
+    "created_at": "2026-08-10T20:39:42.746479+00:00",
+    "updated_at": "2026-08-10T20:39:42.746493+00:00"
+  },
+  {
+    "id": "3c5b3ac8-35eb-4e7e-9f9b-397b2a1e6868",
+    "type": "lesson",
+    "title": "Lesson 16 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-16"
+    ],
+    "created_at": "2026-08-10T20:39:42.748898+00:00",
+    "updated_at": "2026-08-10T20:39:42.748909+00:00"
+  },
+  {
+    "id": "c665c6c9-62c2-4247-b134-f507c3c27368",
+    "type": "lesson",
+    "title": "Lesson 17 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-17"
+    ],
+    "created_at": "2026-08-10T20:39:42.751408+00:00",
+    "updated_at": "2026-08-10T20:39:42.751418+00:00"
+  },
+  {
+    "id": "9ca044d0-1cf8-4c2d-b741-c3d0c6ae34c0",
+    "type": "lesson",
+    "title": "Lesson 18 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-18"
+    ],
+    "created_at": "2026-08-10T20:39:42.753871+00:00",
+    "updated_at": "2026-08-10T20:39:42.753880+00:00"
+  },
+  {
+    "id": "e7825f80-f2ac-473a-b0aa-96ac1149a94e",
+    "type": "lesson",
+    "title": "Lesson 19 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-19"
+    ],
+    "created_at": "2026-08-10T20:39:42.756341+00:00",
+    "updated_at": "2026-08-10T20:39:42.756351+00:00"
+  },
+  {
+    "id": "c665329b-455b-4d69-94b9-58e0e0912663",
+    "type": "lesson",
+    "title": "Lesson 20 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-20"
+    ],
+    "created_at": "2026-08-10T20:39:42.758821+00:00",
+    "updated_at": "2026-08-10T20:39:42.758831+00:00"
+  },
+  {
+    "id": "385c1b23-958f-4347-a5d9-0c4c43913f0e",
+    "type": "lesson",
+    "title": "Lesson 21 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-21"
+    ],
+    "created_at": "2026-08-10T20:39:42.761227+00:00",
+    "updated_at": "2026-08-10T20:39:42.761236+00:00"
+  },
+  {
+    "id": "97a3d9b1-510d-495d-9ac5-a8835063f544",
+    "type": "lesson",
+    "title": "Lesson 22 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-22"
+    ],
+    "created_at": "2026-08-10T20:39:42.763659+00:00",
+    "updated_at": "2026-08-10T20:39:42.763668+00:00"
+  },
+  {
+    "id": "f2bf29c3-ed90-4a78-bef4-7f3b7f1be30e",
+    "type": "lesson",
+    "title": "Lesson 23 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-23"
+    ],
+    "created_at": "2026-08-10T20:39:42.766377+00:00",
+    "updated_at": "2026-08-10T20:39:42.766389+00:00"
+  },
+  {
+    "id": "722f87e4-b5b0-48d5-8974-22dc15d9e560",
+    "type": "lesson",
+    "title": "Lesson 24 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-24"
+    ],
+    "created_at": "2026-08-10T20:39:42.768980+00:00",
+    "updated_at": "2026-08-10T20:39:42.768989+00:00"
+  },
+  {
+    "id": "4df96260-5e92-42f3-b30b-87da9ef6586e",
+    "type": "lesson",
+    "title": "Lesson 25 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-25"
+    ],
+    "created_at": "2026-08-10T20:39:42.771413+00:00",
+    "updated_at": "2026-08-10T20:39:42.771422+00:00"
+  },
+  {
+    "id": "c7dab030-11ef-42c2-9316-67e86e4acf5f",
+    "type": "lesson",
+    "title": "Lesson 26 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-26"
+    ],
+    "created_at": "2026-08-10T20:39:42.773865+00:00",
+    "updated_at": "2026-08-10T20:39:42.773875+00:00"
+  },
+  {
+    "id": "d577caec-5c3e-4378-a371-0fb1fcc5ba88",
+    "type": "lesson",
+    "title": "Lesson 27 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-27"
+    ],
+    "created_at": "2026-08-10T20:39:42.776283+00:00",
+    "updated_at": "2026-08-10T20:39:42.776292+00:00"
+  },
+  {
+    "id": "9718075a-7d88-4bf4-80a4-fee7105226e2",
+    "type": "lesson",
+    "title": "Lesson 28 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-28"
+    ],
+    "created_at": "2026-08-10T20:39:42.778811+00:00",
+    "updated_at": "2026-08-10T20:39:42.778823+00:00"
+  },
+  {
+    "id": "d2a7b253-b98b-4eaa-8fc3-4e2f6f70a009",
+    "type": "lesson",
+    "title": "Lesson 29 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-29"
+    ],
+    "created_at": "2026-08-10T20:39:42.781312+00:00",
+    "updated_at": "2026-08-10T20:39:42.781333+00:00"
+  },
+  {
+    "id": "b98315db-4fde-4d8a-97ab-80793054595f",
+    "type": "lesson",
+    "title": "Lesson 30 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-30"
+    ],
+    "created_at": "2026-08-10T20:39:42.783873+00:00",
+    "updated_at": "2026-08-10T20:39:42.783889+00:00"
+  },
+  {
+    "id": "2c63941e-2383-40b6-8959-888d7c44e5e6",
+    "type": "lesson",
+    "title": "Lesson 31 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-31"
+    ],
+    "created_at": "2026-08-10T20:39:42.786456+00:00",
+    "updated_at": "2026-08-10T20:39:42.786468+00:00"
+  },
+  {
+    "id": "444cda09-31c8-4331-9cdb-f930879512ff",
+    "type": "lesson",
+    "title": "Lesson 32 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-32"
+    ],
+    "created_at": "2026-08-10T20:39:42.789080+00:00",
+    "updated_at": "2026-08-10T20:39:42.789091+00:00"
+  },
+  {
+    "id": "36e7c320-ed9c-41b3-b805-d677ea919942",
+    "type": "lesson",
+    "title": "Lesson 33 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-33"
+    ],
+    "created_at": "2026-08-10T20:39:42.791812+00:00",
+    "updated_at": "2026-08-10T20:39:42.791822+00:00"
+  },
+  {
+    "id": "f076a836-c70a-483c-9294-3003b847af9f",
+    "type": "lesson",
+    "title": "Lesson 34 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-34"
+    ],
+    "created_at": "2026-08-10T20:39:42.794453+00:00",
+    "updated_at": "2026-08-10T20:39:42.794464+00:00"
+  },
+  {
+    "id": "8fe8dc37-a6df-4f3a-873e-30c9e204bc5a",
+    "type": "lesson",
+    "title": "Lesson 35 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-35"
+    ],
+    "created_at": "2026-08-10T20:39:42.797075+00:00",
+    "updated_at": "2026-08-10T20:39:42.797084+00:00"
+  },
+  {
+    "id": "232679da-c359-4275-9b36-7728101b50e0",
+    "type": "lesson",
+    "title": "Lesson 36 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-36"
+    ],
+    "created_at": "2026-08-10T20:39:42.799676+00:00",
+    "updated_at": "2026-08-10T20:39:42.799685+00:00"
+  },
+  {
+    "id": "e3798627-a8ac-4b78-9376-029c44b653d5",
+    "type": "lesson",
+    "title": "Lesson 37 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-37"
+    ],
+    "created_at": "2026-08-10T20:39:42.802259+00:00",
+    "updated_at": "2026-08-10T20:39:42.802267+00:00"
+  },
+  {
+    "id": "b0ed2141-223f-4f60-b8d0-e39a11da44f2",
+    "type": "lesson",
+    "title": "Lesson 38 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-38"
+    ],
+    "created_at": "2026-08-10T20:39:42.804879+00:00",
+    "updated_at": "2026-08-10T20:39:42.804887+00:00"
+  },
+  {
+    "id": "7d1702e8-9bb5-4716-b5cb-fdacafc54882",
+    "type": "lesson",
+    "title": "Lesson 39 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-39"
+    ],
+    "created_at": "2026-08-10T20:39:42.807489+00:00",
+    "updated_at": "2026-08-10T20:39:42.807501+00:00"
+  },
+  {
+    "id": "e55b55a2-8aa1-4e83-9648-663fc16d2818",
+    "type": "lesson",
+    "title": "Lesson 40 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-40"
+    ],
+    "created_at": "2026-08-10T20:39:42.810181+00:00",
+    "updated_at": "2026-08-10T20:39:42.810195+00:00"
+  },
+  {
+    "id": "e55106ea-d571-4b88-b8f2-7b6d93fd62fd",
+    "type": "lesson",
+    "title": "Lesson 41 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-41"
+    ],
+    "created_at": "2026-08-10T20:39:42.813292+00:00",
+    "updated_at": "2026-08-10T20:39:42.813306+00:00"
+  },
+  {
+    "id": "ddf8774c-a3c9-4506-a489-5fef84443b92",
+    "type": "lesson",
+    "title": "Lesson 42 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-42"
+    ],
+    "created_at": "2026-08-10T20:39:42.816226+00:00",
+    "updated_at": "2026-08-10T20:39:42.816239+00:00"
+  },
+  {
+    "id": "5ea0f329-d692-4ce4-8a7f-302fb65e02f8",
+    "type": "lesson",
+    "title": "Lesson 43 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-43"
+    ],
+    "created_at": "2026-08-10T20:39:42.819027+00:00",
+    "updated_at": "2026-08-10T20:39:42.819038+00:00"
+  },
+  {
+    "id": "40ae9026-51d5-4c0c-9ed0-bb95c0f3ed19",
+    "type": "lesson",
+    "title": "Lesson 44 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-44"
+    ],
+    "created_at": "2026-08-10T20:39:42.821825+00:00",
+    "updated_at": "2026-08-10T20:39:42.821837+00:00"
+  },
+  {
+    "id": "08806eac-4095-4004-b000-839d956049d0",
+    "type": "lesson",
+    "title": "Lesson 45 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-45"
+    ],
+    "created_at": "2026-08-10T20:39:42.824668+00:00",
+    "updated_at": "2026-08-10T20:39:42.824679+00:00"
+  },
+  {
+    "id": "c161a839-f418-4f09-99ed-5546578cc9c2",
+    "type": "lesson",
+    "title": "Lesson 46 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-46"
+    ],
+    "created_at": "2026-08-10T20:39:42.827404+00:00",
+    "updated_at": "2026-08-10T20:39:42.827414+00:00"
+  },
+  {
+    "id": "50e63021-edc1-4346-a7fe-775762ddf429",
+    "type": "lesson",
+    "title": "Lesson 47 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-47"
+    ],
+    "created_at": "2026-08-10T20:39:42.830189+00:00",
+    "updated_at": "2026-08-10T20:39:42.830203+00:00"
+  },
+  {
+    "id": "748f3fbb-d392-43bd-acbf-421d161c9bc9",
+    "type": "lesson",
+    "title": "Lesson 48 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-48"
+    ],
+    "created_at": "2026-08-10T20:39:42.833044+00:00",
+    "updated_at": "2026-08-10T20:39:42.833055+00:00"
+  },
+  {
+    "id": "bc3f9389-2a16-430b-829f-ed9a0f131582",
+    "type": "lesson",
+    "title": "Lesson 49 about performance",
+    "status": "accepted",
+    "tags": [
+      "performance",
+      "module-49"
+    ],
+    "created_at": "2026-08-10T20:39:42.835922+00:00",
+    "updated_at": "2026-08-10T20:39:42.835931+00:00"
+  },
+  {
+    "id": "fea000da-2006-454e-b059-d70fb33bc758",
+    "type": "lesson",
+    "title": "Seed 0",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:39:42.872054+00:00",
+    "updated_at": "2026-08-10T20:39:42.872067+00:00"
+  },
+  {
+    "id": "b2ee600f-4dc2-418a-8315-969a73cbfbbe",
+    "type": "lesson",
+    "title": "Seed 1",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:39:42.875051+00:00",
+    "updated_at": "2026-08-10T20:39:42.875064+00:00"
+  },
+  {
+    "id": "e9c3a298-db09-4492-b586-31283fa95637",
+    "type": "lesson",
+    "title": "Seed 2",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:39:42.877776+00:00",
+    "updated_at": "2026-08-10T20:39:42.877786+00:00"
+  },
+  {
+    "id": "ea4fbc98-feb1-4300-a0d1-3929d14513b9",
+    "type": "lesson",
+    "title": "Seed 3",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:39:42.880548+00:00",
+    "updated_at": "2026-08-10T20:39:42.880558+00:00"
+  },
+  {
+    "id": "27da0212-c58c-4704-96dc-d6f7288955f5",
+    "type": "lesson",
+    "title": "Seed 4",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:39:42.883258+00:00",
+    "updated_at": "2026-08-10T20:39:42.883269+00:00"
+  },
+  {
+    "id": "3c299c7f-5de6-45f6-a5c9-fd6edaf23ecf",
+    "type": "lesson",
+    "title": "Seed 5",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:39:42.886109+00:00",
+    "updated_at": "2026-08-10T20:39:42.886119+00:00"
+  },
+  {
+    "id": "9f7f9b06-2eb7-4783-83d4-0eaf89349740",
+    "type": "lesson",
+    "title": "Seed 6",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:39:42.888971+00:00",
+    "updated_at": "2026-08-10T20:39:42.888982+00:00"
+  },
+  {
+    "id": "260cd513-fe7f-4562-852d-a7665354bbbc",
+    "type": "lesson",
+    "title": "Seed 7",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:39:42.891840+00:00",
+    "updated_at": "2026-08-10T20:39:42.891851+00:00"
+  },
+  {
+    "id": "da73c26b-0652-443b-93c9-d09c7b4457bd",
+    "type": "lesson",
+    "title": "Seed 8",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:39:42.894666+00:00",
+    "updated_at": "2026-08-10T20:39:42.894675+00:00"
+  },
+  {
+    "id": "209629ab-739b-43a5-9f68-6f1c3cc67ea4",
+    "type": "lesson",
+    "title": "Seed 9",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:39:42.897568+00:00",
+    "updated_at": "2026-08-10T20:39:42.897577+00:00"
+  },
+  {
+    "id": "87f57be7-cf33-4ed6-931d-b54a1ffee739",
+    "type": "lesson",
+    "title": "Concurrent 0",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:39:42.900774+00:00",
+    "updated_at": "2026-08-10T20:39:42.900785+00:00"
+  },
+  {
+    "id": "9f0664dd-1551-4eb6-a921-339eb758bd24",
+    "type": "lesson",
+    "title": "Concurrent 1",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:39:42.903961+00:00",
+    "updated_at": "2026-08-10T20:39:42.903972+00:00"
+  },
+  {
+    "id": "0079840b-8d24-4487-8b8a-8547a5b81493",
+    "type": "lesson",
+    "title": "Concurrent 2",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:39:42.907142+00:00",
+    "updated_at": "2026-08-10T20:39:42.907153+00:00"
+  },
+  {
+    "id": "33d679b2-c97b-4bdd-b282-d8c9361c2c28",
+    "type": "lesson",
+    "title": "Concurrent 3",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:39:42.910340+00:00",
+    "updated_at": "2026-08-10T20:39:42.910353+00:00"
+  },
+  {
+    "id": "d635fce5-4f41-48c7-8216-911318baa7d0",
+    "type": "lesson",
+    "title": "Concurrent 4",
+    "status": "accepted",
+    "tags": [],
+    "created_at": "2026-08-10T20:39:42.913869+00:00",
+    "updated_at": "2026-08-10T20:39:42.913884+00:00"
   }
 ]

@@ -3454,5 +3454,1157 @@
     "completed_at": "2026-08-10T09:14:59.798009+00:00",
     "receipt_hash": "8fb3f9dfadff43f0006911cc9dfb98077f1924ff6866436f287f653e4617fcd3",
     "metadata": {}
+  },
+  {
+    "id": "435ff0db-fcaa-4da9-8ceb-3d4bf3eb67b2",
+    "title": "Simple task",
+    "description": "Do something simple",
+    "phase": "quality",
+    "priority": "medium",
+    "status": "completed",
+    "dependencies": [],
+    "blockers": [],
+    "assigned_to": "testing_lead",
+    "max_retries": 3,
+    "retry_count": 1,
+    "checkpoints": [],
+    "history": [
+      {
+        "timestamp": "2026-08-10T20:06:27.935422+00:00",
+        "event": "created",
+        "actor": "system",
+        "details": {
+          "details": {
+            "priority": "medium"
+          }
+        }
+      },
+      {
+        "timestamp": "2026-08-10T20:06:28.101205+00:00",
+        "event": "started",
+        "actor": "Testing Lead",
+        "details": {}
+      },
+      {
+        "timestamp": "2026-08-10T20:06:28.179632+00:00",
+        "event": "completed",
+        "actor": "Testing Lead",
+        "details": {
+          "details": {
+            "tests_passed": 0,
+            "tests_failed": 0
+          }
+        }
+      }
+    ],
+    "created_at": "2026-08-10T20:06:27.935398+00:00",
+    "updated_at": "2026-08-10T20:06:28.179641+00:00",
+    "completed_at": "2026-08-10T20:06:28.179627+00:00",
+    "receipt_hash": "fc1725cdf89096070b1f6e5add57c3a3c1926bb896ffdaac0a1d577b02a379df",
+    "metadata": {}
+  },
+  {
+    "id": "ed29a39a-56b3-4599-978c-d019f49102e1",
+    "title": "Counted task",
+    "description": "Test counter",
+    "phase": "quality",
+    "priority": "medium",
+    "status": "completed",
+    "dependencies": [],
+    "blockers": [],
+    "assigned_to": "testing_lead",
+    "max_retries": 3,
+    "retry_count": 1,
+    "checkpoints": [],
+    "history": [
+      {
+        "timestamp": "2026-08-10T20:06:28.552484+00:00",
+        "event": "created",
+        "actor": "system",
+        "details": {
+          "details": {
+            "priority": "medium"
+          }
+        }
+      },
+      {
+        "timestamp": "2026-08-10T20:06:28.714937+00:00",
+        "event": "started",
+        "actor": "Testing Lead",
+        "details": {}
+      },
+      {
+        "timestamp": "2026-08-10T20:06:28.792329+00:00",
+        "event": "completed",
+        "actor": "Testing Lead",
+        "details": {
+          "details": {
+            "tests_passed": 0,
+            "tests_failed": 0
+          }
+        }
+      }
+    ],
+    "created_at": "2026-08-10T20:06:28.552458+00:00",
+    "updated_at": "2026-08-10T20:06:28.792340+00:00",
+    "completed_at": "2026-08-10T20:06:28.792308+00:00",
+    "receipt_hash": "eb39144b74b9f66f5e6044788d7395cb62ac764f989cdf034b50040b8a5f17b0",
+    "metadata": {}
+  },
+  {
+    "id": "5f8fc13c-7423-44ec-b53c-cf0c2f27f3f2",
+    "title": "Simple task",
+    "description": "Do something simple",
+    "phase": "quality",
+    "priority": "medium",
+    "status": "completed",
+    "dependencies": [],
+    "blockers": [],
+    "assigned_to": "testing_lead",
+    "max_retries": 3,
+    "retry_count": 1,
+    "checkpoints": [],
+    "history": [
+      {
+        "timestamp": "2026-08-10T20:19:53.072521+00:00",
+        "event": "created",
+        "actor": "system",
+        "details": {
+          "details": {
+            "priority": "medium"
+          }
+        }
+      },
+      {
+        "timestamp": "2026-08-10T20:19:53.156474+00:00",
+        "event": "started",
+        "actor": "Testing Lead",
+        "details": {}
+      },
+      {
+        "timestamp": "2026-08-10T20:19:53.237670+00:00",
+        "event": "completed",
+        "actor": "Testing Lead",
+        "details": {
+          "details": {
+            "tests_passed": 0,
+            "tests_failed": 0
+          }
+        }
+      }
+    ],
+    "created_at": "2026-08-10T20:19:53.072498+00:00",
+    "updated_at": "2026-08-10T20:19:53.237676+00:00",
+    "completed_at": "2026-08-10T20:19:53.237662+00:00",
+    "receipt_hash": "fc7e857586e762fec0eea22e332d046ef239ed0c239bbecac600b8c1f300c6d3",
+    "metadata": {}
+  },
+  {
+    "id": "5aa8c33a-f806-4459-adc5-6d19dfb79041",
+    "title": "Counted task",
+    "description": "Test counter",
+    "phase": "quality",
+    "priority": "medium",
+    "status": "completed",
+    "dependencies": [],
+    "blockers": [],
+    "assigned_to": "testing_lead",
+    "max_retries": 3,
+    "retry_count": 1,
+    "checkpoints": [],
+    "history": [
+      {
+        "timestamp": "2026-08-10T20:19:53.711105+00:00",
+        "event": "created",
+        "actor": "system",
+        "details": {
+          "details": {
+            "priority": "medium"
+          }
+        }
+      },
+      {
+        "timestamp": "2026-08-10T20:19:53.794949+00:00",
+        "event": "started",
+        "actor": "Testing Lead",
+        "details": {}
+      },
+      {
+        "timestamp": "2026-08-10T20:19:53.877772+00:00",
+        "event": "completed",
+        "actor": "Testing Lead",
+        "details": {
+          "details": {
+            "tests_passed": 0,
+            "tests_failed": 0
+          }
+        }
+      }
+    ],
+    "created_at": "2026-08-10T20:19:53.711081+00:00",
+    "updated_at": "2026-08-10T20:19:53.877779+00:00",
+    "completed_at": "2026-08-10T20:19:53.877766+00:00",
+    "receipt_hash": "3631d57028ee18c41ece319af2c7ab5f7dba0b6e6345647d80af32fa7161d158",
+    "metadata": {}
+  },
+  {
+    "id": "994bf6d5-e720-44ea-a94c-11c5d8a955e8",
+    "title": "Simple task",
+    "description": "Do something simple",
+    "phase": "quality",
+    "priority": "medium",
+    "status": "completed",
+    "dependencies": [],
+    "blockers": [],
+    "assigned_to": "testing_lead",
+    "max_retries": 3,
+    "retry_count": 1,
+    "checkpoints": [],
+    "history": [
+      {
+        "timestamp": "2026-08-10T20:21:26.296937+00:00",
+        "event": "created",
+        "actor": "system",
+        "details": {
+          "details": {
+            "priority": "medium"
+          }
+        }
+      },
+      {
+        "timestamp": "2026-08-10T20:21:26.381069+00:00",
+        "event": "started",
+        "actor": "Testing Lead",
+        "details": {}
+      },
+      {
+        "timestamp": "2026-08-10T20:21:26.466375+00:00",
+        "event": "completed",
+        "actor": "Testing Lead",
+        "details": {
+          "details": {
+            "tests_passed": 0,
+            "tests_failed": 0
+          }
+        }
+      }
+    ],
+    "created_at": "2026-08-10T20:21:26.296908+00:00",
+    "updated_at": "2026-08-10T20:21:26.466381+00:00",
+    "completed_at": "2026-08-10T20:21:26.466369+00:00",
+    "receipt_hash": "6ab154a2cf25c562b8429687b14859474a856a0ae6e07d43b027d279cc9865e6",
+    "metadata": {}
+  },
+  {
+    "id": "d8494011-2497-435a-aa93-0499fc6ecd30",
+    "title": "Counted task",
+    "description": "Test counter",
+    "phase": "quality",
+    "priority": "medium",
+    "status": "completed",
+    "dependencies": [],
+    "blockers": [],
+    "assigned_to": "testing_lead",
+    "max_retries": 3,
+    "retry_count": 1,
+    "checkpoints": [],
+    "history": [
+      {
+        "timestamp": "2026-08-10T20:21:26.951991+00:00",
+        "event": "created",
+        "actor": "system",
+        "details": {
+          "details": {
+            "priority": "medium"
+          }
+        }
+      },
+      {
+        "timestamp": "2026-08-10T20:21:27.038596+00:00",
+        "event": "started",
+        "actor": "Testing Lead",
+        "details": {}
+      },
+      {
+        "timestamp": "2026-08-10T20:21:27.198964+00:00",
+        "event": "completed",
+        "actor": "Testing Lead",
+        "details": {
+          "details": {
+            "tests_passed": 0,
+            "tests_failed": 0
+          }
+        }
+      }
+    ],
+    "created_at": "2026-08-10T20:21:26.951967+00:00",
+    "updated_at": "2026-08-10T20:21:27.198973+00:00",
+    "completed_at": "2026-08-10T20:21:27.198953+00:00",
+    "receipt_hash": "62d3eb29efe0dbac0ee426989c635907c81273eb73e6131490de20b35ae19fd1",
+    "metadata": {}
+  },
+  {
+    "id": "5a597bf7-525e-4dcd-bab7-7de909ebe04d",
+    "title": "Simple task",
+    "description": "Do something simple",
+    "phase": "quality",
+    "priority": "medium",
+    "status": "completed",
+    "dependencies": [],
+    "blockers": [],
+    "assigned_to": "testing_lead",
+    "max_retries": 3,
+    "retry_count": 1,
+    "checkpoints": [],
+    "history": [
+      {
+        "timestamp": "2026-08-10T20:22:59.962276+00:00",
+        "event": "created",
+        "actor": "system",
+        "details": {
+          "details": {
+            "priority": "medium"
+          }
+        }
+      },
+      {
+        "timestamp": "2026-08-10T20:23:00.049370+00:00",
+        "event": "started",
+        "actor": "Testing Lead",
+        "details": {}
+      },
+      {
+        "timestamp": "2026-08-10T20:23:00.136787+00:00",
+        "event": "completed",
+        "actor": "Testing Lead",
+        "details": {
+          "details": {
+            "tests_passed": 0,
+            "tests_failed": 0
+          }
+        }
+      }
+    ],
+    "created_at": "2026-08-10T20:22:59.962249+00:00",
+    "updated_at": "2026-08-10T20:23:00.136798+00:00",
+    "completed_at": "2026-08-10T20:23:00.136779+00:00",
+    "receipt_hash": "1cd01c65c79269532c9858bbae4c0044051f38de5a2379e97818928904a45377",
+    "metadata": {}
+  },
+  {
+    "id": "9fca3faa-2174-4143-a023-0ea4cb062685",
+    "title": "Counted task",
+    "description": "Test counter",
+    "phase": "quality",
+    "priority": "medium",
+    "status": "completed",
+    "dependencies": [],
+    "blockers": [],
+    "assigned_to": "testing_lead",
+    "max_retries": 3,
+    "retry_count": 1,
+    "checkpoints": [],
+    "history": [
+      {
+        "timestamp": "2026-08-10T20:23:00.638374+00:00",
+        "event": "created",
+        "actor": "system",
+        "details": {
+          "details": {
+            "priority": "medium"
+          }
+        }
+      },
+      {
+        "timestamp": "2026-08-10T20:23:00.807050+00:00",
+        "event": "started",
+        "actor": "Testing Lead",
+        "details": {}
+      },
+      {
+        "timestamp": "2026-08-10T20:23:00.895114+00:00",
+        "event": "completed",
+        "actor": "Testing Lead",
+        "details": {
+          "details": {
+            "tests_passed": 0,
+            "tests_failed": 0
+          }
+        }
+      }
+    ],
+    "created_at": "2026-08-10T20:23:00.638337+00:00",
+    "updated_at": "2026-08-10T20:23:00.895125+00:00",
+    "completed_at": "2026-08-10T20:23:00.895108+00:00",
+    "receipt_hash": "8f9fb8d93bd7f49371e51745f194778a6de6850fde14a0f2b14ef46b335fa43b",
+    "metadata": {}
+  },
+  {
+    "id": "042b5981-8b30-49d2-9f1c-0d39d757d819",
+    "title": "Simple task",
+    "description": "Do something simple",
+    "phase": "quality",
+    "priority": "medium",
+    "status": "completed",
+    "dependencies": [],
+    "blockers": [],
+    "assigned_to": "testing_lead",
+    "max_retries": 3,
+    "retry_count": 1,
+    "checkpoints": [],
+    "history": [
+      {
+        "timestamp": "2026-08-10T20:24:34.070831+00:00",
+        "event": "created",
+        "actor": "system",
+        "details": {
+          "details": {
+            "priority": "medium"
+          }
+        }
+      },
+      {
+        "timestamp": "2026-08-10T20:24:34.161800+00:00",
+        "event": "started",
+        "actor": "Testing Lead",
+        "details": {}
+      },
+      {
+        "timestamp": "2026-08-10T20:24:34.333273+00:00",
+        "event": "completed",
+        "actor": "Testing Lead",
+        "details": {
+          "details": {
+            "tests_passed": 0,
+            "tests_failed": 0
+          }
+        }
+      }
+    ],
+    "created_at": "2026-08-10T20:24:34.070808+00:00",
+    "updated_at": "2026-08-10T20:24:34.333280+00:00",
+    "completed_at": "2026-08-10T20:24:34.333269+00:00",
+    "receipt_hash": "8a16c37cbe117b9fee67ac4e43a2633ead5fe69fbfa4404138657c5a09a6a04c",
+    "metadata": {}
+  },
+  {
+    "id": "7cdc5918-69c8-4c4c-b5e5-3551c89d31cc",
+    "title": "Counted task",
+    "description": "Test counter",
+    "phase": "quality",
+    "priority": "medium",
+    "status": "completed",
+    "dependencies": [],
+    "blockers": [],
+    "assigned_to": "testing_lead",
+    "max_retries": 3,
+    "retry_count": 1,
+    "checkpoints": [],
+    "history": [
+      {
+        "timestamp": "2026-08-10T20:24:34.771751+00:00",
+        "event": "created",
+        "actor": "system",
+        "details": {
+          "details": {
+            "priority": "medium"
+          }
+        }
+      },
+      {
+        "timestamp": "2026-08-10T20:24:34.945108+00:00",
+        "event": "started",
+        "actor": "Testing Lead",
+        "details": {}
+      },
+      {
+        "timestamp": "2026-08-10T20:24:35.034542+00:00",
+        "event": "completed",
+        "actor": "Testing Lead",
+        "details": {
+          "details": {
+            "tests_passed": 0,
+            "tests_failed": 0
+          }
+        }
+      }
+    ],
+    "created_at": "2026-08-10T20:24:34.771720+00:00",
+    "updated_at": "2026-08-10T20:24:35.034548+00:00",
+    "completed_at": "2026-08-10T20:24:35.034537+00:00",
+    "receipt_hash": "8e7207abddbc84a3dd291664fa8bd4892217299d1960ad6a55738bab77fe0bbb",
+    "metadata": {}
+  },
+  {
+    "id": "6453a8db-1c02-46d0-8d5a-5b8044a6df62",
+    "title": "Simple task",
+    "description": "Do something simple",
+    "phase": "quality",
+    "priority": "medium",
+    "status": "completed",
+    "dependencies": [],
+    "blockers": [],
+    "assigned_to": "testing_lead",
+    "max_retries": 3,
+    "retry_count": 1,
+    "checkpoints": [],
+    "history": [
+      {
+        "timestamp": "2026-08-10T20:26:07.599718+00:00",
+        "event": "created",
+        "actor": "system",
+        "details": {
+          "details": {
+            "priority": "medium"
+          }
+        }
+      },
+      {
+        "timestamp": "2026-08-10T20:26:07.695462+00:00",
+        "event": "started",
+        "actor": "Testing Lead",
+        "details": {}
+      },
+      {
+        "timestamp": "2026-08-10T20:26:07.788907+00:00",
+        "event": "completed",
+        "actor": "Testing Lead",
+        "details": {
+          "details": {
+            "tests_passed": 0,
+            "tests_failed": 0
+          }
+        }
+      }
+    ],
+    "created_at": "2026-08-10T20:26:07.599696+00:00",
+    "updated_at": "2026-08-10T20:26:07.788913+00:00",
+    "completed_at": "2026-08-10T20:26:07.788902+00:00",
+    "receipt_hash": "95ffef3a0d8bc7d1d6feb5226f5d944814bbc482542bec8815dacdeb73666439",
+    "metadata": {}
+  },
+  {
+    "id": "d97a2cdc-cc62-4d9e-9fd6-1ef2fd347c68",
+    "title": "Counted task",
+    "description": "Test counter",
+    "phase": "quality",
+    "priority": "medium",
+    "status": "completed",
+    "dependencies": [],
+    "blockers": [],
+    "assigned_to": "testing_lead",
+    "max_retries": 3,
+    "retry_count": 1,
+    "checkpoints": [],
+    "history": [
+      {
+        "timestamp": "2026-08-10T20:26:08.312748+00:00",
+        "event": "created",
+        "actor": "system",
+        "details": {
+          "details": {
+            "priority": "medium"
+          }
+        }
+      },
+      {
+        "timestamp": "2026-08-10T20:26:08.407153+00:00",
+        "event": "started",
+        "actor": "Testing Lead",
+        "details": {}
+      },
+      {
+        "timestamp": "2026-08-10T20:26:08.499602+00:00",
+        "event": "completed",
+        "actor": "Testing Lead",
+        "details": {
+          "details": {
+            "tests_passed": 0,
+            "tests_failed": 0
+          }
+        }
+      }
+    ],
+    "created_at": "2026-08-10T20:26:08.312718+00:00",
+    "updated_at": "2026-08-10T20:26:08.499613+00:00",
+    "completed_at": "2026-08-10T20:26:08.499597+00:00",
+    "receipt_hash": "12a2263bfa7a071583ecbceb37c9fd83ca28412cdcea2f4e357fb8c28ce63bba",
+    "metadata": {}
+  },
+  {
+    "id": "244e8bd7-b3c5-4fe2-90e1-414cdab22411",
+    "title": "Simple task",
+    "description": "Do something simple",
+    "phase": "quality",
+    "priority": "medium",
+    "status": "completed",
+    "dependencies": [],
+    "blockers": [],
+    "assigned_to": "testing_lead",
+    "max_retries": 3,
+    "retry_count": 1,
+    "checkpoints": [],
+    "history": [
+      {
+        "timestamp": "2026-08-10T20:27:41.360560+00:00",
+        "event": "created",
+        "actor": "system",
+        "details": {
+          "details": {
+            "priority": "medium"
+          }
+        }
+      },
+      {
+        "timestamp": "2026-08-10T20:27:41.451705+00:00",
+        "event": "started",
+        "actor": "Testing Lead",
+        "details": {}
+      },
+      {
+        "timestamp": "2026-08-10T20:27:41.543716+00:00",
+        "event": "completed",
+        "actor": "Testing Lead",
+        "details": {
+          "details": {
+            "tests_passed": 0,
+            "tests_failed": 0
+          }
+        }
+      }
+    ],
+    "created_at": "2026-08-10T20:27:41.360533+00:00",
+    "updated_at": "2026-08-10T20:27:41.543724+00:00",
+    "completed_at": "2026-08-10T20:27:41.543711+00:00",
+    "receipt_hash": "dda4933a8f3e9f99297c1c89ea2b907478bfc19ad1de026c51c9338a1db20bee",
+    "metadata": {}
+  },
+  {
+    "id": "544f22f6-9931-4e26-abcb-67d0adcdc62b",
+    "title": "Counted task",
+    "description": "Test counter",
+    "phase": "quality",
+    "priority": "medium",
+    "status": "completed",
+    "dependencies": [],
+    "blockers": [],
+    "assigned_to": "testing_lead",
+    "max_retries": 3,
+    "retry_count": 1,
+    "checkpoints": [],
+    "history": [
+      {
+        "timestamp": "2026-08-10T20:27:42.065651+00:00",
+        "event": "created",
+        "actor": "system",
+        "details": {
+          "details": {
+            "priority": "medium"
+          }
+        }
+      },
+      {
+        "timestamp": "2026-08-10T20:27:42.162434+00:00",
+        "event": "started",
+        "actor": "Testing Lead",
+        "details": {}
+      },
+      {
+        "timestamp": "2026-08-10T20:27:42.330668+00:00",
+        "event": "completed",
+        "actor": "Testing Lead",
+        "details": {
+          "details": {
+            "tests_passed": 0,
+            "tests_failed": 0
+          }
+        }
+      }
+    ],
+    "created_at": "2026-08-10T20:27:42.065627+00:00",
+    "updated_at": "2026-08-10T20:27:42.330678+00:00",
+    "completed_at": "2026-08-10T20:27:42.330663+00:00",
+    "receipt_hash": "5d5dc898b4c8e2625cb27e4f02193ab7f1612bd9a4719b643b7d7e77bb7a1538",
+    "metadata": {}
+  },
+  {
+    "id": "829f300a-54ac-430e-82f4-c518fd756118",
+    "title": "Simple task",
+    "description": "Do something simple",
+    "phase": "quality",
+    "priority": "medium",
+    "status": "completed",
+    "dependencies": [],
+    "blockers": [],
+    "assigned_to": "testing_lead",
+    "max_retries": 3,
+    "retry_count": 1,
+    "checkpoints": [],
+    "history": [
+      {
+        "timestamp": "2026-08-10T20:29:19.882068+00:00",
+        "event": "created",
+        "actor": "system",
+        "details": {
+          "details": {
+            "priority": "medium"
+          }
+        }
+      },
+      {
+        "timestamp": "2026-08-10T20:29:19.981560+00:00",
+        "event": "started",
+        "actor": "Testing Lead",
+        "details": {}
+      },
+      {
+        "timestamp": "2026-08-10T20:29:20.161276+00:00",
+        "event": "completed",
+        "actor": "Testing Lead",
+        "details": {
+          "details": {
+            "tests_passed": 0,
+            "tests_failed": 0
+          }
+        }
+      }
+    ],
+    "created_at": "2026-08-10T20:29:19.882046+00:00",
+    "updated_at": "2026-08-10T20:29:20.161282+00:00",
+    "completed_at": "2026-08-10T20:29:20.161270+00:00",
+    "receipt_hash": "58633358842c9a4e9d3ed4b92ae1cbb4c2aa66d63a3f4e29d4221308ee27346a",
+    "metadata": {}
+  },
+  {
+    "id": "9d49a55a-551f-4e49-8295-411dd893150e",
+    "title": "Counted task",
+    "description": "Test counter",
+    "phase": "quality",
+    "priority": "medium",
+    "status": "completed",
+    "dependencies": [],
+    "blockers": [],
+    "assigned_to": "testing_lead",
+    "max_retries": 3,
+    "retry_count": 1,
+    "checkpoints": [],
+    "history": [
+      {
+        "timestamp": "2026-08-10T20:29:20.627304+00:00",
+        "event": "created",
+        "actor": "system",
+        "details": {
+          "details": {
+            "priority": "medium"
+          }
+        }
+      },
+      {
+        "timestamp": "2026-08-10T20:29:20.805561+00:00",
+        "event": "started",
+        "actor": "Testing Lead",
+        "details": {}
+      },
+      {
+        "timestamp": "2026-08-10T20:29:20.902696+00:00",
+        "event": "completed",
+        "actor": "Testing Lead",
+        "details": {
+          "details": {
+            "tests_passed": 0,
+            "tests_failed": 0
+          }
+        }
+      }
+    ],
+    "created_at": "2026-08-10T20:29:20.627276+00:00",
+    "updated_at": "2026-08-10T20:29:20.902703+00:00",
+    "completed_at": "2026-08-10T20:29:20.902691+00:00",
+    "receipt_hash": "94dd88beb09c8dbf25d7fb8b33e1d2742db51ca6bab06d5aaf7ad9ccb6a8d151",
+    "metadata": {}
+  },
+  {
+    "id": "99eaaa0e-55de-4745-85e1-70dc243b1540",
+    "title": "Simple task",
+    "description": "Do something simple",
+    "phase": "quality",
+    "priority": "medium",
+    "status": "completed",
+    "dependencies": [],
+    "blockers": [],
+    "assigned_to": "testing_lead",
+    "max_retries": 3,
+    "retry_count": 1,
+    "checkpoints": [],
+    "history": [
+      {
+        "timestamp": "2026-08-10T20:31:58.574888+00:00",
+        "event": "created",
+        "actor": "system",
+        "details": {
+          "details": {
+            "priority": "medium"
+          }
+        }
+      },
+      {
+        "timestamp": "2026-08-10T20:31:58.728272+00:00",
+        "event": "started",
+        "actor": "Testing Lead",
+        "details": {}
+      },
+      {
+        "timestamp": "2026-08-10T20:31:58.830467+00:00",
+        "event": "completed",
+        "actor": "Testing Lead",
+        "details": {
+          "details": {
+            "tests_passed": 0,
+            "tests_failed": 0
+          }
+        }
+      }
+    ],
+    "created_at": "2026-08-10T20:31:58.574863+00:00",
+    "updated_at": "2026-08-10T20:31:58.830474+00:00",
+    "completed_at": "2026-08-10T20:31:58.830461+00:00",
+    "receipt_hash": "394e0db7353eadbd0b3a6c0f3c14ed66a75e3d75293c7846bebdf60a671cce40",
+    "metadata": {}
+  },
+  {
+    "id": "a89b278d-20f1-4e2f-911d-5ef746f0736e",
+    "title": "Counted task",
+    "description": "Test counter",
+    "phase": "quality",
+    "priority": "medium",
+    "status": "completed",
+    "dependencies": [],
+    "blockers": [],
+    "assigned_to": "testing_lead",
+    "max_retries": 3,
+    "retry_count": 1,
+    "checkpoints": [],
+    "history": [
+      {
+        "timestamp": "2026-08-10T20:31:59.402822+00:00",
+        "event": "created",
+        "actor": "system",
+        "details": {
+          "details": {
+            "priority": "medium"
+          }
+        }
+      },
+      {
+        "timestamp": "2026-08-10T20:31:59.510187+00:00",
+        "event": "started",
+        "actor": "Testing Lead",
+        "details": {}
+      },
+      {
+        "timestamp": "2026-08-10T20:31:59.609516+00:00",
+        "event": "completed",
+        "actor": "Testing Lead",
+        "details": {
+          "details": {
+            "tests_passed": 0,
+            "tests_failed": 0
+          }
+        }
+      }
+    ],
+    "created_at": "2026-08-10T20:31:59.402794+00:00",
+    "updated_at": "2026-08-10T20:31:59.609523+00:00",
+    "completed_at": "2026-08-10T20:31:59.609507+00:00",
+    "receipt_hash": "d67a4410ffcc4105109eafdcbaeb0700161cc3c58f3b59d4d8d1dc9f238b6ae5",
+    "metadata": {}
+  },
+  {
+    "id": "663067d4-28de-4ba9-9625-75318d1c5b66",
+    "title": "Simple task",
+    "description": "Do something simple",
+    "phase": "quality",
+    "priority": "medium",
+    "status": "completed",
+    "dependencies": [],
+    "blockers": [],
+    "assigned_to": "testing_lead",
+    "max_retries": 3,
+    "retry_count": 1,
+    "checkpoints": [],
+    "history": [
+      {
+        "timestamp": "2026-08-10T20:33:26.254243+00:00",
+        "event": "created",
+        "actor": "system",
+        "details": {
+          "details": {
+            "priority": "medium"
+          }
+        }
+      },
+      {
+        "timestamp": "2026-08-10T20:33:26.438660+00:00",
+        "event": "started",
+        "actor": "Testing Lead",
+        "details": {}
+      },
+      {
+        "timestamp": "2026-08-10T20:33:26.537999+00:00",
+        "event": "completed",
+        "actor": "Testing Lead",
+        "details": {
+          "details": {
+            "tests_passed": 0,
+            "tests_failed": 0
+          }
+        }
+      }
+    ],
+    "created_at": "2026-08-10T20:33:26.254217+00:00",
+    "updated_at": "2026-08-10T20:33:26.538010+00:00",
+    "completed_at": "2026-08-10T20:33:26.537995+00:00",
+    "receipt_hash": "a8b14ba8ab72867c1d18763f036cfd1b54feac398e944e0fba6ce23154cf2185",
+    "metadata": {}
+  },
+  {
+    "id": "8c41aab6-b1a7-4624-b794-06ca1458227c",
+    "title": "Counted task",
+    "description": "Test counter",
+    "phase": "quality",
+    "priority": "medium",
+    "status": "completed",
+    "dependencies": [],
+    "blockers": [],
+    "assigned_to": "testing_lead",
+    "max_retries": 3,
+    "retry_count": 1,
+    "checkpoints": [],
+    "history": [
+      {
+        "timestamp": "2026-08-10T20:33:27.088445+00:00",
+        "event": "created",
+        "actor": "system",
+        "details": {
+          "details": {
+            "priority": "medium"
+          }
+        }
+      },
+      {
+        "timestamp": "2026-08-10T20:33:27.206822+00:00",
+        "event": "started",
+        "actor": "Testing Lead",
+        "details": {}
+      },
+      {
+        "timestamp": "2026-08-10T20:33:27.305453+00:00",
+        "event": "completed",
+        "actor": "Testing Lead",
+        "details": {
+          "details": {
+            "tests_passed": 0,
+            "tests_failed": 0
+          }
+        }
+      }
+    ],
+    "created_at": "2026-08-10T20:33:27.088421+00:00",
+    "updated_at": "2026-08-10T20:33:27.305460+00:00",
+    "completed_at": "2026-08-10T20:33:27.305446+00:00",
+    "receipt_hash": "2a1122868ed4f32d0a3ff6038a1be4ec675bf5323b6258411605ea01ed0fe374",
+    "metadata": {}
+  },
+  {
+    "id": "d1317989-2d42-4888-8b42-859f894f9c96",
+    "title": "Simple task",
+    "description": "Do something simple",
+    "phase": "quality",
+    "priority": "medium",
+    "status": "completed",
+    "dependencies": [],
+    "blockers": [],
+    "assigned_to": "testing_lead",
+    "max_retries": 3,
+    "retry_count": 1,
+    "checkpoints": [],
+    "history": [
+      {
+        "timestamp": "2026-08-10T20:35:02.398160+00:00",
+        "event": "created",
+        "actor": "system",
+        "details": {
+          "details": {
+            "priority": "medium"
+          }
+        }
+      },
+      {
+        "timestamp": "2026-08-10T20:35:02.503803+00:00",
+        "event": "started",
+        "actor": "Testing Lead",
+        "details": {}
+      },
+      {
+        "timestamp": "2026-08-10T20:35:02.603433+00:00",
+        "event": "completed",
+        "actor": "Testing Lead",
+        "details": {
+          "details": {
+            "tests_passed": 0,
+            "tests_failed": 0
+          }
+        }
+      }
+    ],
+    "created_at": "2026-08-10T20:35:02.398133+00:00",
+    "updated_at": "2026-08-10T20:35:02.603439+00:00",
+    "completed_at": "2026-08-10T20:35:02.603427+00:00",
+    "receipt_hash": "1f541995d441a9458219bad6e5a940ae81d36d7a433f6a03ef65dcab68058fe5",
+    "metadata": {}
+  },
+  {
+    "id": "36c71dd9-eb46-4f3e-9416-c2892aa531f6",
+    "title": "Counted task",
+    "description": "Test counter",
+    "phase": "quality",
+    "priority": "medium",
+    "status": "completed",
+    "dependencies": [],
+    "blockers": [],
+    "assigned_to": "testing_lead",
+    "max_retries": 3,
+    "retry_count": 1,
+    "checkpoints": [],
+    "history": [
+      {
+        "timestamp": "2026-08-10T20:35:03.160361+00:00",
+        "event": "created",
+        "actor": "system",
+        "details": {
+          "details": {
+            "priority": "medium"
+          }
+        }
+      },
+      {
+        "timestamp": "2026-08-10T20:35:03.262566+00:00",
+        "event": "started",
+        "actor": "Testing Lead",
+        "details": {}
+      },
+      {
+        "timestamp": "2026-08-10T20:35:03.361432+00:00",
+        "event": "completed",
+        "actor": "Testing Lead",
+        "details": {
+          "details": {
+            "tests_passed": 0,
+            "tests_failed": 0
+          }
+        }
+      }
+    ],
+    "created_at": "2026-08-10T20:35:03.160332+00:00",
+    "updated_at": "2026-08-10T20:35:03.361440+00:00",
+    "completed_at": "2026-08-10T20:35:03.361427+00:00",
+    "receipt_hash": "34f56cf93ad9c5cb346b894b0b96550a2847bbaa0a2087de6d0702342a7edcbf",
+    "metadata": {}
+  },
+  {
+    "id": "0a7b1656-a91e-4b2b-ad11-5d2458c8957f",
+    "title": "Simple task",
+    "description": "Do something simple",
+    "phase": "quality",
+    "priority": "medium",
+    "status": "completed",
+    "dependencies": [],
+    "blockers": [],
+    "assigned_to": "testing_lead",
+    "max_retries": 3,
+    "retry_count": 1,
+    "checkpoints": [],
+    "history": [
+      {
+        "timestamp": "2026-08-10T20:38:23.461683+00:00",
+        "event": "created",
+        "actor": "system",
+        "details": {
+          "details": {
+            "priority": "medium"
+          }
+        }
+      },
+      {
+        "timestamp": "2026-08-10T20:38:23.655378+00:00",
+        "event": "started",
+        "actor": "Testing Lead",
+        "details": {}
+      },
+      {
+        "timestamp": "2026-08-10T20:38:23.759274+00:00",
+        "event": "completed",
+        "actor": "Testing Lead",
+        "details": {
+          "details": {
+            "tests_passed": 0,
+            "tests_failed": 0
+          }
+        }
+      }
+    ],
+    "created_at": "2026-08-10T20:38:23.461659+00:00",
+    "updated_at": "2026-08-10T20:38:23.759281+00:00",
+    "completed_at": "2026-08-10T20:38:23.759264+00:00",
+    "receipt_hash": "ad2d02886cfd56099ded205c0378c5d4300465fe5eae5de8e545050ae2ff4705",
+    "metadata": {}
+  },
+  {
+    "id": "257d95e7-f439-45a5-921c-bb8255fdd92c",
+    "title": "Counted task",
+    "description": "Test counter",
+    "phase": "quality",
+    "priority": "medium",
+    "status": "completed",
+    "dependencies": [],
+    "blockers": [],
+    "assigned_to": "testing_lead",
+    "max_retries": 3,
+    "retry_count": 1,
+    "checkpoints": [],
+    "history": [
+      {
+        "timestamp": "2026-08-10T20:38:24.338838+00:00",
+        "event": "created",
+        "actor": "system",
+        "details": {
+          "details": {
+            "priority": "medium"
+          }
+        }
+      },
+      {
+        "timestamp": "2026-08-10T20:38:24.449071+00:00",
+        "event": "started",
+        "actor": "Testing Lead",
+        "details": {}
+      },
+      {
+        "timestamp": "2026-08-10T20:38:24.551578+00:00",
+        "event": "completed",
+        "actor": "Testing Lead",
+        "details": {
+          "details": {
+            "tests_passed": 0,
+            "tests_failed": 0
+          }
+        }
+      }
+    ],
+    "created_at": "2026-08-10T20:38:24.338811+00:00",
+    "updated_at": "2026-08-10T20:38:24.551584+00:00",
+    "completed_at": "2026-08-10T20:38:24.551572+00:00",
+    "receipt_hash": "2b3e812c679c7335f81a7946b74334fc9e7adffa07bf61792336aaaf69cc169c",
+    "metadata": {}
   }
 ]

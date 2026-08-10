@@ -108,6 +108,7 @@ class TestMemoryLeakTasks:
     """
 
     @pytest.mark.asyncio
+    @pytest.mark.slow
     async def test_1000_create_complete_cycles_bounded_growth(self, task_queue):
         N = 1000
         # Each completed Task is ~1-2KB serialised, plus its receipt on
@@ -154,6 +155,7 @@ class TestMemoryLeakMemories:
       * Repeated retrieval does not duplicate or grow memory further.
     """
 
+    @pytest.mark.slow
     def test_1000_store_retrieve_cycles_bounded_growth(self):
         N = 1000
         MAX_PER_ITER_KB = 5  # each memory is small (~500 bytes)
@@ -220,6 +222,7 @@ class TestMemoryLeakLedger:
     """
 
     @pytest.mark.asyncio
+    @pytest.mark.slow
     async def test_100_ledger_actions_bounded_growth(self, ledger):
         N = 100
         # Each chain entry is ~500 bytes (action_id, params, hash, etc.).
@@ -288,6 +291,7 @@ class TestMemoryLeakChatHistory:
     """
 
     @pytest.mark.asyncio
+    @pytest.mark.slow
     async def test_100_chat_turns_bounded_history_growth(self):
         """Run 100 chat turns against a fake brain — verify the
         conversation_history grows linearly (not super-linearly)."""
