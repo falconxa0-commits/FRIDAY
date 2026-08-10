@@ -85,6 +85,8 @@ class TestCostTrackerTimezoneAware:
         from core.cost_tracker import CostTracker
         tracker = CostTracker(data_path=str(tmp_path / "costs.json"))
         tracker.record_usage("glm", 100, 50)
+        # Flush to persist (batched writes — see _FLUSH_THRESHOLD)
+        tracker.flush()
         # Reload from disk to ensure the persisted timestamps are tz-aware.
         import json
         with open(tmp_path / "costs.json") as f:

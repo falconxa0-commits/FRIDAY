@@ -14,3 +14,11 @@ test_results.txt
 final_test_output.txt
 api_server_test.log
 final_test_output.txt
+
+# Engineering system data (audit chains, receipts, tasks, knowledge base)
+.friday/
+action_ledger_chain*.json
+action_ledger_pending*.json
+cost_data.json
+friday_memories_*.json
+*.tampered.*.json

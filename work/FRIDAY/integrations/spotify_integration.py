@@ -70,26 +70,34 @@ class SpotifyIntegration(BaseIntegration):
     async def _play(self, params: dict) -> dict:
         track = params.get("track_name")
         if track:
-            results = self.sp.search(q=track, type="track", limit=1)
+            # Wrap sync spotipy call in asyncio.to_thread to avoid
+            # blocking the event loop (spotipy makes HTTP requests).
+            import asyncio
+            results = await asyncio.to_thread(
+                self.sp.search, q=track, type="track", limit=1
+            )
             items = results.get("tracks", {}).get("items", [])
             if items:
                 track_uri = items[0]["uri"]
-                self.sp.start_playback(uris=[track_uri])
+                await asyncio.to_thread(self.sp.start_playback, uris=[track_uri])
                 return self._make_response(
                     "success",
                     f"Playing '{items[0]['name']}' by {items[0]['artists'][0]['name']}.",
                     receipt_data={"track_uri": track_uri},
                 )
             return self._make_response("error", f"Track '{track}' not found.")
-        self.sp.start_playback()
+        import asyncio
+        await asyncio.to_thread(self.sp.start_playback)
         return self._make_response("success", "Spotify: Resuming playback.")
 
     async def _pause(self) -> dict:
-        self.sp.pause_playback()
+        import asyncio
+        await asyncio.to_thread(self.sp.pause_playback)
         return self._make_response("success", "Spotify paused.")
 
     async def _current_track(self) -> dict:
-        playback = self.sp.current_playback()
+        import asyncio
+        playback = await asyncio.to_thread(self.sp.current_playback)
         if playback and playback.get("item"):
             item = playback["item"]
             name = item["name"]
@@ -102,11 +110,14 @@ class SpotifyIntegration(BaseIntegration):
         return self._make_response("success", "Nothing is currently playing.")
 
     async def _search(self, params: dict) -> dict:
+        import asyncio
         query = params.get("query", "")
         q_type = params.get("type", "track")
         if not query:
             return self._make_response("error", "Missing 'query' parameter.")
-        results = self.sp.search(q=query, type=q_type, limit=5)
+        results = await asyncio.to_thread(
+            self.sp.search, q=query, type=q_type, limit=5
+        )
         items = results.get(f"{q_type}s", {}).get("items", [])
         names = [i.get("name", "Unknown") for i in items]
         return self._make_response(

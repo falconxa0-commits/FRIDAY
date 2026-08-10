@@ -139,8 +139,8 @@ class GoalTracker:
                 # We can't see the actual query, but we can check the model used
                 # This is a heuristic — real implementation would scan brain memory
                 pass
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Goal evidence: stats scan failed: %s", exc)
 
         # Scan memory for goal-related facts
         try:
@@ -155,8 +155,8 @@ class GoalTracker:
                         "timestamp": m.get("timestamp", ""),
                         "relevance": 0.8 if description in content else 0.6,
                     })
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Goal evidence: memory scan failed: %s", exc)
 
         # Scan learning corrections for goal-related topics
         try:
@@ -172,8 +172,8 @@ class GoalTracker:
                         "timestamp": c.get("timestamp", ""),
                         "relevance": 0.9,
                     })
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Goal evidence: learning scan failed: %s", exc)
 
         return evidence
 

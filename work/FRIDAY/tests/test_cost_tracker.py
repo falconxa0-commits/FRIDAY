@@ -271,6 +271,8 @@ class TestCostTrackerPersistence:
         tracker = CostTracker(data_path=str(data_file))
         tracker.record_usage("glm", 100, 50)
         tracker.record_usage("claude", 200, 100)
+        # Flush to persist (batched writes — see _FLUSH_THRESHOLD)
+        tracker.flush()
         # File should exist
         assert data_file.exists()
         # Load and verify contents
@@ -308,6 +310,8 @@ class TestCostTrackerPersistence:
         data_file = tmp_path / "costs.json"
         t1 = CostTracker(data_path=str(data_file))
         t1.record_usage("glm", 100, 50)
+        # Flush to persist before creating a new instance
+        t1.flush()
 
         # New instance — should see the prior usage
         t2 = CostTracker(data_path=str(data_file))

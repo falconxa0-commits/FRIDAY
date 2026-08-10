@@ -27,6 +27,10 @@ class InMemoryVectorStore:
         self.embeddings: List[np.ndarray] = []
         self.metadatas: List[dict] = []
         self._expected_dim: Optional[int] = None
+        # Cache: matrix is rebuilt only when embeddings change, not on every search.
+        # This fixes the O(n) rebuild-on-every-search bottleneck.
+        self._matrix_cache: Optional[np.ndarray] = None
+        self._matrix_dirty: bool = True
 
     def add(self, text: str, embedding: np.ndarray, meta: dict) -> None:
         # Track the dimension of the first vector added; warn on mismatch.
@@ -47,11 +51,25 @@ class InMemoryVectorStore:
         self.texts.append(text)
         self.embeddings.append(embedding)
         self.metadatas.append(meta)
+        # Invalidate the matrix cache — it will be rebuilt on next search.
+        self._matrix_dirty = True
+
+    def _get_matrix(self) -> np.ndarray:
+        """Return the embeddings matrix, rebuilding only when dirty.
+
+        Previously, search() called np.array(self.embeddings) on EVERY
+        search call — an O(n) rebuild that dominated latency at scale.
+        Now the matrix is cached and rebuilt only when add() is called.
+        """
+        if self._matrix_dirty or self._matrix_cache is None:
+            self._matrix_cache = np.array(self.embeddings)
+            self._matrix_dirty = False
+        return self._matrix_cache
 
     def search(self, query_embedding: np.ndarray, top_k: int = 5) -> List[dict]:
         if not self.embeddings:
             return []
-        matrix = np.array(self.embeddings)
+        matrix = self._get_matrix()
         # Cosine similarity
         norms = np.linalg.norm(matrix, axis=1) * np.linalg.norm(query_embedding)
         # Avoid division by zero

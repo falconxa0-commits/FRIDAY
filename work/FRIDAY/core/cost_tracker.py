@@ -64,6 +64,11 @@ class CostTracker:
             "created_at": datetime.now(timezone.utc).isoformat(),
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }
+        # Batch write support: instead of saving on every record_usage()
+        # call, we mark dirty and flush periodically or on demand.
+        self._dirty: bool = False
+        self._dirty_count: int = 0
+        self._FLUSH_THRESHOLD: int = 10  # flush after 10 records
         self._load()
 
     # ------------------------------------------------------------------
@@ -133,7 +138,18 @@ class CostTracker:
         )
         entry["last_call_cost"] = round(call_cost, 8)
 
-        self._save()
+        # Mark dirty instead of saving on every call.
+        # Previously, _save() was called on EVERY record_usage() — a
+        # synchronous JSON file write on every chat request (1-10ms each).
+        # Now we batch: the data is saved when flush() is called, or
+        # when get_cost_report() is called (read-after-write consistency),
+        # or when the dirty count exceeds _FLUSH_THRESHOLD.
+        self._dirty = True
+        self._dirty_count += 1
+        if self._dirty_count >= self._FLUSH_THRESHOLD:
+            self._save()
+            self._dirty = False
+            self._dirty_count = 0
         logger.debug(
             "CostTracker: recorded %s +%d/%d tokens ($%.6f)",
             provider,
@@ -143,12 +159,26 @@ class CostTracker:
         )
         return entry
 
+    def flush(self) -> None:
+        """Persist any unsaved data to disk.
+
+        Call this at the end of a request cycle or on graceful shutdown
+        to ensure no cost data is lost.
+        """
+        if self._dirty:
+            self._save()
+            self._dirty = False
+            self._dirty_count = 0
+
     # ------------------------------------------------------------------
     # Reports
     # ------------------------------------------------------------------
 
     def get_cost_report(self) -> Dict[str, Any]:
         """Return a full cost report with per-provider breakdown and totals.
+
+        Flushes any pending dirty data to disk first to ensure
+        read-after-write consistency.
 
         Returns:
             Dict with:
@@ -158,6 +188,9 @@ class CostTracker:
                 - ``total_output_tokens``: sum across providers
                 - ``total_calls``: sum across providers
         """
+        # Flush any pending dirty data to ensure the report reflects
+        # all recent record_usage() calls.
+        self.flush()
         report_providers: Dict[str, Any] = {}
         total_cost = 0.0
         total_input = 0

@@ -1,0 +1,70 @@
+# .dockerignore — excludes non-essential files from Docker build context
+# Reduces image size, prevents data leakage, speeds up builds
+
+# Version control
+.git
+.gitignore
+.gitattributes
+.github
+
+# Python caches
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.egg-info
+*.egg
+.eggs
+.pytest_cache
+.mypy_cache
+.ruff_cache
+
+# Virtual environments
+.venv
+venv
+env
+ENV
+
+# Engineering system data (contains audit chains, receipts, tasks — not for images)
+.friday
+
+# Friday data files (audit chains, memories — contain runtime data)
+action_ledger_chain*.json
+action_ledger_pending*.json
+cost_data.json
+friday_memories_*.json
+*.tampered.*.json
+
+# IDE files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Documentation (not needed in runtime image)
+docs
+*.md
+!README.md
+
+# Tests and benchmarks (not needed in runtime image)
+tests
+benchmarks
+scripts
+
+# Build artifacts
+build
+dist
+*.whl
+
+# Apps not needed in API image
+apps/mobile
+apps/desktop/renderer
+apps/browser_extension
+
+# Misc
+tool-results
+worklog.md
+*.tar.gz
+*.zip

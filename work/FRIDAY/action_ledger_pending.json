@@ -93,28 +93,6 @@
     "status": "pending",
     "timestamp": "2026-08-09T23:26:44.847114"
   },
-  "ff49a637-0fa9-4d0e-93be-656c1d7b55ec": {
-    "id": "ff49a637-0fa9-4d0e-93be-656c1d7b55ec",
-    "component": "MCPChat",
-    "action": "chat",
-    "params": {
-      "message_length": 4
-    },
-    "risk_level": "low",
-    "status": "approved",
-    "timestamp": "2026-08-09T23:28:52.811281"
-  },
-  "92583489-372f-47eb-97cb-efe61d6450a7": {
-    "id": "92583489-372f-47eb-97cb-efe61d6450a7",
-    "component": "MCPChat",
-    "action": "chat",
-    "params": {
-      "message_length": 4
-    },
-    "risk_level": "low",
-    "status": "approved",
-    "timestamp": "2026-08-09T23:28:52.822329"
-  },
   "3bee4321-7035-4197-aba1-2aa10d092926": {
     "id": "3bee4321-7035-4197-aba1-2aa10d092926",
     "component": "Test",
@@ -133,26 +111,192 @@
     "status": "pending",
     "timestamp": "2026-08-09T23:28:53.837700"
   },
-  "919841be-740c-407f-9d3f-a8783f411cdc": {
-    "id": "919841be-740c-407f-9d3f-a8783f411cdc",
-    "component": "MCPVision",
-    "action": "vision_analyze",
-    "params": {
-      "prompt": "Describe this image in detail."
-    },
+  "26dfd7fb-174c-441c-b3c0-17e22770d7c0": {
+    "id": "26dfd7fb-174c-441c-b3c0-17e22770d7c0",
+    "component": "Test",
+    "action": "test_action",
+    "params": {},
     "risk_level": "low",
-    "status": "approved",
-    "timestamp": "2026-08-09T23:28:54.926968"
+    "status": "pending",
+    "timestamp": "2026-08-10T08:11:12.632626"
   },
-  "4db335d6-5746-4999-b1ba-89edd1e9c338": {
-    "id": "4db335d6-5746-4999-b1ba-89edd1e9c338",
-    "component": "MCPSearch",
-    "action": "web_search",
+  "e8bf5ba4-7fd5-431f-ae11-515b244917dc": {
+    "id": "e8bf5ba4-7fd5-431f-ae11-515b244917dc",
+    "component": "Test",
+    "action": "test",
+    "params": {},
+    "risk_level": "medium",
+    "status": "pending",
+    "timestamp": "2026-08-10T08:11:13.636600"
+  },
+  "06e87dd2-7571-47cf-8306-0aee9b943998": {
+    "id": "06e87dd2-7571-47cf-8306-0aee9b943998",
+    "component": "Test",
+    "action": "test_action",
+    "params": {},
+    "risk_level": "low",
+    "status": "pending",
+    "timestamp": "2026-08-10T08:16:14.010587"
+  },
+  "21e2f32e-c94b-44df-81c6-b4d8072d9bb3": {
+    "id": "21e2f32e-c94b-44df-81c6-b4d8072d9bb3",
+    "component": "Test",
+    "action": "test",
+    "params": {},
+    "risk_level": "medium",
+    "status": "pending",
+    "timestamp": "2026-08-10T08:16:15.014597"
+  },
+  "03522199-b730-49f5-9c85-cb6d8beae0ff": {
+    "id": "03522199-b730-49f5-9c85-cb6d8beae0ff",
+    "component": "Test",
+    "action": "test_action",
+    "params": {},
+    "risk_level": "low",
+    "status": "pending",
+    "timestamp": "2026-08-10T08:19:46.231311"
+  },
+  "398351b8-92c9-4147-af14-2084bb47a3a9": {
+    "id": "398351b8-92c9-4147-af14-2084bb47a3a9",
+    "component": "Test",
+    "action": "test",
+    "params": {},
+    "risk_level": "medium",
+    "status": "pending",
+    "timestamp": "2026-08-10T08:19:47.235439"
+  },
+  "d18bd84e-cfce-4999-8852-7e069a04d2d4": {
+    "id": "d18bd84e-cfce-4999-8852-7e069a04d2d4",
+    "component": "Test",
+    "action": "test_action",
+    "params": {},
+    "risk_level": "low",
+    "status": "pending",
+    "timestamp": "2026-08-10T08:21:40.053386"
+  },
+  "1049fede-8352-402f-9121-40d3c647e7ee": {
+    "id": "1049fede-8352-402f-9121-40d3c647e7ee",
+    "component": "Test",
+    "action": "test",
+    "params": {},
+    "risk_level": "medium",
+    "status": "pending",
+    "timestamp": "2026-08-10T08:21:41.057351"
+  },
+  "60a50062-23b4-4712-92cb-06446f1a2f8e": {
+    "id": "60a50062-23b4-4712-92cb-06446f1a2f8e",
+    "component": "Test",
+    "action": "test_action",
+    "params": {},
+    "risk_level": "low",
+    "status": "pending",
+    "timestamp": "2026-08-10T08:23:34.243585"
+  },
+  "735a6e35-7aba-4a40-9790-7dfffc6c1bc2": {
+    "id": "735a6e35-7aba-4a40-9790-7dfffc6c1bc2",
+    "component": "Test",
+    "action": "test",
+    "params": {},
+    "risk_level": "medium",
+    "status": "pending",
+    "timestamp": "2026-08-10T08:23:35.247556"
+  },
+  "516b911c-70aa-4fa3-9467-66380da1779b": {
+    "id": "516b911c-70aa-4fa3-9467-66380da1779b",
+    "component": "Test",
+    "action": "test_action",
+    "params": {},
+    "risk_level": "low",
+    "status": "pending",
+    "timestamp": "2026-08-10T08:28:37.187647"
+  },
+  "448e1600-8c51-4be6-8114-e39a4ff58072": {
+    "id": "448e1600-8c51-4be6-8114-e39a4ff58072",
+    "component": "Test",
+    "action": "test",
+    "params": {},
+    "risk_level": "medium",
+    "status": "pending",
+    "timestamp": "2026-08-10T08:28:38.191779"
+  },
+  "1ca89818-6dcc-4704-aa00-8d4f937144e1": {
+    "id": "1ca89818-6dcc-4704-aa00-8d4f937144e1",
+    "component": "PrivacyAudit",
+    "action": "purge_provider",
     "params": {
-      "query": "test"
+      "provider": "glm"
+    },
+    "risk_level": "high",
+    "status": "pending",
+    "timestamp": "2026-08-10T08:28:40.173742"
+  },
+  "7b5eed61-7be6-41be-8717-de99c45bec1b": {
+    "id": "7b5eed61-7be6-41be-8717-de99c45bec1b",
+    "component": "Test",
+    "action": "test_action",
+    "params": {},
+    "risk_level": "low",
+    "status": "pending",
+    "timestamp": "2026-08-10T08:30:23.775260"
+  },
+  "98361ecb-2c81-4203-ba51-6b867cf755c2": {
+    "id": "98361ecb-2c81-4203-ba51-6b867cf755c2",
+    "component": "Test",
+    "action": "test",
+    "params": {},
+    "risk_level": "medium",
+    "status": "pending",
+    "timestamp": "2026-08-10T08:30:24.779367"
+  },
+  "1070b5b3-5c99-414b-a546-bd1080aa76e0": {
+    "id": "1070b5b3-5c99-414b-a546-bd1080aa76e0",
+    "component": "PrivacyAudit",
+    "action": "purge_provider",
+    "params": {
+      "provider": "glm"
+    },
+    "risk_level": "high",
+    "status": "pending",
+    "timestamp": "2026-08-10T08:30:26.915319"
+  },
+  "9884292c-99f3-4861-aff7-adba81f8f46d": {
+    "id": "9884292c-99f3-4861-aff7-adba81f8f46d",
+    "component": "Test",
+    "action": "test_action",
+    "params": {},
+    "risk_level": "low",
+    "status": "pending",
+    "timestamp": "2026-08-10T08:32:37.662027"
+  },
+  "16708410-2a14-4fbe-bcd5-f8f12ca3cdb2": {
+    "id": "16708410-2a14-4fbe-bcd5-f8f12ca3cdb2",
+    "component": "Test",
+    "action": "test",
+    "params": {},
+    "risk_level": "medium",
+    "status": "pending",
+    "timestamp": "2026-08-10T08:32:38.666090"
+  },
+  "1128b750-d1d8-4b3d-968a-cced69574220": {
+    "id": "1128b750-d1d8-4b3d-968a-cced69574220",
+    "component": "PrivacyAudit",
+    "action": "purge_provider",
+    "params": {
+      "provider": "glm"
+    },
+    "risk_level": "high",
+    "status": "pending",
+    "timestamp": "2026-08-10T08:32:40.542162"
+  },
+  "1713d970-7d03-4116-9f76-98e161473698": {
+    "id": "1713d970-7d03-4116-9f76-98e161473698",
+    "component": "MCPChat",
+    "action": "chat",
+    "params": {
+      "message_length": 2
     },
     "risk_level": "low",
     "status": "approved",
-    "timestamp": "2026-08-09T23:28:54.939899"
+    "timestamp": "2026-08-10T08:32:54.249472"
   }
 }

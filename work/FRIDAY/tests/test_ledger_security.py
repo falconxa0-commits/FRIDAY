@@ -9,6 +9,12 @@ from core.ledger import ActionLedger, NEVER_AUTO_APPROVE_COMPONENTS
 @pytest.fixture()
 def ledger():
     """Fresh ActionLedger with temp persistence files."""
+    # Set a consistent HMAC secret so chain verification works across
+    # multiple ActionLedger instances within the same test.
+    old_secret = os.environ.get("FRIDAY_LEDGER_HMAC_SECRET")
+    os.environ["FRIDAY_LEDGER_HMAC_SECRET"] = "test-hmac-secret-for-ledger-tests"
+    ActionLedger._HMAC_SECRET = None  # reset cached secret
+
     # Use temp files so tests don't pollute the repo
     with tempfile.TemporaryDirectory() as tmpdir:
         old_persist = ActionLedger.PERSIST_PATH
@@ -20,6 +26,13 @@ def ledger():
         yield l
         ActionLedger.PERSIST_PATH = old_persist
         ActionLedger.CHAIN_PERSIST_PATH = old_chain
+
+    # Restore original secret state
+    ActionLedger._HMAC_SECRET = None
+    if old_secret is not None:
+        os.environ["FRIDAY_LEDGER_HMAC_SECRET"] = old_secret
+    else:
+        os.environ.pop("FRIDAY_LEDGER_HMAC_SECRET", None)
 
 
 class TestNeverAutoApprove:
@@ -103,7 +116,10 @@ class TestHashChain:
         # The chain should be persisted to disk
         assert os.path.exists(ledger.CHAIN_PERSIST_PATH)
 
-        # Create a new ledger pointing at the same persist path
+        # Create a new ledger pointing at the same persist path.
+        # Reset the cached HMAC secret so the new instance picks up the
+        # same env var the fixture set.
+        ActionLedger._HMAC_SECRET = None
         new_ledger = ActionLedger()
         new_ledger.CHAIN_PERSIST_PATH = ledger.CHAIN_PERSIST_PATH
         new_ledger._load_chain()
