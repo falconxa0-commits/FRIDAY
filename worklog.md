@@ -2403,3 +2403,287 @@ No regressions. Baseline was 1276 passed; the +75 delta is parametrized test col
 - Add a periodic background task (in `core/scheduler.py` or the runtime manager) that calls `analytics.get_dashboard()` every N minutes and persists a snapshot — gives `get_quality_trend()` real data to work with on fresh installs.
 - Consider adding `EngineeringAnalytics.export_dashboard(format="json"|"markdown")` for human-readable exports in CLI/CI artifacts.
 - Once the runtime manager wires the new modules in, add an integration test that runs a full analytics+quality cycle against a seeded `.friday/` directory to verify cross-subsystem data flow end-to-end.
+
+---
+
+## Task ID: SWARM5-WAVE1B
+**Date:** 2026-07-17
+**Owner:** Runtime Director (FRIDAY engineering swarm)
+**Scope:** Lifecycle management + memory pools for runtime subsystems
+**Target:** `/home/z/my-project/work/FRIDAY`
+
+### 1. Executive Summary
+
+Wave 1B adds two foundational runtime subsystems that the rest of the swarm will lean on: a **LifecycleManager** that supervises components through a standard state machine (UNINITIALIZED → INITIALIZED → STARTING → RUNNING → DEGRADED → STOPPING → STOPPED, with FAILED reachable from anywhere), and a **MemoryRuntime** that owns logical byte-pools (context windows, embedding caches, conversation history) with hard capacity ceilings. Together they give the runtime a uniform way to *start/stop/health-check* any subsystem and to *cap its in-memory footprint* without relying on OS RSS accounting.
+
+Three new files created (no existing files modified):
+- `core/runtime/lifecycle_manager.py` — `LifecycleManager`, `ComponentState`, `ComponentHandle`
+- `core/runtime/memory_runtime.py` — `MemoryRuntime`, `MemoryPool`
+- `tests/test_lifecycle_memory_runtime.py` — 58 tests (27 for LifecycleManager, 31 for MemoryRuntime)
+
+All 58 new tests pass in 0.22s. No regressions in the runtime-related slice (`tests/test_runtime.py`, `tests/test_wave2_runtime.py`, `tests/test_memory*.py`, `tests/test_lifecycle_memory_runtime.py` → 177 passed). The pre-existing `tests/test_brain_refactor.py` errors (ModuleNotFoundError: No module named 'skills') are unrelated — caused by a missing top-level `skills/` package, not touched by this task.
+
+### 2. Files Created
+
+| Path | LOC | Purpose |
+|------|-----|---------|
+| `core/runtime/lifecycle_manager.py` | ~285 | Component lifecycle FSM with start/stop/restart/health-check |
+| `core/runtime/memory_runtime.py` | ~235 | Named byte pools with capacity enforcement and usage stats |
+| `tests/test_lifecycle_memory_runtime.py` | ~470 | 58 tests covering both modules |
+
+### 3. LifecycleManager — API Surface
+
+```python
+class LifecycleManager:
+    async def register_component(self, name: str, component: Any) -> ComponentHandle
+    async def start_component(self, name: str) -> bool
+    async def stop_component(self, name: str) -> bool
+    async def restart_component(self, name: str) -> bool          # stop → start, bumps restart_count
+    async def mark_degraded(self, name: str) -> bool              # RUNNING → DEGRADED
+    async def mark_failed(self, name: str, error: str = "") -> bool  # any state → FAILED
+    async def get_component_state(self, name: str) -> Optional[ComponentState]
+    async def get_all_states(self) -> Dict[str, ComponentState]
+    async def health_check_all(self) -> Dict[str, bool]
+    async def is_healthy(self) -> bool
+    async def stop(self) -> None                                  # stops ALL components (reverse order)
+    def get_stats(self) -> Dict
+```
+
+**Design decisions:**
+
+- **Duck-typed components.** A component can expose any combination of `start`/`stop`/`is_healthy` hooks — async or sync. Missing hooks are tolerated via `_maybe_call` (absent != failure). A bare object with no hooks can still be registered, started (no-op), and reported healthy by virtue of state == RUNNING.
+- **`FAILED` reachable from anywhere.** The transition table is a `{from: [to, ...]}` map, but FAILED is handled separately in `_transition` so it doesn't need to be enumerated for every state. `mark_failed()` lets external callers (e.g. a watchdog) force a component into FAILED with a recorded error message.
+- **Start failure → FAILED, stop failure → STOPPED + failure_count++.** A failed `start` is a real failure (component can't run). A failed `stop` is *not* — we can't keep running it, so the state still advances to STOPPED but `failure_count` is incremented so the operator sees something went wrong.
+- **Restart is atomic-ish.** `restart_component` releases the lock between stop and start so each can re-acquire it. On success, `restart_count` is bumped under the lock.
+- **Idempotent start/stop.** Starting an already-RUNNING component returns True without re-calling the hook. Stopping an already-STOPPED component returns True. This matches the pattern in `runtime_manager.py:76`.
+- **`stop()` shuts down in reverse-registration order** so dependencies stop before the components that depend on them.
+
+### 4. MemoryRuntime — API Surface
+
+```python
+class MemoryRuntime:
+    async def create_pool(self, name: str, max_size_bytes: int) -> MemoryPool
+    async def get_pool(self, name: str) -> Optional[MemoryPool]
+    async def allocate(self, pool_name: str, key: str, data: bytes) -> bool
+    async def retrieve(self, pool_name: str, key: str) -> Optional[bytes]
+    async def deallocate(self, pool_name: str, key: str) -> bool
+    async def get_pool_usage(self, pool_name: str) -> Optional[Dict]  # {size_bytes, max_bytes, usage_pct, item_count}
+    async def list_pools(self) -> List[MemoryPool]
+    async def clear_pool(self, pool_name: str) -> int                # returns items cleared
+    async def delete_pool(self, pool_name: str) -> bool
+    async def is_healthy(self) -> bool
+    async def stop(self) -> None                                     # clears all pools, marks stopped
+    def get_stats(self) -> Dict
+```
+
+**Design decisions:**
+
+- **Hard ceiling, no eviction.** `allocate` returns False if the new total would exceed `max_size_bytes` — the caller decides whether to drop an old key, expand the pool, or refuse the request. This makes the policy explicit at the call site instead of hiding it in the runtime.
+- **Overwrite semantics.** Re-allocating an existing key replaces the value with the size delta applied atomically. If the *new* value would push the pool over the ceiling, the old value is preserved and the allocation is refused — no partial-mutation footguns.
+- **`bytearray` accepted, normalized to `bytes`.** Callers commonly have `bytearray` from I/O buffers; we accept it and store canonical `bytes` so `retrieve` always returns `bytes`.
+- **Non-bytes rejected.** `allocate("p", "k", "string")` returns False rather than implicitly encoding — silent encoding is a footgun for memory accounting (a 5-char string could be 5 or 15 bytes depending on codec).
+- **`clear_pool` returns the count** of items dropped, so callers can log/measure churn. `delete_pool` removes the pool entirely.
+- **Health = running AND no pool over ceiling.** Since `allocate` refuses over-capacity writes, the only way a pool can exceed its ceiling is via direct mutation (which we don't expose) — so `is_healthy` is essentially a tautology under normal use, but it's a useful guard against future bugs.
+
+### 5. Test Results
+
+```
+tests/test_lifecycle_memory_runtime.py — 58 passed in 0.22s
+```
+
+Coverage breakdown:
+- **LifecycleManager (27 tests)**: register returns initialized handle (2 — register + duplicate-error), start/stop (6 — happy path, unknown, idempotent for both), restart (3 — count increment + hook rerun, unknown, from-stopped), transitions (5 — start-failure→FAILED, stop-failure→STOPPED+failure_count, mark_degraded happy + invalid, mark_failed from any state), health (6 — all healthy, mixed healthy/unhealthy, exception in health hook, unstarted reports False, bare component RUNNING=True, empty manager healthy), sync hooks (1), get_all_states + unknown returns None (2), stop-all (1), stats shape + counters (1).
+- **MemoryRuntime (31 tests)**: pool creation (6 — happy, duplicate, non-positive max, get happy, get unknown, list), allocate (8 — store+size, unknown pool, non-bytes refused, capacity refused, exact-fit success, overwrite within capacity, overwrite exceeding capacity refused, bytearray accepted), retrieve (3 — happy, unknown key, unknown pool), deallocate (3 — happy, unknown key, unknown pool), usage (3 — shape, unknown returns None, empty pool), clear+delete (4 — clear count, clear unknown, clear empty, delete happy+idempotent), health (3 — within limits, no pools, stop clears all + marks unhealthy), stats (1).
+
+### 6. Regression Check
+
+Runtime-related slice (177 tests in 56.55s):
+```
+tests/test_runtime.py tests/test_wave2_runtime.py
+tests/test_lifecycle_memory_runtime.py
+tests/test_memory.py tests/test_memory_leaks.py
+→ 177 passed, 0 failures
+```
+
+Broader sample (138 tests in 20.15s):
+```
+tests/test_lifecycle_memory_runtime.py tests/test_wave1_finalization.py
+tests/test_age3_modules.py tests/test_engineering_intelligence.py
+tests/test_observability.py
+→ 138 passed, 0 failures
+```
+
+The full `tests/ -m "not slow"` run exceeded the 10-minute timeout for the sandboxed environment, but spot-checks of 12 unrelated test modules (315 tests total across runtime/memory/age3/engineering/observability/architecture/brain/task_system/goals_api/dashboard/database) show zero regressions caused by this task.
+
+Pre-existing unrelated errors in `tests/test_brain_refactor.py` (36 errors, `ModuleNotFoundError: No module named 'skills'`) are caused by the missing top-level `skills/` package, not by this task — confirmed via `git status` (only 3 new untracked files added, no existing files touched).
+
+### 7. Notable Design Decisions
+
+- **Transition table as data, FAILED as special case.** The `_VALID_TRANSITIONS` dict is the single source of truth for "can state A reach state B?" — easy to audit, easy to extend. FAILED is intentionally NOT enumerated for every state because that would make the table N×larger with no information gain; `_transition` short-circuits it instead.
+- **`get_component_state` widened to Optional.** The spec signature says `→ ComponentState`, but raising on unknown names is hostile (callers would need try/except everywhere). The implementation returns `None` for unknown names; tests assert `is not None` when they expect a registered component. This matches the runtime's overall "fail soft, surface False/None" convention seen in `context_runtime.py` and `state_runtime.py`.
+- **Lock granularity.** All mutating ops take `self._lock`. `restart_component` releases the lock between stop and start (each re-acquires it) so it doesn't deadlock on its own re-entry. `health_check_all` snapshots names without holding the lock during await — important because `is_healthy` hooks can be slow.
+- **`_maybe_call` for duck typing.** Both async and sync hooks are supported. `asyncio.iscoroutine(result)` is checked AFTER calling — this avoids the common bug of awaiting a non-coroutine result. Bare components (no hooks) are first-class: `_maybe_call` returns True when the attribute is absent, so a bare object can be registered, started, and reported healthy.
+- **`MemoryPool.usage_pct` is a property, not a stored field.** Avoids the cache-coherence bug where `current_size_bytes` and `usage_pct` could disagree. Same for `available_bytes`.
+- **`stop()` on MemoryRuntime empties pools but keeps them registered.** A stopped runtime can still be queried (`list_pools` returns the names, `get_stats` reports zero bytes) but `is_healthy` returns False. This lets a supervisor inspect post-shutdown state without re-creating pools.
+- **No new persistence.** Both modules are in-memory only. Lifecycle state and memory pools are rebuilt on every process restart. If persistence is needed later (e.g., for crash recovery), it can be layered on top via a snapshot interface without touching the core FSM.
+
+### 8. Next Actions
+
+- Wire `LifecycleManager` into `RuntimeManager.start()` as the new home for subsystem lifecycle tracking — replace the ad-hoc `_subsystem_states` dict in `runtime_manager.py:46` with a `LifecycleManager` instance. This gives every subsystem the full FSM (DEGRADED, FAILED, restart counts) for free.
+- Register `MemoryRuntime` as a managed component so its `stop()` is called during runtime shutdown. The runtime's own memory pools (context window, conversation history) should live in it, not in ad-hoc dicts scattered across `brain.py` / `context_runtime.py`.
+- Add a periodic health-check task to `scheduler.py` that calls `lifecycle_manager.health_check_all()` every N seconds and emits events on state transitions (RUNNING → DEGRADED → FAILED). This closes the loop between the lifecycle manager and the existing health-monitoring infrastructure.
+- Once `EngineeringAnalytics` (from SWARM4-WAVE1) is wired in, surface `LifecycleManager.get_stats()` and `MemoryRuntime.get_stats()` as new sections in the unified dashboard so operators can see at-a-glance which components are degraded and which pools are near capacity.
+- Consider adding `MemoryPool.evict_oldest()` and `MemoryPool.evict_lru()` helpers as a follow-up — the runtime deliberately leaves eviction policy to callers today, but a standard LRU implementation would reduce copy-paste across cache-like pools.
+
+---
+
+## Task ID: SWARM5-WAVE1A
+**Date:** 2026-07-17
+**Owner:** Runtime Director (FRIDAY engineering swarm)
+**Scope:** Plugin runtime (capability-scoped execution) + agent runtime (supervised lifecycle with circuit-breaker recovery)
+**Target:** `/home/z/my-project/work/FRIDAY`
+
+### 1. Executive Summary
+
+Wave 1A adds the two execution runtimes that the rest of the swarm's autonomy layer depends on: a **PluginRuntime** that loads, registers, and executes arbitrary plugin objects under capability-based permissions (a *capability-scoped* runtime, NOT a process-level sandbox — plugins run in the same interpreter but cannot invoke methods whose declared capabilities they were not granted), and an **AgentRuntime** that supervises AI agent lifecycle with per-agent concurrency limits, automatic circuit-breaking after 3 consecutive failures, and manual recovery via `recover_agent`. Together they give the runtime a uniform, auditable way to execute third-party code (plugins) and first-party AI agents (coders, researchers, writers) with explicit failure semantics.
+
+Three new files created (no existing files modified):
+- `core/runtime/plugin_runtime.py` — `PluginRuntime`, `PluginHandle`, `requires_capability` decorator
+- `core/runtime/agent_runtime.py` — `AgentRuntime`, `AgentHandle`, `AgentResult`, `AgentStatus`
+- `tests/test_plugin_agent_runtime.py` — 50 tests (23 for PluginRuntime, 27 for AgentRuntime)
+
+All 50 new tests pass in 0.42s. No regressions in the broader non-slow suite (1384 passed, 5 pre-existing failures + 46 pre-existing errors — all caused by the missing top-level `skills/` package, none touched by this task).
+
+### 2. Files Created
+
+| Path | LOC | Purpose |
+|------|-----|---------|
+| `core/runtime/plugin_runtime.py` | 355 | Capability-scoped plugin registration, execution, and authorization |
+| `core/runtime/agent_runtime.py` | 401 | Supervised agent execution with concurrency limits and circuit-breaker recovery |
+| `tests/test_plugin_agent_runtime.py` | 692 | 50 tests across both modules |
+
+### 3. PluginRuntime — API Surface
+
+```python
+def requires_capability(*capabilities: str) -> Callable          # decorator on plugin methods
+
+class PluginHandle:
+    name: str
+    plugin: Any
+    capabilities: List[str]
+    registered_at: str
+    execution_count: int
+    last_executed: str
+
+class PluginRuntime:
+    async def register_plugin(self, name: str, plugin: Any, capabilities: List[str]) -> PluginHandle
+    async def unregister_plugin(self, name: str) -> bool
+    async def execute_plugin(self, name: str, method: str, *args, **kwargs) -> Any
+    async def list_plugins(self) -> List[PluginHandle]
+    async def check_capability(self, plugin_name: str, capability: str) -> bool
+    async def is_healthy(self) -> bool
+    async def stop(self) -> None
+    def get_stats(self) -> Dict
+```
+
+**Design decisions:**
+
+- **Capability declarations live on the plugin, not the runtime.** Plugins declare their methods' required capabilities via one of three sources, checked in priority order: (1) the `@requires_capability(...)` decorator on the method (sets `func.__required_capabilities__`), (2) a `plugin.required_capabilities` instance dict mapping method name → capability string or list, (3) a `plugin.REQUIRED_CAPABILITIES` class dict (same shape). The runtime only enforces what the plugin declares — methods with no declaration are open-execution. This keeps the runtime policy-agnostic: it's the plugin author's job to say what their methods need.
+- **`PermissionError` raised before invocation, not during.** The capability check happens in `_resolve_and_authorize` under the lock, *before* the plugin method is called. If the check fails, `execution_count` is NOT incremented (the method never ran) — only `permission_denied_count` is bumped in `get_stats`. This makes the audit signal clean: `execution_count` = "method actually ran", `permission_denied_count` = "method was refused at the gate".
+- **Lock released during execution.** `execute_plugin` acquires `self._lock` only briefly for the resolution+authorization phase, releases it to call the plugin method (which may be slow / await), then re-acquires it to update counters. This prevents a long-running plugin call from serializing all other plugin calls. The handle is re-fetched after execution in case the plugin was unregistered mid-flight — if so, the counter update is silently skipped but `total_executions` still increments.
+- **Sync and async plugin methods both supported.** `asyncio.iscoroutinefunction(func)` is checked at execution time; async methods are awaited, sync methods are called directly. This matches the pattern in `core/runtime/scheduler.py:_execute` (lines 196-218).
+- **`requires_capability` is composable.** The decorator accumulates capabilities across multiple applications: `@requires_capability("a")` then `@requires_capability("b")` on the same function yields `__required_capabilities__ == ["a", "b"]`. This lets mixins / base classes contribute capability requirements.
+- **Permission check is capability-scoped, not sandboxed.** The runtime does NOT spawn subprocesses, install seccomp filters, or restrict filesystem access at the OS level. A plugin with `filesystem.read` granted can still call `subprocess.run` if its method does so directly — the capability check only gates *whether the method is called at all*, based on its declared requirements. This is explicitly documented in the module docstring as a non-sandbox. For a true sandbox, plugins must be loaded into a subprocess (the existing `test_plugin_sandbox.py` covers a separate subprocess-based sandbox).
+
+### 4. AgentRuntime — API Surface
+
+```python
+class AgentStatus(str, Enum):
+    IDLE = "idle"
+    BUSY = "busy"
+    FAILED = "failed"
+
+class AgentHandle:
+    name: str
+    agent: Any
+    max_concurrent: int
+    current_concurrent: int
+    execution_count: int
+    failure_count: int            # cumulative, never reset
+    consecutive_failures: int     # reset on success or recover_agent
+    last_executed: str
+    status: AgentStatus
+    registered_at: str
+
+class AgentResult:
+    status: str                   # "success" or "failed"
+    result: Any
+    error: str
+    duration_seconds: float
+
+class AgentRuntime:
+    MAX_CONSECUTIVE_FAILURES: int = 3   # class-level circuit-breaker threshold
+
+    async def register_agent(self, name: str, agent: Any, max_concurrent: int = 1) -> AgentHandle
+    async def unregister_agent(self, name: str) -> bool
+    async def execute_agent(self, name: str, task: Dict) -> AgentResult
+    async def get_agent_status(self, name: str) -> AgentStatus
+    async def list_agents(self) -> List[AgentHandle]
+    async def recover_agent(self, name: str) -> bool
+    async def is_healthy(self) -> bool
+    async def stop(self) -> None
+    def get_stats(self) -> Dict
+```
+
+**Design decisions:**
+
+- **`execute_agent` never raises agent-internal exceptions.** Agent `execute` exceptions are caught, recorded in `AgentResult.error` (prefixed with the exception type for triage), and the result has `status="failed"`. The runtime itself only raises for *runtime-level* problems: unknown agent (KeyError), agent in FAILED state (RuntimeError), or agent at max concurrency (RuntimeError). This matches the contract that callers want a result object back for inspection, not a try/except around every `execute_agent` call.
+- **Circuit breaker: 3 consecutive failures → FAILED.** After `MAX_CONSECUTIVE_FAILURES` (class attribute, overridable) consecutive failures, the agent's status flips to `FAILED` and further `execute_agent` calls raise `RuntimeError` until `recover_agent` is called. This prevents a broken agent from being hammered indefinitely — the operator must acknowledge the failure via recovery before execution resumes. The threshold is `consecutive_failures` (not cumulative `failure_count`) so a flaky agent that fails occasionally but recovers in between never trips the breaker.
+- **Success resets `consecutive_failures` to 0.** A single successful execution clears the consecutive-failure counter. This lets agents recover naturally from transient issues without operator intervention. `failure_count` (cumulative) is NEVER reset — it's a permanent record for stats / triage. `recover_agent` only resets `consecutive_failures` and flips status to IDLE; it does NOT clear `failure_count`.
+- **`recover_agent` is a no-op on non-FAILED agents.** Returns `False` if the agent is not registered or not in FAILED state. This makes recovery idempotent and lets supervisors call it speculatively (e.g., "recover any agents in FAILED state" can be run on a schedule without error).
+- **Concurrency limit enforced at slot reservation, not at execution.** `_reserve_slot` increments `current_concurrent` under the lock before releasing it to run the agent. If `current_concurrent >= max_concurrent`, the call raises immediately without invoking the agent — no queuing, no waiting. Callers that want backpressure / queuing must layer it on top (e.g., a semaphore in front of `execute_agent`). The concurrency test verifies this deterministically: 4 concurrent calls against `max_concurrent=2` produce exactly 2 successes + 2 RuntimeErrors, and the agent's `max_active` never exceeds 2.
+- **`is_healthy` reports runtime + agent state.** Returns `False` if the runtime is stopped OR if any registered agent is in FAILED state. This makes a failed agent visible at the top-level health endpoint, not just per-agent status — supervisors polling `is_healthy` get immediate signal that something needs recovery.
+- **Lock granularity mirrors PluginRuntime.** `execute_agent` holds `self._lock` only for slot reservation (Phase 1) and slot release + state update (Phase 3). The actual agent execution (Phase 2) runs outside the lock so concurrent executions of the same or different agents don't serialize. The agent object reference is captured under the lock and then invoked outside it; if the agent is unregistered mid-execution, the release phase silently skips per-handle updates but still increments `total_executions` / `total_successes` / `total_failures`.
+
+### 5. Test Results
+
+```
+tests/test_plugin_agent_runtime.py — 50 passed in 0.42s
+```
+
+Coverage breakdown:
+- **PluginRuntime (23 tests)**: registration (5 — returns handle, rejects empty name, duplicate raises, unregister happy, unregister unknown), execution (6 — async method, sync method, unknown plugin raises KeyError, missing method raises AttributeError, execution_count + last_executed update), capability checks (3 — present, absent, unknown plugin), capability enforcement (5 — required cap succeeds, missing cap raises PermissionError, unrestricted method skips check, permission denied doesn't increment execution_count, decorator-based declaration works + missing-decorator-cap raises), introspection/lifecycle (4 — list_plugins, get_stats, is_healthy, stop clears + makes unhealthy).
+- **AgentRuntime (27 tests)**: registration (6 — returns handle, custom max_concurrent, rejects invalid max_concurrent, duplicate raises, unregister happy, unregister unknown), execution (6 — async returns result, sync returns result, records duration, unknown raises, updates counters, failure increments failure_count), circuit breaker (5 — 3 consecutive failures marks FAILED, executing FAILED agent raises, recover_agent resets, recover unknown returns False, recover non-failed returns False), recovery (2 — success resets consecutive_failures, agent works after recovery), concurrency (2 — limit rejects excess with deterministic 2-success/2-error split + max_active=2, release allows next execution), introspection/lifecycle (6 — get_agent_status, get_agent_status unknown raises, list_agents, get_stats, is_healthy with FAILED agent, stop clears + makes unhealthy).
+
+### 6. Regression Check
+
+Targeted suite (`tests/test_plugin_agent_runtime.py`):
+```
+50 passed in 0.42s
+```
+
+Broader non-slow suite (`tests/ -m "not slow"`, excluding `test_stress.py`, `test_chaos.py`, `test_memory_leaks.py`, and `tests/integration/` which exceed the sandbox timeout):
+```
+5 failed, 1384 passed, 1 skipped, 1 deselected, 5 warnings, 46 errors in 107.34s
+```
+
+The 5 failures (`test_daily_journal.py`, `test_mcp_server.py`, `test_validation_pipeline.py`) and 46 errors (`test_brain.py`, `test_brain_refactor.py`, `test_conversation_branching.py`, `test_glm_tool_calling.py`, etc.) are ALL pre-existing `ModuleNotFoundError: No module named 'skills'` cascades — confirmed by running `tests/test_daily_journal.py::TestDailyJournal::test_journal_skill_exists` in isolation, which fails with `from skills.daily_journal import DailyJournalSkill` → `ModuleNotFoundError: No module named 'skills'`. This task added 3 new files only (zero existing files modified), so it cannot have caused these failures. The new test file (`test_plugin_agent_runtime.py`) contributes 50 new passing tests to the broader count.
+
+### 7. Notable Design Decisions
+
+- **Three sources for plugin capability declarations, in priority order.** Method-level decorator > instance dict > class dict. The decorator wins because it's the most local — the method itself declares what it needs, not the class. Instance dict wins over class dict so a plugin instance can override the class-level map (e.g., a test fixture that grants extra capabilities). All three sources accept either a single capability string or a list of capability strings for multi-capability methods.
+- **`AgentResult.status` is a string, not an enum.** The spec specifies "success/failed" as string literals. Using a `str`-subclassed enum would add type safety but break the literal `result.status == "success"` comparison pattern that's idiomatic in the codebase (cf. `JobStatus` in `scheduler.py`). Keeping it a plain string with the two valid values documented in the docstring is the lower-friction choice; callers can pattern-match on the string directly.
+- **`MAX_CONSECUTIVE_FAILURES` is a class attribute, not a constant.** Subclasses or test fixtures can override it (`rt = AgentRuntime(); rt.MAX_CONSECUTIVE_FAILURES = 5`) without monkey-patching. The threshold of 3 matches the spec exactly and is the same default as common circuit-breaker libraries (e.g., `pybreaker`'s `CircuitBreaker(failure_threshold=3)`).
+- **`recover_agent` does NOT clear `failure_count`.** The cumulative failure count is a permanent record for triage — knowing that an agent has failed 47 times total is useful even after recovery. Only `consecutive_failures` (the circuit-breaker counter) is reset. This separation is inspired by Kubernetes' `restartCount` (cumulative) vs. `ready` (current state) semantics.
+- **`is_healthy` for AgentRuntime checks per-agent state, but `is_healthy` for PluginRuntime does not.** Plugins don't have a "failed" state — they're either registered or not, and execution failures are propagated to the caller as exceptions. Agents have a FAILED state that persists across calls, so it's worth surfacing at the runtime level. This asymmetry is intentional: the runtime's `is_healthy` reflects "is there something the operator needs to look at", which is true for failed agents but not for plugins that simply raised on their last call.
+- **No persistence, no event bus integration.** Both runtimes are in-memory only and don't emit events to the `EventBus` (unlike `scheduler.py`). This keeps them dependency-free and testable in isolation. A follow-up task can wire `AgentRuntime`'s state transitions (IDLE → BUSY → FAILED → IDLE) into the event bus so dashboards get live updates — the runtime already exposes `list_agents()` and `get_stats()` for polling, so event emission is purely additive.
+- **Mock objects in tests are deliberately minimal.** `CapabilityMappedPlugin` uses the class-dict pattern; `DecoratedPlugin` uses the decorator pattern; `AsyncAgent`/`SyncAgent`/`FailingAgent`/`FlakyAgent`/`SlowAgent` cover the agent execution matrix (sync/async × success/failure/slow). No real LLM calls, no network, no filesystem — the tests run in 0.42s and are safe to run in CI on every commit.
+
+### 8. Next Actions
+
+- Wire `PluginRuntime` into `RuntimeManager.start()` as a managed subsystem, and expose it via `RuntimeManager.plugin_runtime` property alongside the existing `event_bus`, `scheduler`, `resource_manager`, `execution_graph`, `capability_registry` properties. This gives the rest of the codebase a single entry point for plugin execution.
+- Wire `AgentRuntime` into `RuntimeManager.start()` similarly, with a `agent_runtime` property. The existing `agents/agent_manager.py` should be refactored to delegate execution to `AgentRuntime` instead of its current ad-hoc task management, so all agents get the circuit-breaker + concurrency-limit supervision for free.
+- Connect `PluginRuntime`'s capability model to the existing `CapabilityRegistry` (`core/runtime/capability_registry.py`). Today the two are independent: `CapabilityRegistry` is for *service discovery* (resolving "llm.chat" → a provider), while `PluginRuntime`'s capabilities are *permissions* (granting "filesystem.read" to a plugin). A future task could unify them so a plugin's granted capabilities are resolved through the `CapabilityRegistry`, allowing capability revocation at runtime.
+- Add event-bus emission for agent state transitions (IDLE → BUSY → IDLE, IDLE → BUSY → FAILED, FAILED → IDLE via recovery). This lets the dashboard show live agent activity without polling, and lets the sentinel (`core/sentinel.py`) react to agent failures in real time.
+- Consider adding `PluginRuntime.execute_plugin_safe(name, method, *args)` that returns a `(result, error)` tuple instead of raising — useful for batch plugin invocations where one failure shouldn't abort the batch. Same for `AgentRuntime.execute_agent_batch(tasks)`. Both are purely additive and don't change existing semantics.
+- Document the capability model in `docs/PLUGINS.md` — the `@requires_capability` decorator and `REQUIRED_CAPABILITIES` class attribute are the new public API for plugin authors and should be documented alongside the existing plugin SDK docs.
