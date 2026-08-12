@@ -117,6 +117,11 @@ class FridayBrain:
         self.provider = provider or os.getenv("BRAIN_PROVIDER", "glm")
         self.logger = logging.getLogger("FridayBrain")
 
+        # Feature flag: route through BrainRuntimeAdapter when enabled.
+        # Set FRIDAY_USE_RUNTIME=1 to enable runtime-mediated execution.
+        # Default: off (backward compatibility — legacy path used).
+        self.use_runtime = os.getenv("FRIDAY_USE_RUNTIME", "0") == "1"
+
         # LLM Clients - lazy init
         self._claude_client = None
         self.gemini_brain = None
@@ -726,14 +731,107 @@ class FridayBrain:
     # Main chat streaming method — orchestration only
     # ------------------------------------------------------------------
 
-    async def chat_stream(
+    # ------------------------------------------------------------------
+    # Runtime-mediated chat (feature flag: FRIDAY_USE_RUNTIME=1)
+    # ------------------------------------------------------------------
+
+    async def _runtime_chat_stream(
         self,
         message: str,
-        user_name: str = "User",
-        force_provider=None,
+        user_name: str,
+        provider: str,
     ) -> AsyncGenerator[str, None]:
-        """Stream a chat response with full tool-calling, RAG, and memory integration."""
-        prov = force_provider or self.provider
+        """Route chat through BrainRuntimeAdapter when feature flag is on.
+
+        This path applies PromptShield sanitization, PolicyEngine
+        capability checks, and EventBus event emission before
+        delegating to the legacy execution path.
+
+        The actual LLM call still uses the same ProviderRouter — the
+        adapter wraps the INPUT (sanitization + policy) and OUTPUT
+        (validation + events), not the LLM call itself.
+        """
+        # Lazy-load the adapter (avoid circular import)
+        try:
+            from core.runtime.brain_adapter import BrainRuntimeAdapter
+            from core.runtime.security.prompt_shield import PromptShield
+            from core.runtime.security.policy_engine import create_default_policy_engine
+            from core.runtime.event_bus import EventBus
+
+            # Use a per-brain adapter instance
+            if not hasattr(self, "_runtime_adapter"):
+                shield = PromptShield()
+                engine = create_default_policy_engine()
+                engine.grant_capability("brain.chat")
+                bus = EventBus()
+                self._runtime_adapter = BrainRuntimeAdapter(
+                    brain=None,  # we call the legacy path ourselves
+                    event_bus=bus,
+                    prompt_shield=shield,
+                    policy_engine=engine,
+                )
+
+            adapter = self._runtime_adapter
+
+            # Step 1: Sanitize input
+            sanitization = adapter.prompt_shield.sanitize_input(message)
+            if sanitization.was_modified:
+                self.logger.warning(
+                    f"Prompt injection detected and filtered: "
+                    f"{sanitization.threats_detected}"
+                )
+            safe_message = sanitization.sanitized
+
+            # Step 2: Check policy
+            decision = adapter.policy_engine.evaluate("brain.chat")
+            if not decision.allowed:
+                self.logger.warning(f"Chat blocked by policy: {decision.reason}")
+                yield f"[Chat blocked by security policy: {decision.reason}]"
+                return
+
+            # Step 3: Emit start event
+            await adapter._emit("brain.stream.started", {
+                "message_length": len(safe_message),
+                "provider": provider,
+            })
+
+            # Step 4: Execute via legacy path (with sanitized input)
+            # We call the internal legacy execution directly, passing
+            # the sanitized message.
+            async for chunk in self._legacy_chat_stream(
+                safe_message, user_name, provider
+            ):
+                # Step 5: Validate each output chunk
+                validated = adapter.prompt_shield.validate_output(chunk)
+                yield validated.sanitized
+
+            # Step 6: Emit completion event
+            await adapter._emit("brain.stream.completed", {
+                "provider": provider,
+            })
+
+        except ImportError:
+            # Runtime modules not available — fall back to legacy path
+            self.logger.warning(
+                "Runtime modules not available, falling back to legacy path"
+            )
+            async for chunk in self._legacy_chat_stream(message, user_name, provider):
+                yield chunk
+
+    async def _legacy_chat_stream(
+        self,
+        message: str,
+        user_name: str,
+        provider: str,
+    ) -> AsyncGenerator[str, None]:
+        """The original chat_stream logic (renamed for clarity).
+
+        This is the direct-execution path that was previously
+        the body of chat_stream. It is called by both the legacy
+        path (when feature flag is off) and the runtime path
+        (after sanitization).
+        """
+        prov = provider
 
         # Detect emotion from user message
         if self.emotions:
@@ -768,6 +866,28 @@ class FridayBrain:
             prov, message, system_prompt, self.tools, self
         ):
             yield chunk
+
+    async def chat_stream(
+        self,
+        message: str,
+        user_name: str = "User",
+        force_provider=None,
+    ) -> AsyncGenerator[str, None]:
+        """Stream a chat response with full tool-calling, RAG, and memory integration.
+
+        When ``FRIDAY_USE_RUNTIME=1`` is set, the chat is routed through
+        the runtime pipeline (PromptShield → PolicyEngine → execution →
+        output validation → EventBus). Otherwise, the legacy direct path
+        is used, preserving backward compatibility.
+        """
+        prov = force_provider or self.provider
+
+        if self.use_runtime:
+            async for chunk in self._runtime_chat_stream(message, user_name, prov):
+                yield chunk
+        else:
+            async for chunk in self._legacy_chat_stream(message, user_name, prov):
+                yield chunk
 
     # ------------------------------------------------------------------
     # Conversation branching — delegated to ContextManager
