@@ -333,9 +333,17 @@ class BrainBridge:
 _bridge: Optional[BrainBridge] = None
 
 
-def get_brain_bridge() -> BrainBridge:
-    """Get the singleton BrainBridge instance."""
+def get_brain_bridge(instance=None) -> BrainBridge:
+    """Get the singleton BrainBridge instance.
+
+    Args:
+        instance: Optional instance to inject. When provided, the
+            singleton is replaced with this instance. This is primarily
+            intended for tests to substitute mock/fake instances.
+    """
     global _bridge
+    if instance is not None:
+        _bridge = instance
     if _bridge is None:
         _bridge = BrainBridge()
     return _bridge

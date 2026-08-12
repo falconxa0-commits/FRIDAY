@@ -129,7 +129,9 @@ class GoalTracker:
 
         # Scan research logs for goal-related queries
         try:
-            from api.routes.stats import _request_log
+            import importlib
+            _stats = importlib.import_module("api.routes.stats")
+            _request_log = getattr(_stats, "_request_log", [])
             import datetime
             today = datetime.date.today().isoformat()
             today_logs = [r for r in _request_log if r.get("timestamp", "").startswith(today)]

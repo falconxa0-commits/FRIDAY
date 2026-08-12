@@ -63,7 +63,9 @@ class PrivacyAuditEngine:
 
         # 3. Providers used (from stats)
         try:
-            from api.routes.stats import _request_log
+            import importlib
+            _stats = importlib.import_module("api.routes.stats")
+            _request_log = getattr(_stats, "_request_log", [])
             providers = set(r.get("provider", "?") for r in _request_log)
             report["providers_used"] = list(providers)
             report["data_volume_estimate"] = {
@@ -88,7 +90,9 @@ class PrivacyAuditEngine:
     async def get_data_sent_to_provider(self, provider: str) -> list:
         """Return all requests sent to a specific provider."""
         try:
-            from api.routes.stats import _request_log
+            import importlib
+            _stats = importlib.import_module("api.routes.stats")
+            _request_log = getattr(_stats, "_request_log", [])
             return [r for r in _request_log if r.get("provider") == provider]
         except Exception:
             return []
@@ -96,7 +100,9 @@ class PrivacyAuditEngine:
     async def purge_provider_history(self, provider: str) -> dict:
         """Purge all history for a specific provider from local logs."""
         try:
-            from api.routes.stats import _request_log
+            import importlib
+            _stats = importlib.import_module("api.routes.stats")
+            _request_log = getattr(_stats, "_request_log", [])
             original = len(_request_log)
             _request_log[:] = [r for r in _request_log if r.get("provider") != provider]
             purged = original - len(_request_log)

@@ -208,8 +208,17 @@ class BenchmarkRunner:
 _runner: Optional[BenchmarkRunner] = None
 
 
-def get_benchmark_runner() -> BenchmarkRunner:
+def get_benchmark_runner(instance=None) -> BenchmarkRunner:
+    """Get the singleton BenchmarkRunner instance.
+
+    Args:
+        instance: Optional instance to inject. When provided, the
+            singleton is replaced with this instance. This is primarily
+            intended for tests to substitute mock/fake instances.
+    """
     global _runner
+    if instance is not None:
+        _runner = instance
     if _runner is None:
         _runner = BenchmarkRunner()
     return _runner

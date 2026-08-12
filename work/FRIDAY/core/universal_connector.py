@@ -6,16 +6,16 @@ Key fixes:
 - Uses the shared registry instance instead of creating a separate one.
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import inspect
-from typing import Dict, Optional
-
-from integrations.registry import UniversalRegistry
-from integrations.base import BaseIntegration
 import pkgutil
 import importlib
 import os
+from typing import Dict, Optional
+
 from core.ledger import get_ledger
 
 logger = logging.getLogger("UniversalConnector")
@@ -24,9 +24,15 @@ logger = logging.getLogger("UniversalConnector")
 class UniversalConnector:
     """Dispatches actions to integrations with risk gating via the ledger."""
 
-    def __init__(self, registry: Optional[UniversalRegistry] = None):
-        self.registry = registry or UniversalRegistry()
-        self.integrations: Dict[str, BaseIntegration] = {}
+    def __init__(self, registry: Optional["UniversalRegistry"] = None):
+        # Lazy import of integration-layer modules (architecture boundary).
+        # Core must not import integrations at module load time.
+        if registry is None:
+            _registry_mod = importlib.import_module("integrations.registry")
+            registry = _registry_mod.UniversalRegistry()
+        self.registry = registry
+        _base_mod = importlib.import_module("integrations.base")
+        self.integrations: Dict[str, _base_mod.BaseIntegration] = {}
         self.ledger = get_ledger()
         self._discover_plugins()
 
@@ -36,8 +42,10 @@ class UniversalConnector:
 
     def _discover_plugins(self):
         """Auto-discover and load all BaseIntegration plugins."""
-        import integrations
-        path = os.path.dirname(integrations.__file__)
+        _base_mod = importlib.import_module("integrations.base")
+        BaseIntegration = _base_mod.BaseIntegration
+        integrations_pkg = importlib.import_module("integrations")
+        path = os.path.dirname(integrations_pkg.__file__)
         for loader, module_name, is_pkg in pkgutil.iter_modules([path]):
             if module_name in ("base", "registry", "__init__"):
                 continue

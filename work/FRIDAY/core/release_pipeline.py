@@ -279,8 +279,17 @@ class ReleasePipeline:
 _pipeline: Optional[ReleasePipeline] = None
 
 
-def get_release_pipeline() -> ReleasePipeline:
+def get_release_pipeline(instance=None) -> ReleasePipeline:
+    """Get the singleton ReleasePipeline instance.
+
+    Args:
+        instance: Optional instance to inject. When provided, the
+            singleton is replaced with this instance. This is primarily
+            intended for tests to substitute mock/fake instances.
+    """
     global _pipeline
+    if instance is not None:
+        _pipeline = instance
     if _pipeline is None:
         _pipeline = ReleasePipeline()
     return _pipeline

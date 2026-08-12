@@ -44,7 +44,6 @@ from config.friday_identity import get_system_prompt
 from core.gemini_brain import GeminiBrain
 from core.glm_brain import GLMBrain
 from core.local_brain import LocalBrain
-from integrations.registry import UniversalRegistry
 from core.universal_connector import UniversalConnector
 from core.context_manager import ContextManager, ConversationSummarizer
 from core.creative_router import CreativeRouter
@@ -137,7 +136,10 @@ class FridayBrain:
         self.personality = personality
 
         # Integration layer
-        self.registry = UniversalRegistry()
+        # Lazy import via importlib — Core must not statically depend on
+        # the integrations layer. Loaded on first use, not at module import.
+        _registry_mod = importlib.import_module("integrations.registry")
+        self.registry = _registry_mod.UniversalRegistry()
         self.connector = UniversalConnector()
 
         # Skills
@@ -570,7 +572,8 @@ class FridayBrain:
 
         # Surface subconscious patterns relevant to the current message
         try:
-            from database.subconscious import SubconsciousMind
+            _sub_mod = importlib.import_module("database.subconscious")
+            SubconsciousMind = _sub_mod.SubconsciousMind
             sub = SubconsciousMind()
             intuition = sub.get_intuition()
             if intuition and len(intuition) > 10:

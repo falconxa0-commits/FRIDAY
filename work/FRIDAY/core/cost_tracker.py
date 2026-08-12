@@ -271,3 +271,25 @@ class CostTracker:
                 "Paid tiers offer higher rate limits and additional models.",
             ],
         }
+
+
+# ---------------------------------------------------------------------------
+# Module-level singleton (injectable for tests)
+# ---------------------------------------------------------------------------
+_tracker: Optional[CostTracker] = None
+
+
+def get_cost_tracker(instance=None) -> CostTracker:
+    """Get the singleton CostTracker instance.
+
+    Args:
+        instance: Optional instance to inject. When provided, the
+            singleton is replaced with this instance. This is primarily
+            intended for tests to substitute mock/fake instances.
+    """
+    global _tracker
+    if instance is not None:
+        _tracker = instance
+    if _tracker is None:
+        _tracker = CostTracker()
+    return _tracker

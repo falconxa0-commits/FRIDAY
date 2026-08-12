@@ -354,3 +354,25 @@ class EthicalSentinel:
             }
             for a in self._assessment_history[-limit:]
         ]
+
+
+# ---------------------------------------------------------------------------
+# Module-level singleton (injectable for tests)
+# ---------------------------------------------------------------------------
+_sentinel: Optional[EthicalSentinel] = None
+
+
+def get_sentinel(instance=None) -> EthicalSentinel:
+    """Get the singleton EthicalSentinel instance.
+
+    Args:
+        instance: Optional instance to inject. When provided, the
+            singleton is replaced with this instance. This is primarily
+            intended for tests to substitute mock/fake instances.
+    """
+    global _sentinel
+    if instance is not None:
+        _sentinel = instance
+    if _sentinel is None:
+        _sentinel = EthicalSentinel()
+    return _sentinel

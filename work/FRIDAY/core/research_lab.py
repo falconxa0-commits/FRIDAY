@@ -272,8 +272,17 @@ class ResearchLab:
 _lab: Optional[ResearchLab] = None
 
 
-def get_research_lab() -> ResearchLab:
+def get_research_lab(instance=None) -> ResearchLab:
+    """Get the singleton ResearchLab instance.
+
+    Args:
+        instance: Optional instance to inject. When provided, the
+            singleton is replaced with this instance. This is primarily
+            intended for tests to substitute mock/fake instances.
+    """
     global _lab
+    if instance is not None:
+        _lab = instance
     if _lab is None:
         _lab = ResearchLab()
     return _lab

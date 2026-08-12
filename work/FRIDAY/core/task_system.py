@@ -614,9 +614,17 @@ class TaskQueue:
 _queue: Optional[TaskQueue] = None
 
 
-def get_task_queue() -> TaskQueue:
-    """Get the singleton TaskQueue instance."""
+def get_task_queue(instance=None) -> TaskQueue:
+    """Get the singleton TaskQueue instance.
+
+    Args:
+        instance: Optional instance to inject. When provided, the
+            singleton is replaced with this instance. This is primarily
+            intended for tests to substitute mock/fake instances.
+    """
     global _queue
+    if instance is not None:
+        _queue = instance
     if _queue is None:
         _queue = TaskQueue()
     return _queue

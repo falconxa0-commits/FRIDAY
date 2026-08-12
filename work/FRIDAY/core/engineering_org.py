@@ -427,9 +427,17 @@ class EngineeringOrg:
 _org: Optional[EngineeringOrg] = None
 
 
-def get_engineering_org() -> EngineeringOrg:
-    """Get the singleton EngineeringOrg instance."""
+def get_engineering_org(instance=None) -> EngineeringOrg:
+    """Get the singleton EngineeringOrg instance.
+
+    Args:
+        instance: Optional instance to inject. When provided, the
+            singleton is replaced with this instance. This is primarily
+            intended for tests to substitute mock/fake instances.
+    """
     global _org
+    if instance is not None:
+        _org = instance
     if _org is None:
         _org = EngineeringOrg()
     return _org

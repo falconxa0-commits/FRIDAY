@@ -572,8 +572,17 @@ class EngineeringIntelligence:
 _intelligence: Optional[EngineeringIntelligence] = None
 
 
-def get_engineering_intelligence() -> EngineeringIntelligence:
+def get_engineering_intelligence(instance=None) -> EngineeringIntelligence:
+    """Get the singleton EngineeringIntelligence instance.
+
+    Args:
+        instance: Optional instance to inject. When provided, the
+            singleton is replaced with this instance. This is primarily
+            intended for tests to substitute mock/fake instances.
+    """
     global _intelligence
+    if instance is not None:
+        _intelligence = instance
     if _intelligence is None:
         _intelligence = EngineeringIntelligence()
     return _intelligence

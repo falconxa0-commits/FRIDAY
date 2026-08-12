@@ -236,8 +236,17 @@ class DocValidator:
 _validator: Optional[DocValidator] = None
 
 
-def get_doc_validator() -> DocValidator:
+def get_doc_validator(instance=None) -> DocValidator:
+    """Get the singleton DocValidator instance.
+
+    Args:
+        instance: Optional instance to inject. When provided, the
+            singleton is replaced with this instance. This is primarily
+            intended for tests to substitute mock/fake instances.
+    """
     global _validator
+    if instance is not None:
+        _validator = instance
     if _validator is None:
         _validator = DocValidator()
     return _validator

@@ -448,8 +448,17 @@ class SecurityOperations:
 _sec_ops: Optional[SecurityOperations] = None
 
 
-def get_security_operations() -> SecurityOperations:
+def get_security_operations(instance=None) -> SecurityOperations:
+    """Get the singleton SecurityOperations instance.
+
+    Args:
+        instance: Optional instance to inject. When provided, the
+            singleton is replaced with this instance. This is primarily
+            intended for tests to substitute mock/fake instances.
+    """
     global _sec_ops
+    if instance is not None:
+        _sec_ops = instance
     if _sec_ops is None:
         _sec_ops = SecurityOperations()
     return _sec_ops

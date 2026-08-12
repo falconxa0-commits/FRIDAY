@@ -1,5 +1,6 @@
 import logging
 import re
+import importlib
 from typing import List, Dict, Optional, Any
 from datetime import datetime, timedelta, timezone
 
@@ -14,8 +15,14 @@ class FridayMemory:
     def __init__(self, supabase_client=None, vector_store=None):
         """Initialize with optional dependency injection."""
         try:
-            from database.supabase_client import SupabaseClient
-            from database.vector_store import VectorStore
+            # Lazy import via importlib — Core must not statically depend on
+            # the database layer. This preserves the layer boundary.
+            SupabaseClient = importlib.import_module(
+                "database.supabase_client"
+            ).SupabaseClient
+            VectorStore = importlib.import_module(
+                "database.vector_store"
+            ).VectorStore
             self.supabase = supabase_client or SupabaseClient()
             self.vector_store = vector_store or VectorStore()
         except Exception as e:

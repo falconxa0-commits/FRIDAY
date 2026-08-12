@@ -269,8 +269,17 @@ class AutoFixPipeline:
 _pipeline: Optional[AutoFixPipeline] = None
 
 
-def get_auto_fix_pipeline() -> AutoFixPipeline:
+def get_auto_fix_pipeline(instance=None) -> AutoFixPipeline:
+    """Get the singleton AutoFixPipeline instance.
+
+    Args:
+        instance: Optional instance to inject. When provided, the
+            singleton is replaced with this instance. This is primarily
+            intended for tests to substitute mock/fake instances.
+    """
     global _pipeline
+    if instance is not None:
+        _pipeline = instance
     if _pipeline is None:
         _pipeline = AutoFixPipeline()
     return _pipeline

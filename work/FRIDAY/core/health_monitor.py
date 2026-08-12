@@ -258,8 +258,17 @@ class HealthMonitor:
 _monitor: Optional[HealthMonitor] = None
 
 
-def get_health_monitor() -> HealthMonitor:
+def get_health_monitor(instance=None) -> HealthMonitor:
+    """Get the singleton HealthMonitor instance.
+
+    Args:
+        instance: Optional instance to inject. When provided, the
+            singleton is replaced with this instance. This is primarily
+            intended for tests to substitute mock/fake instances.
+    """
     global _monitor
+    if instance is not None:
+        _monitor = instance
     if _monitor is None:
         _monitor = HealthMonitor()
     return _monitor

@@ -370,9 +370,17 @@ class KnowledgeBase:
 _kb: Optional[KnowledgeBase] = None
 
 
-def get_knowledge_base() -> KnowledgeBase:
-    """Get the singleton KnowledgeBase instance."""
+def get_knowledge_base(instance=None) -> KnowledgeBase:
+    """Get the singleton KnowledgeBase instance.
+
+    Args:
+        instance: Optional instance to inject. When provided, the
+            singleton is replaced with this instance. This is primarily
+            intended for tests to substitute mock/fake instances.
+    """
     global _kb
+    if instance is not None:
+        _kb = instance
     if _kb is None:
         _kb = KnowledgeBase()
     return _kb

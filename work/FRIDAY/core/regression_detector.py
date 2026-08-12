@@ -181,8 +181,17 @@ class RegressionDetector:
 _detector: Optional[RegressionDetector] = None
 
 
-def get_regression_detector() -> RegressionDetector:
+def get_regression_detector(instance=None) -> RegressionDetector:
+    """Get the singleton RegressionDetector instance.
+
+    Args:
+        instance: Optional instance to inject. When provided, the
+            singleton is replaced with this instance. This is primarily
+            intended for tests to substitute mock/fake instances.
+    """
     global _detector
+    if instance is not None:
+        _detector = instance
     if _detector is None:
         _detector = RegressionDetector()
     return _detector

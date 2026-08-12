@@ -608,15 +608,91 @@
     "status": "pending",
     "timestamp": "2026-08-12T16:39:21.782473"
   },
-  "7298ef45-59f8-4c5f-a5d3-7d289fff3046": {
-    "id": "7298ef45-59f8-4c5f-a5d3-7d289fff3046",
-    "component": "MCPChat",
-    "action": "chat",
+  "92f61067-196c-4e1b-8afe-f5db7e61be95": {
+    "id": "92f61067-196c-4e1b-8afe-f5db7e61be95",
+    "component": "PrivacyAudit",
+    "action": "purge_provider",
     "params": {
-      "message_length": 2
+      "provider": "glm"
+    },
+    "risk_level": "high",
+    "status": "pending",
+    "timestamp": "2026-08-12T17:12:08.561309"
+  },
+  "598d18cd-6ee0-4092-a91f-ad9e17da2c45": {
+    "id": "598d18cd-6ee0-4092-a91f-ad9e17da2c45",
+    "component": "Test",
+    "action": "test_action",
+    "params": {},
+    "risk_level": "low",
+    "status": "pending",
+    "timestamp": "2026-08-12T17:18:55.761660"
+  },
+  "418118ee-666b-49ce-b977-1162b15be8ae": {
+    "id": "418118ee-666b-49ce-b977-1162b15be8ae",
+    "component": "Test",
+    "action": "test",
+    "params": {},
+    "risk_level": "medium",
+    "status": "pending",
+    "timestamp": "2026-08-12T17:18:56.765852"
+  },
+  "b06bd707-536d-4687-9422-cd34238bd59e": {
+    "id": "b06bd707-536d-4687-9422-cd34238bd59e",
+    "component": "PrivacyAudit",
+    "action": "purge_provider",
+    "params": {
+      "provider": "glm"
+    },
+    "risk_level": "high",
+    "status": "pending",
+    "timestamp": "2026-08-12T17:19:11.568522"
+  },
+  "0a5b90c7-54a0-49a3-a7ee-3cf0d9c59a9e": {
+    "id": "0a5b90c7-54a0-49a3-a7ee-3cf0d9c59a9e",
+    "component": "Test",
+    "action": "test_action",
+    "params": {},
+    "risk_level": "low",
+    "status": "pending",
+    "timestamp": "2026-08-12T17:21:04.079101"
+  },
+  "279780d1-432b-47ba-a5b6-726dcfeb417d": {
+    "id": "279780d1-432b-47ba-a5b6-726dcfeb417d",
+    "component": "Test",
+    "action": "test",
+    "params": {},
+    "risk_level": "medium",
+    "status": "pending",
+    "timestamp": "2026-08-12T17:21:05.083309"
+  },
+  "b2117a06-6370-48a4-8e95-573854fd545e": {
+    "id": "b2117a06-6370-48a4-8e95-573854fd545e",
+    "component": "Test",
+    "action": "test_action",
+    "params": {},
+    "risk_level": "low",
+    "status": "pending",
+    "timestamp": "2026-08-12T17:23:55.852517"
+  },
+  "1b09a554-e8e7-4ede-954b-ace33381abe9": {
+    "id": "1b09a554-e8e7-4ede-954b-ace33381abe9",
+    "component": "Test",
+    "action": "test",
+    "params": {},
+    "risk_level": "medium",
+    "status": "pending",
+    "timestamp": "2026-08-12T17:23:56.857022"
+  },
+  "8941ea97-52ef-40e9-a0f1-907c800eff20": {
+    "id": "8941ea97-52ef-40e9-a0f1-907c800eff20",
+    "component": "Weather",
+    "action": "get_weather",
+    "params": {
+      "city": "Lagos"
     },
     "risk_level": "low",
     "status": "approved",
-    "timestamp": "2026-08-12T16:40:15.522744"
+    "timestamp": "2026-08-12T17:25:43.857872"
   }
 }

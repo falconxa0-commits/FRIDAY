@@ -268,8 +268,17 @@ class FridayScheduler:
 _scheduler: Optional[FridayScheduler] = None
 
 
-def get_scheduler() -> FridayScheduler:
+def get_scheduler(instance=None) -> FridayScheduler:
+    """Get the singleton FridayScheduler instance.
+
+    Args:
+        instance: Optional instance to inject. When provided, the
+            singleton is replaced with this instance. This is primarily
+            intended for tests to substitute mock/fake instances.
+    """
     global _scheduler
+    if instance is not None:
+        _scheduler = instance
     if _scheduler is None:
         _scheduler = FridayScheduler()
     return _scheduler

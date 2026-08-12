@@ -44,17 +44,20 @@ def _run_hellfire_audit() -> Dict[str, Any]:
         if project_root not in sys.path:
             sys.path.insert(0, project_root)
 
-        from scripts.hellfire_audit import (
-            check_commented_out_calls,
-            check_eager_client_construction,
-            check_double_run,
-            check_auth_rejection,
-            check_never_auto_approve,
-            check_no_hardcoded_secrets,
-            check_glm_key_from_env,
-            check_zhipu_client_guarded,
-            FAILURES,
-        )
+        # Lazy import via importlib — the API layer should not statically
+        # depend on the scripts layer (scripts is a top-level utility layer,
+        # not a library). Loaded on demand when an audit is requested.
+        import importlib
+        _audit_mod = importlib.import_module("scripts.hellfire_audit")
+        check_commented_out_calls = _audit_mod.check_commented_out_calls
+        check_eager_client_construction = _audit_mod.check_eager_client_construction
+        check_double_run = _audit_mod.check_double_run
+        check_auth_rejection = _audit_mod.check_auth_rejection
+        check_never_auto_approve = _audit_mod.check_never_auto_approve
+        check_no_hardcoded_secrets = _audit_mod.check_no_hardcoded_secrets
+        check_glm_key_from_env = _audit_mod.check_glm_key_from_env
+        check_zhipu_client_guarded = _audit_mod.check_zhipu_client_guarded
+        FAILURES = _audit_mod.FAILURES
 
         # Reset the global FAILURES list before re-running
         FAILURES.clear()

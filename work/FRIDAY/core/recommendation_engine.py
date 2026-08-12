@@ -368,8 +368,17 @@ class RecommendationEngine:
 _engine: Optional[RecommendationEngine] = None
 
 
-def get_recommendation_engine() -> RecommendationEngine:
+def get_recommendation_engine(instance=None) -> RecommendationEngine:
+    """Get the singleton RecommendationEngine instance.
+
+    Args:
+        instance: Optional instance to inject. When provided, the
+            singleton is replaced with this instance. This is primarily
+            intended for tests to substitute mock/fake instances.
+    """
     global _engine
+    if instance is not None:
+        _engine = instance
     if _engine is None:
         _engine = RecommendationEngine()
     return _engine

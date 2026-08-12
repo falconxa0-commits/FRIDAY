@@ -387,8 +387,17 @@ class ArchitectureAnalyzer:
 _analyzer: Optional[ArchitectureAnalyzer] = None
 
 
-def get_architecture_analyzer() -> ArchitectureAnalyzer:
+def get_architecture_analyzer(instance=None) -> ArchitectureAnalyzer:
+    """Get the singleton ArchitectureAnalyzer instance.
+
+    Args:
+        instance: Optional instance to inject. When provided, the
+            singleton is replaced with this instance. This is primarily
+            intended for tests to substitute mock/fake instances.
+    """
     global _analyzer
+    if instance is not None:
+        _analyzer = instance
     if _analyzer is None:
         _analyzer = ArchitectureAnalyzer()
     return _analyzer
