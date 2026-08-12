@@ -495,10 +495,17 @@ def _plugin_install(name: str) -> int:
     ctypes, etc.). Plugins that import these at module level are
     refused — the user must explicitly review and copy them manually.
     This prevents trivial supply-chain attacks via the marketplace.
+
+    The work is split between two single-responsibility helpers so the
+    orchestrator stays under the complexity threshold:
+
+    * :func:`_scan_plugin_ast` walks the AST and returns a list of
+      ``found_dangerous`` strings (empty means clean);
+    * :func:`_copy_plugin` performs the actual file copy after the
+      scan has approved the plugin.
     """
-    from pathlib import Path
     import shutil
-    import ast
+    from pathlib import Path
 
     src_dir = Path(__file__).resolve().parent.parent / "marketplace" / "plugins" / name
     if not src_dir.is_dir():
@@ -526,6 +533,58 @@ def _plugin_install(name: str) -> int:
     # plugins in a subprocess with seccomp/bubblewrap. This scan catches
     # the most common supply-chain patterns: top-level or lazy imports
     # of os/subprocess/socket/etc.
+    src_text = plugin_files[0].read_text()
+    syntax_err, found_dangerous = _scan_plugin_ast(src_text)
+    if syntax_err is not None:
+        return _err(f"Plugin '{name}' has a syntax error: {syntax_err}")
+    if found_dangerous:
+        console.print(
+            Panel(
+                f"[{COL_DANGER}]REFUSED: Plugin '{name}' has dangerous imports/calls:[/]\n\n"
+                + "\n".join(f"  • {imp}" for imp in found_dangerous)
+                + "\n\nPlugins that import os/subprocess/socket/etc — or use "
+                "__import__/exec/eval/compile — can execute arbitrary code "
+                "with full process privileges. This scan walks the ENTIRE "
+                "AST (not just top-level) so lazy imports inside functions, "
+                "classes, and conditionals are also caught.\n\n"
+                "If you have personally audited this plugin's source and "
+                "trust it, copy it manually:\n"
+                f"  cp {plugin_files[0]} {target}\n\n"
+                "For true isolation, run plugins in a subprocess with "
+                "seccomp/bubblewrap (planned for FRIDAY v4.0).",
+                title="⚠ Plugin Security Refusal",
+                border_style=COL_DANGER,
+            )
+        )
+        return 1
+
+    _copy_plugin(plugin_files[0], target, name)
+    return 0
+
+
+# ---------------------------------------------------------------------------
+# _plugin_install() helpers — each has a single responsibility.
+# ---------------------------------------------------------------------------
+def _scan_plugin_ast(source_text: str) -> tuple:
+    """Walk the plugin source's AST and return dangerous-import findings.
+
+    Returns ``(syntax_error, findings)`` where:
+
+    * ``syntax_error`` is the ``str(SyntaxError)`` if the source failed
+      to parse (otherwise ``None``) — callers refuse the plugin with a
+      "syntax error" message rather than the "dangerous imports" panel;
+    * ``findings`` is a list of human-readable strings of the form
+      ``"import os  (line N)"`` / ``"from os import ...  (line N)"`` /
+      ``"__import__(...)  (line N) — dynamic import escape hatch"`` /
+      ``"exec(...)  (line N) — dynamic code execution"`` (empty when
+      the source is clean).
+
+    Walks the ENTIRE AST (not just ``ast.iter_child_nodes(tree)``) so
+    lazy imports inside ``__init__``, methods, conditionals, loops, etc.
+    are also caught.
+    """
+    import ast
+
     DANGEROUS_IMPORTS = {
         "os", "subprocess", "socket", "shlex", "ctypes", "sys",
         "importlib", "builtins", "pty", "multiprocessing",
@@ -533,18 +592,12 @@ def _plugin_install(name: str) -> int:
     DANGEROUS_BUILTINS = {
         "__import__", "exec", "eval", "compile",
     }
-    src_text = plugin_files[0].read_text()
     try:
-        tree = ast.parse(src_text)
+        tree = ast.parse(source_text)
     except SyntaxError as exc:
-        return _err(f"Plugin '{name}' has a syntax error: {exc}")
+        return str(exc), []
 
-    found_dangerous = []
-
-    # Walk the ENTIRE AST — not just top-level nodes. This catches
-    # lazy imports inside __init__, methods, conditionals, loops, etc.
-    # (The previous implementation only walked ast.iter_child_nodes(tree),
-    # which missed imports inside any nested scope.)
+    found_dangerous: list = []
     for node in ast.walk(tree):
         # Direct `import os` / `import subprocess as sp` (anywhere)
         if isinstance(node, ast.Import):
@@ -576,29 +629,18 @@ def _plugin_install(name: str) -> int:
                     f"__import__(...)  (line {node.lineno}) — "
                     "dynamic import escape hatch"
                 )
+    return None, found_dangerous
 
-    if found_dangerous:
-        console.print(
-            Panel(
-                f"[{COL_DANGER}]REFUSED: Plugin '{name}' has dangerous imports/calls:[/]\n\n"
-                + "\n".join(f"  • {imp}" for imp in found_dangerous)
-                + "\n\nPlugins that import os/subprocess/socket/etc — or use "
-                "__import__/exec/eval/compile — can execute arbitrary code "
-                "with full process privileges. This scan walks the ENTIRE "
-                "AST (not just top-level) so lazy imports inside functions, "
-                "classes, and conditionals are also caught.\n\n"
-                "If you have personally audited this plugin's source and "
-                "trust it, copy it manually:\n"
-                f"  cp {plugin_files[0]} {target}\n\n"
-                "For true isolation, run plugins in a subprocess with "
-                "seccomp/bubblewrap (planned for FRIDAY v4.0).",
-                title="⚠ Plugin Security Refusal",
-                border_style=COL_DANGER,
-            )
-        )
-        return 1
 
-    shutil.copy(plugin_files[0], target)
+def _copy_plugin(source, target, name: str) -> None:
+    """Copy the audited plugin file into ``integrations/`` and confirm.
+
+    Prints a Rich panel acknowledging the successful install so the
+    user knows Friday will auto-discover the plugin on next start.
+    """
+    import shutil
+
+    shutil.copy(source, target)
     console.print(
         Panel(
             f"Installed {name} → {target.name}\n"
@@ -608,7 +650,6 @@ def _plugin_install(name: str) -> int:
             border_style=COL_SUCCESS,
         )
     )
-    return 0
 
 
 # ---------------------------------------------------------------------------

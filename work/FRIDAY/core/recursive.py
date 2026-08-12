@@ -1,6 +1,12 @@
 """Recursive self-improvement module (STUB — DISABLED).
 
+DEAD CODE — not imported by any production module.
+
 EXPERIMENTAL — not wired into production. Kept for import compatibility.
+A repository-wide import scan (see ``tests/test_code_quality.py``) confirms
+that no module under ``core/``, ``api/``, ``cli/``, or ``tests/`` imports
+this file. It is retained only so that any future import would surface the
+``DeprecationWarning`` below rather than failing silently.
 
 Previously contained the RecursiveModificationProtocol class.
 That functionality has been removed as it posed an unacceptable

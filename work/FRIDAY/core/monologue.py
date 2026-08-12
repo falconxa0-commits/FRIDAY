@@ -1,5 +1,12 @@
 """Inner Monologue — EXPERIMENTAL, NOT WIRED INTO PRODUCTION.
 
+DEAD CODE — not imported by any production module.
+
+A repository-wide import scan (see ``tests/test_code_quality.py``) confirms
+that no module under ``core/``, ``api/``, ``cli/``, or ``tests/`` imports
+this file. It is retained only so that any future import would surface the
+``DeprecationWarning`` below rather than failing silently.
+
 This module implements an LLM-powered self-reflection engine that
 analyses recent conversations to identify patterns, concerns, and
 self-improvement opportunities. It is **not wired into the main chat
@@ -11,9 +18,8 @@ is added.
 """
 
 import logging
-import json
 import warnings
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any
 from datetime import datetime
 from dataclasses import dataclass, field
 

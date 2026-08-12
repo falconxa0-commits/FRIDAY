@@ -1,5 +1,12 @@
 """Quantum Continuum — EXPERIMENTAL, NOT WIRED INTO PRODUCTION.
 
+DEAD CODE — not imported by any production module.
+
+A repository-wide import scan (see ``tests/test_code_quality.py``) confirms
+that no module under ``core/``, ``api/``, ``cli/``, or ``tests/`` imports
+this file. It is retained only so that any future import would surface the
+``DeprecationWarning`` below rather than failing silently.
+
 This module implements an n-gram + time-of-day intent predictor that
 guesses the user's next action from their recent intent history. It is
 **not wired into the main chat loop** and is retained for future
@@ -13,7 +20,7 @@ is added.
 import time
 import logging
 import warnings
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Any
 from datetime import datetime
 from collections import Counter
 

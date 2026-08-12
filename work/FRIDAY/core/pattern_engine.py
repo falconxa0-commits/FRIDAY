@@ -80,22 +80,52 @@ class PatternEngine:
 
         Only patterns with evidence_count >= MIN_PATTERN_OCCURRENCES are returned.
         """
-        patterns: List[dict] = []
-
         if len(self.interactions) < MIN_PATTERN_OCCURRENCES:
-            return patterns
+            return []
 
-        # 1. Action-type frequency
+        matches = self._collect_pattern_matches()
+        scored = self._score_patterns(matches)
+        patterns = self._filter_top_patterns(scored)
+
+        # Optional: use GLM to synthesise higher-level patterns
+        # (only if GLM is available — fall back gracefully)
+        patterns = await self._maybe_add_glm_pattern(patterns)
+
+        self.patterns = patterns
+        return patterns
+
+    # ------------------------------------------------------------------
+    # discover_patterns() helpers — each has a single responsibility.
+    # ------------------------------------------------------------------
+    def _collect_pattern_matches(self) -> Dict[str, Dict[Any, Dict[str, Any]]]:
+        """Collect raw pattern matches from ``self.interactions``.
+
+        Returns a dict keyed by pattern family (``action_type``,
+        ``keyword``, ``action_pair``, ``time_of_day``) whose values are
+        themselves dicts mapping each pattern key to
+        ``{"count": int, "examples": [interaction_index, ...]}``.
+
+        No filtering by :data:`MIN_PATTERN_OCCURRENCES` happens here —
+        callers (``_score_patterns`` / ``_filter_top_patterns``) decide
+        which matches survive.
+        """
+        matches: Dict[str, Dict[Any, Dict[str, Any]]] = {
+            "action_type": {},
+            "keyword": {},
+            "action_pair": {},
+            "time_of_day": {},
+        }
+
+        # 1. Action-type frequency.
         type_counts = Counter(i["action_type"] for i in self.interactions)
-        for action_type, count in type_counts.most_common():
-            if count >= MIN_PATTERN_OCCURRENCES:
-                patterns.append({
-                    "type": "action_type_frequency",
-                    "description": f"You frequently perform '{action_type}' actions ({count} times).",
-                    "evidence_count": count,
-                    "examples": [i for i, x in enumerate(self.interactions)
-                                 if x["action_type"] == action_type][:5],
-                })
+        for action_type, count in type_counts.items():
+            matches["action_type"][action_type] = {
+                "count": count,
+                "examples": [
+                    i for i, x in enumerate(self.interactions)
+                    if x["action_type"] == action_type
+                ],
+            }
 
         # 2. Keyword frequency — what topics come up most?
         word_counts: Dict[str, int] = defaultdict(int)
@@ -107,43 +137,33 @@ class PatternEngine:
                     "from", "your", "what", "about", "there", "which",
                 }:
                     word_counts[word] += 1
-        for word, count in sorted(word_counts.items(),
-                                  key=lambda x: -x[1])[:10]:
-            if count >= MIN_PATTERN_OCCURRENCES:
-                patterns.append({
-                    "type": "keyword_frequency",
-                    "description": f"You frequently mention '{word}' ({count} times).",
-                    "evidence_count": count,
-                    "examples": [i for i, x in enumerate(self.interactions)
-                                 if word in x["content"].lower()][:5],
-                })
+        for word, count in word_counts.items():
+            matches["keyword"][word] = {
+                "count": count,
+                "examples": [
+                    i for i, x in enumerate(self.interactions)
+                    if word in x["content"].lower()
+                ],
+            }
 
-        # 3. Action pair sequences — "A then B" patterns
-        # E.g., "research" followed by "write report" 8 times
+        # 3. Action pair sequences — "A then B" patterns.
         pair_counts: Dict[tuple, int] = defaultdict(int)
         pair_examples: Dict[tuple, List[int]] = defaultdict(list)
         for i in range(len(self.interactions) - 1):
             a = self.interactions[i]
             b = self.interactions[i + 1]
-            # Use action_type + first 3 words of content as the key
             a_key = (a["action_type"], " ".join(a["content"].lower().split()[:3]))
             b_key = (b["action_type"], " ".join(b["content"].lower().split()[:3]))
             pair = (a_key, b_key)
             pair_counts[pair] += 1
             pair_examples[pair].append(i)
-        for pair, count in sorted(pair_counts.items(),
-                                  key=lambda x: -x[1])[:5]:
-            if count >= MIN_PATTERN_OCCURRENCES:
-                a_desc = f"{pair[0][0]} '{pair[0][1]}'"
-                b_desc = f"{pair[1][0]} '{pair[1][1]}'"
-                patterns.append({
-                    "type": "action_pair",
-                    "description": f"You often do {a_desc} → then {b_desc} ({count} times).",
-                    "evidence_count": count,
-                    "examples": pair_examples[pair][:5],
-                })
+        for pair, count in pair_counts.items():
+            matches["action_pair"][pair] = {
+                "count": count,
+                "examples": list(pair_examples[pair]),
+            }
 
-        # 4. Time-of-day patterns
+        # 4. Time-of-day patterns.
         hour_counts: Dict[int, int] = defaultdict(int)
         hour_examples: Dict[int, List[int]] = defaultdict(list)
         for i, inter in enumerate(self.interactions):
@@ -154,32 +174,146 @@ class PatternEngine:
                 hour_examples[hour].append(i)
             except (ValueError, KeyError):
                 continue
-        for hour, count in sorted(hour_counts.items(),
-                                  key=lambda x: -x[1])[:3]:
-            if count >= MIN_PATTERN_OCCURRENCES:
-                period = "morning" if 6 <= hour < 12 else \
-                         "afternoon" if 12 <= hour < 18 else \
-                         "evening" if 18 <= hour < 22 else "night"
-                patterns.append({
-                    "type": "time_of_day",
-                    "description": f"You're most active around {hour:02d}:00 ({period}) — {count} interactions.",
-                    "evidence_count": count,
-                    "examples": hour_examples[hour][:5],
-                })
+        for hour, count in hour_counts.items():
+            matches["time_of_day"][hour] = {
+                "count": count,
+                "examples": list(hour_examples[hour]),
+            }
 
-        # 5. Optional: use GLM to synthesise higher-level patterns
-        # (only if GLM is available — fall back gracefully)
+        return matches
+
+    @staticmethod
+    def _score_patterns(
+        matches: Dict[str, Dict[Any, Dict[str, Any]]],
+    ) -> List[Dict[str, Any]]:
+        """Convert raw matches into scored pattern descriptors.
+
+        Each scored descriptor carries ``family``, ``key``, ``count``,
+        ``examples``, and ``description``. No filtering happens here —
+        :meth:`_filter_top_patterns` decides what makes it to the user.
+        """
+        scored: List[Dict[str, Any]] = []
+        # Action-type patterns.
+        for action_type, info in matches["action_type"].items():
+            scored.append({
+                "family": "action_type",
+                "key": action_type,
+                "count": info["count"],
+                "examples": info["examples"],
+                "description": (
+                    f"You frequently perform '{action_type}' actions "
+                    f"({info['count']} times)."
+                ),
+                "type": "action_type_frequency",
+            })
+        # Keyword patterns.
+        for word, info in matches["keyword"].items():
+            scored.append({
+                "family": "keyword",
+                "key": word,
+                "count": info["count"],
+                "examples": info["examples"],
+                "description": (
+                    f"You frequently mention '{word}' ({info['count']} times)."
+                ),
+                "type": "keyword_frequency",
+            })
+        # Action-pair patterns.
+        for pair, info in matches["action_pair"].items():
+            a_desc = f"{pair[0][0]} '{pair[0][1]}'"
+            b_desc = f"{pair[1][0]} '{pair[1][1]}'"
+            scored.append({
+                "family": "action_pair",
+                "key": pair,
+                "count": info["count"],
+                "examples": info["examples"],
+                "description": (
+                    f"You often do {a_desc} → then {b_desc} "
+                    f"({info['count']} times)."
+                ),
+                "type": "action_pair",
+            })
+        # Time-of-day patterns.
+        for hour, info in matches["time_of_day"].items():
+            period = (
+                "morning" if 6 <= hour < 12 else
+                "afternoon" if 12 <= hour < 18 else
+                "evening" if 18 <= hour < 22 else "night"
+            )
+            scored.append({
+                "family": "time_of_day",
+                "key": hour,
+                "count": info["count"],
+                "examples": info["examples"],
+                "description": (
+                    f"You're most active around {hour:02d}:00 ({period}) — "
+                    f"{info['count']} interactions."
+                ),
+                "type": "time_of_day",
+            })
+        return scored
+
+    @staticmethod
+    def _filter_top_patterns(
+        scored: List[Dict[str, Any]],
+    ) -> List[dict]:
+        """Filter and cap each pattern family before returning.
+
+        Drops any pattern with evidence below :data:`MIN_PATTERN_OCCURRENCES`
+        and limits each family to its historical top-N slice (action_type
+        has no cap, keyword top-10, action_pair top-5, time_of_day top-3).
+        """
+        # Family-specific top-N limits (mirrors the original ``sorted(...)[:N]``
+        # slices so the public output shape stays identical).
+        family_limits = {
+            "action_type": None,      # no cap — Counter.most_common was uncapped
+            "keyword": 10,
+            "action_pair": 5,
+            "time_of_day": 3,
+        }
+        by_family: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+        for item in scored:
+            if item["count"] >= MIN_PATTERN_OCCURRENCES:
+                by_family[item["family"]].append(item)
+
+        patterns: List[dict] = []
+        for family, items in by_family.items():
+            items.sort(key=lambda x: -x["count"])
+            limit = family_limits.get(family)
+            if limit is not None:
+                items = items[:limit]
+            for item in items:
+                patterns.append({
+                    "type": item["type"],
+                    "description": item["description"],
+                    "evidence_count": item["count"],
+                    "examples": item["examples"][:5],
+                })
+        return patterns
+
+    async def _maybe_add_glm_pattern(
+        self,
+        patterns: List[dict],
+    ) -> List[dict]:
+        """Optionally synthesise a higher-level GLM pattern.
+
+        Skips silently when GLM is unavailable or when there are fewer
+        than 2 patterns to synthesise from. Mirrors the original
+        best-effort try/except so the engine never breaks because of
+        a downstream model failure.
+        """
+        if len(patterns) < 2:
+            return patterns
         try:
             from core.glm_brain import GLMBrain
             glm = GLMBrain()
-            if glm.available() and len(patterns) >= 2:
-                glm_pattern = await self._glm_synthesise(patterns)
-                if glm_pattern:
-                    patterns.append(glm_pattern)
-        except Exception as exc:
+            if not glm.available():
+                return patterns
+            glm_pattern = await self._glm_synthesise(patterns)
+            if glm_pattern:
+                patterns.append(glm_pattern)
+        except Exception as exc:  # noqa: BLE001
             logger.debug("GLM synthesis skipped: %s", exc)
-
-        self.patterns = patterns
         return patterns
 
     async def _glm_synthesise(self, found_patterns: List[dict]) -> Optional[dict]:

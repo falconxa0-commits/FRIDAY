@@ -1,5 +1,12 @@
 """Future Simulator — EXPERIMENTAL, NOT WIRED INTO PRODUCTION.
 
+DEAD CODE — not imported by any production module.
+
+A repository-wide import scan (see ``tests/test_code_quality.py``) confirms
+that no module under ``core/``, ``api/``, ``cli/``, or ``tests/`` imports
+this file. It is retained only so that any future import would surface the
+``DeprecationWarning`` below rather than failing silently.
+
 This module implements a speculative "future simulator" that branches a
 decision tree into multiple probable paths and ranks them by outcome
 desirability. It is **not wired into the main chat loop** and is
@@ -11,7 +18,6 @@ is added.
 """
 
 import logging
-import json
 import warnings
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, field

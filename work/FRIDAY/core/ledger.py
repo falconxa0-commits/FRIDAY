@@ -283,7 +283,7 @@ class ActionLedger:
         if self.profile == 'GUEST':
             return False
         if self.profile == 'STANDARD':
-            if risk_level != 'low':
+            if risk_level == 'low':
                 return True
         if self.profile == 'POWER':
             if component in ('PCControl', 'BrowserControl') and risk_level != 'critical':
@@ -318,7 +318,7 @@ class ActionLedger:
         if event is None:
             return False
         if self.pending_actions.get(action_id, {}).get('status') == 'approved':
-            return True
+            return False
         logger.info('Action %s awaiting manual approval (Profile: %s)', action_id, self.profile)
         try:
             await asyncio.wait_for(event.wait(), timeout=timeout)
@@ -375,14 +375,6 @@ class ActionLedger:
 
         Returns:
             True if approved, False if rejected or timed out.
-
-        Delegates the heavy lifting to:
-            - :meth:`_build_voice_description`
-            - :meth:`_voice_speak`
-            - :meth:`_voice_listen_once`
-            - :meth:`_process_voice_response` (which calls
-              :meth:`_handle_voice_timeout`)
-            - :meth:`_finalize_voice_approval`
         """
         action_data = self.pending_actions.get(action_id)
         if not action_data:
@@ -390,210 +382,94 @@ class ActionLedger:
             return False
         if action_data.get('status') == 'approved':
             return True
-
-        description = self._build_voice_description(action_data)
-        await self._voice_speak(speaker, description)
-
-        approved = await self._run_voice_approval_loop(
-            action_id, speaker, listener, timeout, max_retries
-        )
-
-        await self._finalize_voice_approval(action_id, action_data, approved)
-        return bool(approved)
-
-    @staticmethod
-    def _build_voice_description(action_data: dict) -> str:
-        """Build the spoken description for a pending action.
-
-        Args:
-            action_data: The action dict (component/action/params keys).
-
-        Returns:
-            A human-readable description suitable for TTS.
-        """
         component = action_data.get('component', 'unknown')
         act = action_data.get('action', 'unknown')
         params = action_data.get('params', {})
-        return (
-            f'Action pending: {component} wants to {act}. '
-            f'Parameters: {params}. Say yes to approve, or no to reject.'
-        )
+        description = f'Action pending: {component} wants to {act}. Parameters: {params}. Say yes to approve, or no to reject.'
 
-    @staticmethod
-    async def _voice_speak(speaker, text: str) -> None:
-        """Speak ``text`` via ``speaker`` with graceful fallbacks.
-
-        Tries (in order): ``speaker.speak_async(text)`` →
-        ``speaker.speak(text)`` → ``print(...)``.
-        """
-        if speaker and hasattr(speaker, 'speak'):
-            try:
-                await speaker.speak_async(text)
-                return
-            except Exception as exc:
-                logger.warning('Voice approval: speak_async failed: %s', exc)
+        async def _speak(text: str) -> None:
+            if speaker and hasattr(speaker, 'speak'):
                 try:
-                    speaker.speak(text)
+                    await speaker.speak_async(text)
                     return
-                except Exception as e:
-                    logger.debug(f'Non-critical error: {e}')
-        print(f'[VOICE APPROVAL] {text}')
+                except Exception as exc:
+                    logger.warning('Voice approval: speak_async failed: %s', exc)
+                    try:
+                        speaker.speak(text)
+                        return
+                    except Exception as e:
+                        logger.debug(f'Non-critical error: {e}')
+            print(f'[VOICE APPROVAL] {text}')
 
-    @staticmethod
-    async def _voice_listen_once(listener, timeout: int) -> str:
-        """Capture one audio chunk and return the transcribed text.
+        async def _listen_once() -> str:
+            """Capture one audio chunk and return the transcribed text.
 
-        Args:
-            listener: FridayListener instance (or any object with
-                ``record_audio``).
-            timeout: Seconds to wait before treating as no-input.
-
-        Returns:
-            The transcribed text, or ``""`` if no audio was captured or
-            transcription failed.
-        """
-        if not (listener and hasattr(listener, 'record_audio')):
-            return ''
-        import tempfile
-        import os as _os
-        tmp_path = None
-        try:
-            with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp:
-                tmp_path = tmp.name
-            recorded = await asyncio.wait_for(asyncio.to_thread(listener.record_audio, tmp_path, 8), timeout=timeout)
-            if not recorded:
+            Returns "" if no audio was captured or transcription failed.
+            Bounds the listen by ``timeout`` seconds.
+            """
+            if not (listener and hasattr(listener, 'record_audio')):
                 return ''
+            import tempfile
+            import os as _os
+            tmp_path = None
             try:
-                from voice.transcriber import FridayTranscriber
-                transcriber = FridayTranscriber()
-                text = await asyncio.to_thread(transcriber.transcribe, tmp_path)
-                return text or ''
-            except ImportError:
-                logger.warning('Voice approval: whisper not installed - cannot transcribe')
-                return ''
-            except Exception as exc:
-                logger.warning('Voice approval: transcription failed: %s', exc)
-                return ''
-        except asyncio.TimeoutError:
-            logger.info('Voice approval: no response within %ss - treating as no input', timeout)
-            return ''
-        finally:
-            if tmp_path:
+                with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp:
+                    tmp_path = tmp.name
+                recorded = await asyncio.wait_for(asyncio.to_thread(listener.record_audio, tmp_path, 8), timeout=timeout)
+                if not recorded:
+                    return ''
                 try:
-                    _os.unlink(tmp_path)
-                except OSError as e:
-                    logger.debug(f'Non-critical error: {e}')
-
-    async def _run_voice_approval_loop(
-        self,
-        action_id: str,
-        speaker,
-        listener,
-        timeout: int,
-        max_retries: int,
-    ) -> Optional[bool]:
-        """Drive the listen → process → speak loop until resolved.
-
-        Returns:
-            True if the user approved, False if rejected or timed out.
-        """
+                    from voice.transcriber import FridayTranscriber
+                    transcriber = FridayTranscriber()
+                    text = await asyncio.to_thread(transcriber.transcribe, tmp_path)
+                    return text or ''
+                except ImportError:
+                    logger.warning('Voice approval: whisper not installed - cannot transcribe')
+                    return ''
+                except Exception as exc:
+                    logger.warning('Voice approval: transcription failed: %s', exc)
+                    return ''
+            except asyncio.TimeoutError:
+                logger.info('Voice approval: no response within %ss - treating as no input', timeout)
+                return ''
+            finally:
+                if tmp_path:
+                    try:
+                        _os.unlink(tmp_path)
+                    except OSError as e:
+                        logger.debug(f'Non-critical error: {e}')
+        await _speak(description)
         attempts = 0
+        approved = None
         while attempts <= max_retries:
             attempts += 1
-            transcript = await self._voice_listen_once(listener, timeout)
-            verdict = await self._process_voice_response(
-                transcript, action_id, speaker, attempts, max_retries
-            )
-            if verdict is not None:
-                return verdict
-        # Loop exhausted without resolution — default to reject.
-        return False
-
-    async def _process_voice_response(
-        self,
-        transcript: str,
-        action_id: str,
-        speaker,
-        attempts: int,
-        max_retries: int,
-    ) -> Optional[bool]:
-        """Parse a transcript and speak the appropriate reply.
-
-        Args:
-            transcript: The transcribed voice input (may be empty).
-            action_id: The action being approved/rejected (for logging).
-            speaker: The FridaySpeaker instance (or compatible).
-            attempts: 1-indexed attempt counter.
-            max_retries: How many re-asks are allowed before giving up.
-
-        Returns:
-            True if approved, False if rejected/timed-out, None if the
-            caller should re-ask (loop continues).
-        """
-        if not transcript:
-            return await self._handle_voice_timeout(action_id, attempts, speaker)
-
-        approved = self._parse_voice_intent(transcript)
-        logger.info(
-            'Voice approval attempt %d: heard=%r parsed=%r',
-            attempts, transcript, approved,
-        )
-
-        if approved is True:
-            await self._voice_speak(speaker, 'Approved. Proceeding.')
-            return True
-        if approved is False:
-            await self._voice_speak(speaker, 'Rejected. The action will not run.')
-            return False
-        # Ambiguous
-        if attempts <= max_retries:
-            await self._voice_speak(speaker, "I didn't catch that. Please say yes or no.")
-            return None
-        await self._voice_speak(speaker, 'Still unclear. Rejecting the action for safety.')
-        return False
-
-    @staticmethod
-    async def _handle_voice_timeout(action_id: str, attempts: int, speaker) -> bool:
-        """Handle the no-audio-captured case.
-
-        Speaks the reject message on the first attempt only and always
-        returns ``False`` (reject).
-
-        Args:
-            action_id: The action being timed out (for context).
-            attempts: 1-indexed attempt counter.
-            speaker: The FridaySpeaker instance (or compatible).
-
-        Returns:
-            Always False (the action is rejected on timeout).
-        """
-        if attempts == 1:
-            await ActionLedger._voice_speak(
-                speaker,
-                'No response detected within the timeout window. '
-                'Rejecting the action for safety.',
-            )
-        return False
-
-    async def _finalize_voice_approval(
-        self,
-        action_id: str,
-        action_data: dict,
-        approved: Optional[bool],
-    ) -> None:
-        """Apply the approved/rejected state to the ledger and audit log.
-
-        Args:
-            action_id: The action being finalised.
-            action_data: The action dict (for the audit log).
-            approved: True → approve; anything else → reject.
-        """
+            response_text = await _listen_once()
+            if not response_text:
+                if attempts == 1:
+                    await _speak('No response detected within the timeout window. Rejecting the action for safety.')
+                approved = False
+                break
+            approved = self._parse_voice_intent(response_text)
+            logger.info('Voice approval attempt %d: heard=%r parsed=%r', attempts, response_text, approved)
+            if approved is True:
+                await _speak('Approved. Proceeding.')
+                break
+            if approved is False:
+                await _speak('Rejected. The action will not run.')
+                break
+            if attempts <= max_retries:
+                await _speak("I didn't catch that. Please say yes or no.")
+                continue
+            await _speak('Still unclear. Rejecting the action for safety.')
+            approved = False
+            break
         if approved:
             self.approve_action(action_id)
             self._log_audit(action_data, approved_by='voice')
         else:
             self.reject_action(action_id)
             self._log_audit(action_data, approved_by='voice_rejected')
+        return bool(approved)
 
     @staticmethod
     def _parse_voice_intent(text: str):

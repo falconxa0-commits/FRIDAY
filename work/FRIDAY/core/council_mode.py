@@ -168,15 +168,43 @@ def compare_responses(responses: Dict[str, str]) -> Dict[str, Any]:
         }
 
     # Tokenise responses into sentences (crude but sufficient)
-    def _sentences(text: str) -> List[str]:
-        parts = text.replace("\n", ". ").split(". ")
-        return [s.strip() for s in parts if len(s.strip()) > 15]
+    provider_sentences = {
+        p: _split_sentences(responses[p]) for p in providers
+    }
 
-    provider_sentences = {p: _sentences(responses[p]) for p in providers}
+    agreements, unique_points = _find_agreements_and_unique(
+        providers, provider_sentences,
+    )
+    disagreements = _find_disagreements(providers, provider_sentences)
 
-    # Find sentences that appear (approximately) in >= 2 providers
+    return {
+        "agreements": agreements[:10],
+        "disagreements": disagreements[:10],
+        "unique_points": {p: pts[:5] for p, pts in unique_points.items()},
+    }
+
+
+def _split_sentences(text: str) -> List[str]:
+    """Split a response into sentences longer than the fragment threshold.
+
+    The splitter is intentionally crude — newlines become soft sentence
+    boundaries and anything shorter than 15 characters is discarded.
+    """
+    parts = text.replace("\n", ". ").split(". ")
+    return [s.strip() for s in parts if len(s.strip()) > 15]
+
+
+def _find_agreements_and_unique(
+    providers: List[str],
+    provider_sentences: Dict[str, List[str]],
+) -> tuple:
+    """Walk every sentence and decide whether it's an agreement or unique.
+
+    Returns ``(agreements, unique_points)`` where ``agreements`` is a list
+    of sentences that appear in ≥ 2 providers (deduped, preserving the
+    first-seen order) and ``unique_points`` is ``{provider: [sentences]}``.
+    """
     agreements: List[str] = []
-    disagreements: List[str] = []
     unique_points: Dict[str, List[str]] = {p: [] for p in providers}
 
     for p in providers:
@@ -185,18 +213,9 @@ def compare_responses(responses: Dict[str, str]) -> Dict[str, Any]:
             if len(words) < 4:
                 continue  # Skip very short fragments
 
-            found_in = [p]
-            for other_p in providers:
-                if other_p == p:
-                    continue
-                for other_sentence in provider_sentences[other_p]:
-                    other_words = set(other_sentence.lower().split())
-                    # Jaccard-like overlap: at least 50% of words match
-                    overlap = words & other_words
-                    if len(overlap) >= 0.5 * min(len(words), len(other_words)):
-                        found_in.append(other_p)
-                        break
-
+            found_in = _find_sentence_matches(
+                p, sentence, words, providers, provider_sentences,
+            )
             if len(found_in) >= 2:
                 # Avoid duplicate agreement entries
                 if sentence not in agreements:
@@ -204,22 +223,58 @@ def compare_responses(responses: Dict[str, str]) -> Dict[str, Any]:
             else:
                 unique_points[p].append(sentence)
 
-    # Disagreements: detect explicit contradiction cues
+    return agreements, unique_points
+
+
+def _find_sentence_matches(
+    source_provider: str,
+    sentence: str,
+    words: set,
+    providers: List[str],
+    provider_sentences: Dict[str, List[str]],
+) -> List[str]:
+    """Return the list of providers whose responses contain ``sentence``.
+
+    Includes ``source_provider`` itself plus every other provider whose
+    sentence set overlaps ≥ 50% of the smaller word set (a Jaccard-like
+    threshold). Stops at the first match per other provider.
+    """
+    found_in = [source_provider]
+    for other_p in providers:
+        if other_p == source_provider:
+            continue
+        for other_sentence in provider_sentences[other_p]:
+            other_words = set(other_sentence.lower().split())
+            # Jaccard-like overlap: at least 50% of words match
+            overlap = words & other_words
+            if len(overlap) >= 0.5 * min(len(words), len(other_words)):
+                found_in.append(other_p)
+                break
+    return found_in
+
+
+def _find_disagreements(
+    providers: List[str],
+    provider_sentences: Dict[str, List[str]],
+) -> List[str]:
+    """Detect explicit contradiction cues across each provider's sentences.
+
+    Returns a list of ``"[provider] sentence"`` strings — capped at 10 by
+    the caller. Uses a fixed list of cues that signal a provider is
+    explicitly contradicting another (``"however"``, ``"on the other
+    hand"``, etc.).
+    """
     contradiction_cues = [
         "however", "on the other hand", "conversely", "in contrast",
         "but actually", "incorrect", "not true", "wrong",
     ]
+    disagreements: List[str] = []
     for p in providers:
         for sentence in provider_sentences[p]:
             lower = sentence.lower()
             if any(cue in lower for cue in contradiction_cues):
                 disagreements.append(f"[{p}] {sentence}")
-
-    return {
-        "agreements": agreements[:10],
-        "disagreements": disagreements[:10],
-        "unique_points": {p: pts[:5] for p, pts in unique_points.items()},
-    }
+    return disagreements
 
 
 # ------------------------------------------------------------------

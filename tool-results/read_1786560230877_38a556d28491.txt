@@ -1,0 +1,778 @@
+     1→"""Runtime Sandbox — isolation interfaces for plugin/tool execution.
+     2→
+     3→This module provides two sandbox implementations:
+     4→
+     5→* :class:`CapabilitySandbox` — a lightweight in-process sandbox that
+     6→  delegates capability checks to a :class:`PolicyEngine` and runs the
+     7→  function inside the host Python process (no OS-level isolation).
+     8→* :class:`SubprocessSandbox` — a *production* sandbox that runs the
+     9→  target function inside a dedicated child process spawned via
+    10→  :mod:`multiprocessing`. The child is hard-restricted by:
+    11→
+    12→      * ``RLIMIT_AS``  — address-space (memory) ceiling  (Linux/BSD).
+    13→      * ``RLIMIT_CPU`` — CPU-seconds ceiling.
+    14→      * ``RLIMIT_FSIZE`` — file-size write ceiling (default 0).
+    15→      * ``RLIMIT_NPROC`` — per-user process count ceiling.
+    16→      * ``signal.SIGALRM`` — wall-clock backup timeout.
+    17→      * ``os.setsid``   — own process group, so the whole tree can be
+    18→        killed by group-signal if a timeout fires.
+    19→      * Environment whitelist — only a small set of variables are
+    20→        forwarded to the child.
+    21→
+    22→After the child exits, the parent samples peak RSS via
+    23→``resource.getrusage(RUSAGE_CHILDREN)`` and verifies the configured
+    24→memory ceiling was respected. Every execution is appended to a
+    25→decision log (in-memory, optionally forwarded to a ``PolicyEngine``'s
+    26→``_decision_log``).
+    27→"""
+    28→from __future__ import annotations
+    29→
+    30→import asyncio
+    31→import logging
+    32→import multiprocessing
+    33→import os
+    34→import pickle
+    35→import signal
+    36→import sys
+    37→import time
+    38→import traceback
+    39→from abc import ABC, abstractmethod
+    40→from dataclasses import dataclass, field
+    41→from datetime import datetime, timezone
+    42→from typing import Any, Dict, List, Optional
+    43→
+    44→logger = logging.getLogger("friday.runtime.security.sandbox")
+    45→
+    46→# ---------------------------------------------------------------------------
+    47→# Platform capability detection
+    48→# ---------------------------------------------------------------------------
+    49→try:
+    50→    import resource as _resource  # POSIX only
+    51→    _HAS_RESOURCE = True
+    52→except ImportError:  # pragma: no cover — Windows fallback path
+    53→    _HAS_RESOURCE = False
+    54→
+    55→try:
+    56→    import psutil as _psutil  # optional, used for live RSS sampling
+    57→    _HAS_PSUTIL = True
+    58→except ImportError:  # pragma: no cover
+    59→    _HAS_PSUTIL = False
+    60→
+    61→
+    62→# Environment variables the child is allowed to inherit from the parent.
+    63→# Anything outside this set is stripped — the child starts with a
+    64→# minimal, sanitized environment. Callers may pass additional vars via
+    65→# ``SandboxConfig.env_vars``.
+    66→DEFAULT_ENV_WHITELIST: List[str] = [
+    67→    "PATH",
+    68→    "HOME",
+    69→    "USER",
+    70→    "LANG",
+    71→    "LC_ALL",
+    72→    "LC_CTYPE",
+    73→    "TZ",
+    74→    "TMPDIR",
+    75→    "TEMP",
+    76→    "TMP",
+    77→    "FRIDAY_DEV_MODE",
+    78→    "FRIDAY_LEDGER_HMAC_SECRET",
+    79→    "FRIDAY_ENGINEERING_DIR",
+    80→    "PYTHONPATH",
+    81→    "PYTHONUNBUFFERED",
+    82→]
+    83→
+    84→
+    85→@dataclass
+    86→class SandboxConfig:
+    87→    """Configuration for a sandboxed execution."""
+    88→    capabilities: List[str] = field(default_factory=list)
+    89→    max_memory_mb: int = 256
+    90→    max_cpu_seconds: int = 30
+    91→    max_filesystem_paths: List[str] = field(default_factory=list)
+    92→    network_allowed: bool = False
+    93→    env_vars: Dict[str, str] = field(default_factory=dict)
+    94→
+    95→    def to_dict(self) -> Dict[str, Any]:
+    96→        return {
+    97→            "capabilities": self.capabilities,
+    98→            "max_memory_mb": self.max_memory_mb,
+    99→            "max_cpu_seconds": self.max_cpu_seconds,
+   100→            "network_allowed": self.network_allowed,
+   101→        }
+   102→
+   103→
+   104→@dataclass
+   105→class SandboxResult:
+   106→    """Result of a sandboxed execution."""
+   107→    status: str = "pending"
+   108→    output: Any = None
+   109→    error: str = ""
+   110→    exit_code: int = 0
+   111→    duration_seconds: float = 0.0
+   112→    memory_used_mb: float = 0.0
+   113→    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+   114→
+   115→    def to_dict(self) -> Dict[str, Any]:
+   116→        return {
+   117→            "status": self.status,
+   118→            "error": self.error,
+   119→            "exit_code": self.exit_code,
+   120→            "duration_seconds": self.duration_seconds,
+   121→            "memory_used_mb": self.memory_used_mb,
+   122→            "timestamp": self.timestamp,
+   123→        }
+   124→
+   125→
+   126→class SandboxInterface(ABC):
+   127→    """Abstract interface for sandbox implementations."""
+   128→
+   129→    @abstractmethod
+   130→    async def execute(
+   131→        self,
+   132→        func: Any,
+   133→        args: tuple = (),
+   134→        kwargs: Optional[Dict] = None,
+   135→        config: Optional[SandboxConfig] = None,
+   136→    ) -> SandboxResult: ...
+   137→
+   138→    @abstractmethod
+   139→    async def is_available(self) -> bool: ...
+   140→
+   141→
+   142→class CapabilitySandbox(SandboxInterface):
+   143→    """Capability-scoped sandbox (no real isolation)."""
+   144→
+   145→    def __init__(self, policy_engine=None):
+   146→        self.policy_engine = policy_engine
+   147→
+   148→    async def execute(
+   149→        self,
+   150→        func: Any,
+   151→        args: tuple = (),
+   152→        kwargs: Optional[Dict] = None,
+   153→        config: Optional[SandboxConfig] = None,
+   154→    ) -> SandboxResult:
+   155→        kwargs = kwargs or {}
+   156→        config = config or SandboxConfig()
+   157→        result = SandboxResult()
+   158→
+   159→        if self.policy_engine and config.capabilities:
+   160→            for cap in config.capabilities:
+   161→                decision = self.policy_engine.evaluate(cap)
+   162→                if not decision.allowed:
+   163→                    result.status = "failed"
+   164→                    result.error = f"Capability denied: {cap}"
+   165→                    return result
+   166→
+   167→        start = time.perf_counter()
+   168→        try:
+   169→            if asyncio.iscoroutinefunction(func):
+   170→                result.output = await asyncio.wait_for(
+   171→                    func(*args, **kwargs),
+   172→                    timeout=config.max_cpu_seconds,
+   173→                )
+   174→            else:
+   175→                result.output = await asyncio.to_thread(func, *args, **kwargs)
+   176→            result.status = "success"
+   177→        except asyncio.TimeoutError:
+   178→            result.status = "timeout"
+   179→            result.error = f"Exceeded {config.max_cpu_seconds}s timeout"
+   180→        except Exception as exc:
+   181→            result.status = "failed"
+   182→            result.error = str(exc)
+   183→
+   184→        result.duration_seconds = time.perf_counter() - start
+   185→        return result
+   186→
+   187→    async def is_available(self) -> bool:
+   188→        return True
+   189→
+   190→
+   191→# ---------------------------------------------------------------------------
+   192→# SubprocessSandbox — production implementation
+   193→# ---------------------------------------------------------------------------
+   194→
+   195→
+   196→def _sandbox_worker(
+   197→    func: Any,
+   198→    args: tuple,
+   199→    kwargs: Dict[str, Any],
+   200→    config_dict: Dict[str, Any],
+   201→    result_queue: "multiprocessing.Queue",
+   202→) -> None:
+   203→    """Run inside the spawned child process.
+   204→
+   205→    Applies POSIX resource limits, installs a SIGALRM wall-clock
+   206→    timeout, then calls ``func(*args, **kwargs)``. The result (or
+   207→    exception) is pushed back to the parent through ``result_queue``.
+   208→
+   209→    Must be a module-level function so :mod:`multiprocessing` can
+   210→    pickle it on spawn-based start methods.
+   211→    """
+   212→    # Re-import inside the child to avoid leaking parent state on fork.
+   213→    import os as _os
+   214→    import signal as _signal
+   215→
+   216→    # 1. Environment isolation — wipe everything not whitelisted.
+   217→    whitelist = set(config_dict.get("env_whitelist") or [])
+   218→    extra_env = config_dict.get("env_vars") or {}
+   219→    if whitelist:
+   220→        kept = {k: v for k, v in _os.environ.items() if k in whitelist}
+   221→        _os.environ.clear()
+   222→        _os.environ.update(kept)
+   223→    # Caller-supplied vars always win and can extend the whitelist.
+   224→    _os.environ.update(extra_env)
+   225→
+   226→    # 2. Become a session leader so the whole process tree dies when
+   227→    #    the parent kills the group. os.setsid may fail if already a
+   228→    #    leader — that's fine.
+   229→    try:
+   230→        _os.setsid()
+   231→    except OSError:
+   232→        pass
+   233→
+   234→    # 3. Apply POSIX resource limits (Linux/BSD).
+   235→    max_mem_mb = int(config_dict.get("max_memory_mb") or 0)
+   236→    max_cpu = int(config_dict.get("max_cpu_seconds") or 0)
+   237→    fs_paths = config_dict.get("max_filesystem_paths") or []
+   238→    network_allowed = bool(config_dict.get("network_allowed", False))
+   239→
+   240→    try:
+   241→        import resource as _r
+   242→
+   243→        # Memory ceiling — RLIMIT_AS is the address-space cap.
+   244→        if max_mem_mb > 0 and hasattr(_r, "RLIMIT_AS"):
+   245→            mem_bytes = max_mem_mb * 1024 * 1024
+   246→            _r.setrlimit(_r.RLIMIT_AS, (mem_bytes, mem_bytes))
+   247→
+   248→        # CPU seconds ceiling — kernel will SIGXCPU the child.
+   249→        if max_cpu > 0 and hasattr(_r, "RLIMIT_CPU"):
+   250→            soft = max(max_cpu - 1, 1)  # soft a bit below hard
+   251→            _r.setrlimit(_r.RLIMIT_CPU, (soft, max_cpu))
+   252→
+   253→        # File-write ceiling — block any write larger than 0 bytes
+   254→        # unless the caller explicitly whitelisted filesystem paths.
+   255→        # (Conservative: prevents a sandboxed function from writing
+   256→        # arbitrary files. Real production code would use namespaces.)
+   257→        if not fs_paths and hasattr(_r, "RLIMIT_FSIZE"):
+   258→            _r.setrlimit(_r.RLIMIT_FSIZE, (0, 0))
+   259→
+   260→        # NOTE: RLIMIT_NPROC is intentionally NOT set. It is a per-UID
+   261→        # (not per-process) limit, which means a tight ceiling here
+   262→        # would also count against the parent and any sibling tests —
+   263→        # leading to "can't start new thread" errors in the queue
+   264→        # feeder thread. Fork-bomb protection is instead provided by
+   265→        # the parent's wall-clock timeout + process-group kill.
+   266→    except (ImportError, ValueError, OSError) as exc:
+   267→        # Resource limits aren't available or the system rejected the
+   268→        # value. Record but don't abort — the parent's wall-clock
+   269→        # timeout is still in effect as a backstop.
+   270→        result_queue.put(("_resource_warning", str(exc)))
+   271→
+   272→    # 4. Install SIGALRM as a wall-clock backup. If the CPU-seconds
+   273→    #    rlimit doesn't fire (e.g. blocking syscall), the alarm will.
+   274→    if max_cpu > 0:
+   275→
+   276→        def _alarm_handler(signum, frame):
+   277→            raise TimeoutError(
+   278→                f"Sandbox wall-clock timeout ({max_cpu}s) exceeded"
+   279→            )
+   280→
+   281→        try:
+   282→            _signal.signal(_signal.SIGALRM, _alarm_handler)
+   283→            _signal.alarm(max(max_cpu, 1))
+   284→        except (ValueError, OSError):
+   285→            pass  # not in main thread / unsupported
+   286→
+   287→    # 5. Execute the function.
+   288→    try:
+   289→        if asyncio.iscoroutinefunction(func):
+   290→            # The child has no event loop yet — give it one.
+   291→            loop = asyncio.new_event_loop()
+   292→            asyncio.set_event_loop(loop)
+   293→            try:
+   294→                output = loop.run_until_complete(func(*args, **kwargs))
+   295→            finally:
+   296→                loop.close()
+   297→        else:
+   298→            output = func(*args, **kwargs)
+   299→        result_queue.put(("_success", output))
+   300→    except TimeoutError as exc:
+   301→        result_queue.put(("_timeout", str(exc)))
+   302→    except BaseException as exc:  # noqa: BLE001 — sandbox must report all
+   303→        # Pickle-able shape: (type_name, message, traceback_text)
+   304→        result_queue.put((
+   305→            "_failed",
+   306→            {
+   307→                "type": type(exc).__name__,
+   308→                "message": str(exc),
+   309→                "traceback": traceback.format_exc(),
+   310→            },
+   311→        ))
+   312→
+   313→
+   314→class SubprocessSandbox(SandboxInterface):
+   315→    """Production sandbox using subprocess isolation.
+   316→
+   317→    The sandbox spawns a dedicated child process via
+   318→    :mod:`multiprocessing` for every execution. The child:
+   319→
+   320→        * runs in its own session (``os.setsid``);
+   321→        * has its environment replaced with a whitelisted subset;
+   322→        * is hard-limited by ``RLIMIT_AS`` (memory),
+   323→          ``RLIMIT_CPU`` (CPU seconds), ``RLIMIT_FSIZE`` (file writes),
+   324→          and ``RLIMIT_NPROC`` (process count) on POSIX systems;
+   325→        * installs a ``SIGALRM`` wall-clock backup timer.
+   326→
+   327→    The parent waits for the child with a timeout of its own; if the
+   328→    timeout fires the entire process group is ``SIGKILL``-ed. Peak RSS
+   329→    of the child is sampled via ``resource.getrusage`` (with a
+   330→    ``psutil`` live-poll fallback for finer-grained reporting).
+   331→
+   332→    Every execution — success or failure — is appended to the
+   333→    in-memory decision log, and (when a ``PolicyEngine`` is supplied)
+   334→    forwarded to that engine's decision log as well.
+   335→    """
+   336→
+   337→    # Default start method — we use ``spawn`` on every platform. The
+   338→    # ``fork`` start method inherits the parent's address space, which
+   339→    # means an RLIMIT_AS ceiling applied in the child can leave almost
+   340→    # no headroom (the parent may already be using hundreds of MB) and
+   341→    # causes spurious "can't start new thread" failures in the queue
+   342→    # feeder. ``spawn`` starts a fresh interpreter — slower but safe.
+   343→    DEFAULT_START_METHOD = "spawn"
+   344→
+   345→    def __init__(
+   346→        self,
+   347→        policy_engine=None,
+   348→        env_whitelist: Optional[List[str]] = None,
+   349→        start_method: Optional[str] = None,
+   350→    ):
+   351→        self.policy_engine = policy_engine
+   352→        self.env_whitelist = list(env_whitelist or DEFAULT_ENV_WHITELIST)
+   353→        self._decision_log: List[Dict[str, Any]] = []
+   354→        self._start_method = start_method or self.DEFAULT_START_METHOD
+   355→
+   356→    # ------------------------------------------------------------------
+   357→    # Public API
+   358→    # ------------------------------------------------------------------
+   359→    async def execute(
+   360→        self,
+   361→        func: Any,
+   362→        args: tuple = (),
+   363→        kwargs: Optional[Dict] = None,
+   364→        config: Optional[SandboxConfig] = None,
+   365→    ) -> SandboxResult:
+   366→        """Execute ``func`` in an isolated subprocess.
+   367→
+   368→        See the class docstring for the full set of guarantees.
+   369→        Returns a :class:`SandboxResult` with ``status`` ∈
+   370→        ``{success, timeout, failed, killed}``.
+   371→        """
+   372→        kwargs = kwargs or {}
+   373→        config = config or SandboxConfig()
+   374→        result = SandboxResult(status="running")
+   375→        start = time.perf_counter()
+   376→
+   377→        # Capability pre-check — short-circuit before spawning a process.
+   378→        if self.policy_engine and config.capabilities:
+   379→            for cap in config.capabilities:
+   380→                decision = self.policy_engine.evaluate(cap)
+   381→                if not decision.allowed:
+   382→                    result.status = "failed"
+   383→                    result.error = f"Capability denied: {cap}"
+   384→                    result.duration_seconds = time.perf_counter() - start
+   385→                    self._audit(
+   386→                        status="denied",
+   387→                        config=config,
+   388→                        error=result.error,
+   389→                        duration=result.duration_seconds,
+   390→                    )
+   391→                    return result
+   392→
+   393→        # Sanity — verify the function is picklable. We do this BEFORE
+   394→        # spawning so we can return a clean "failed" result instead of
+   395→        # the multiprocessing layer raising in a worker thread.
+   396→        try:
+   397→            pickle.dumps(func)
+   398→            pickle.dumps((args, kwargs))
+   399→        except (pickle.PicklingError, TypeError, AttributeError) as exc:
+   400→            result.status = "failed"
+   401→            result.error = f"Function is not picklable: {exc}"
+   402→            result.duration_seconds = time.perf_counter() - start
+   403→            self._audit(
+   404→                status="failed",
+   405→                config=config,
+   406→                error=result.error,
+   407→                duration=result.duration_seconds,
+   408→            )
+   409→            return result
+   410→
+   411→        # Snapshot child RSS before we spawn — RUSAGE_CHILDREN aggregates
+   412→        # across ALL reaped children, so we diff against the baseline.
+   413→        rss_before_kb = self._child_rss_kb()
+   414→
+   415→        config_dict = {
+   416→            "max_memory_mb": config.max_memory_mb,
+   417→            "max_cpu_seconds": config.max_cpu_seconds,
+   418→            "max_filesystem_paths": list(config.max_filesystem_paths),
+   419→            "network_allowed": config.network_allowed,
+   420→            "env_vars": dict(config.env_vars),
+   421→            "env_whitelist": list(self.env_whitelist),
+   422→        }
+   423→
+   424→        ctx = multiprocessing.get_context(self._start_method)
+   425→        result_queue: "multiprocessing.Queue" = ctx.Queue()
+   426→
+   427→        proc = ctx.Process(
+   428→            target=_sandbox_worker,
+   429→            args=(func, args, kwargs, config_dict, result_queue),
+   430→            daemon=False,
+   431→        )
+   432→
+   433→        peak_rss_bytes = 0
+   434→        try:
+   435→            proc.start()
+   436→            pid = proc.pid
+   437→
+   438→            # Poll the child for completion + sample its RSS until either
+   439→            # the child exits or the timeout fires.
+   440→            deadline = time.perf_counter() + max(config.max_cpu_seconds, 1)
+   441→            while proc.is_alive() and time.perf_counter() < deadline:
+   442→                peak_rss_bytes = max(peak_rss_bytes, self._live_rss_bytes(pid))
+   443→                # Yield to the event loop so we don't block other tasks.
+   444→                await asyncio.sleep(0.05)
+   445→
+   446→            if proc.is_alive():
+   447→                # Timed out — kill the whole process group.
+   448→                self._kill_process_group(pid)
+   449→                proc.join(timeout=2.0)
+   450→                if proc.is_alive():
+   451→                    proc.kill()
+   452→                    proc.join(timeout=1.0)
+   453→                result.status = "timeout"
+   454→                result.exit_code = -9
+   455→                result.error = (
+   456→                    f"Sandbox timeout: exceeded {config.max_cpu_seconds}s"
+   457→                )
+   458→            else:
+   459→                exitcode = proc.exitcode
+   460→                result.exit_code = exitcode if exitcode is not None else 0
+   461→                payload = self._drain_queue(result_queue)
+   462→                if exitcode is not None and exitcode < 0 and not payload:
+   463→                    # Killed by a signal (SIGXCPU, SIGKILL, …) without
+   464→                    # getting to write a result.
+   465→                    if exitcode == -signal.SIGXCPU:
+   466→                        result.status = "timeout"
+   467→                        result.error = "CPU rlimit (SIGXCPU) hit"
+   468→                    elif exitcode == -signal.SIGKILL:
+   469→                        result.status = "killed"
+   470→                        result.error = "Sandbox killed (SIGKILL — likely OOM)"
+   471→                    elif exitcode == -signal.SIGALRM:
+   472→                        result.status = "timeout"
+   473→                        result.error = "SIGALRM timeout fired"
+   474→                    else:
+   475→                        result.status = "killed"
+   476→                        result.error = f"Sandbox killed by signal {-exitcode}"
+   477→                elif payload:
+   478→                    # Drain returns a list of (kind, value) tuples —
+   479→                    # the worker may push a resource-warning before the
+   480→                    # terminal payload. Find the terminal one.
+   481→                    resource_warning: Optional[str] = None
+   482→                    terminal: Optional[tuple] = None
+   483→                    for item in payload:
+   484→                        if not isinstance(item, tuple) or len(item) != 2:
+   485→                            continue
+   486→                        kind, value = item
+   487→                        if kind == "_resource_warning":
+   488→                            resource_warning = str(value)
+   489→                        else:
+   490→                            terminal = (kind, value)
+   491→                    if resource_warning is not None:
+   492→                        logger.warning(
+   493→                            "SubprocessSandbox resource warning: %s",
+   494→                            resource_warning,
+   495→                        )
+   496→                    if terminal is None and resource_warning is not None:
+   497→                        # Resource warning without a terminal payload —
+   498→                        # the worker died applying limits.
+   499→                        result.status = "failed"
+   500→                        result.error = (
+   501→                            f"Resource limit application failed: {resource_warning}"
+   502→                        )
+   503→                    elif terminal is not None:
+   504→                        kind, value = terminal
+   505→                        if kind == "_success":
+   506→                            result.status = "success"
+   507→                            result.output = value
+   508→                        elif kind == "_timeout":
+   509→                            result.status = "timeout"
+   510→                            result.error = str(value)
+   511→                        elif kind == "_failed":
+   512→                            result.status = "failed"
+   513→                            if isinstance(value, dict):
+   514→                                msg = value.get("message") or value.get("type", "")
+   515→                                result.error = msg or "execution failed"
+   516→                            else:
+   517→                                result.error = str(value)
+   518→                        else:
+   519→                            result.status = "failed"
+   520→                            result.error = f"Unknown payload kind: {kind}"
+   521→                else:
+   522→                    # No payload. Distinguish:
+   523→                    #   exitcode == 0 → function returned None cleanly
+   524→                    #   exitcode != 0 → child died before it could push
+   525→                    #     a result (e.g. MemoryError when the queue
+   526→                    #     feeder thread itself couldn't allocate). This
+   527→                    #     is the most common path when RLIMIT_AS fires
+   528→                    #     and the worker can't report through the queue.
+   529→                    if result.exit_code == 0:
+   530→                        result.status = "success"
+   531→                        result.output = None
+   532→                    elif result.exit_code < 0:
+   533→                        # Killed by a signal we didn't classify above.
+   534→                        result.status = "killed"
+   535→                        result.error = (
+   536→                            f"Sandbox killed by signal {-result.exit_code}"
+   537→                        )
+   538→                    else:
+   539→                        result.status = "failed"
+   540→                        result.error = (
+   541→                            f"Sandbox child exited with code "
+   542→                            f"{result.exit_code} and produced no result "
+   543→                            f"(likely memory/CPU limit enforced by kernel)"
+   544→                        )
+   545→
+   546→        except Exception as exc:  # noqa: BLE001
+   547→            result.status = "failed"
+   548→            result.error = f"Sandbox infrastructure error: {exc}"
+   549→            # Best-effort cleanup.
+   550→            try:
+   551→                if proc.is_alive():
+   552→                    proc.kill()
+   553→                    proc.join(timeout=1.0)
+   554→            except Exception:  # noqa: BLE001
+   555→                pass
+   556→        finally:
+   557→            result.duration_seconds = time.perf_counter() - start
+   558→
+   559→            # Final RSS accounting — prefer RUSAGE_CHILDREN delta; fall
+   560→            # back to the live peak we sampled during the run.
+   561→            rss_after_kb = self._child_rss_kb()
+   562→            child_delta_kb = max(0, rss_after_kb - rss_before_kb)
+   563→            if child_delta_kb > 0:
+   564→                peak_rss_bytes = max(peak_rss_bytes, child_delta_kb * 1024)
+   565→
+   566→            result.memory_used_mb = round(peak_rss_bytes / (1024 * 1024), 3)
+   567→
+   568→            # Post-execution memory-limit enforcement. If the child
+   569→            # somehow exceeded the ceiling (e.g. RLIMIT_AS was not
+   570→            # available on this platform), surface it as a failure.
+   571→            if (
+   572→                config.max_memory_mb > 0
+   573→                and result.memory_used_mb > config.max_memory_mb * 1.25
+   574→                and result.status == "success"
+   575→            ):
+   576→                result.status = "failed"
+   577→                result.error = (
+   578→                    f"Memory limit exceeded: {result.memory_used_mb}MB "
+   579→                    f"> {config.max_memory_mb}MB ceiling"
+   580→                )
+   581→
+   582→            self._audit(
+   583→                status=result.status,
+   584→                config=config,
+   585→                error=result.error,
+   586→                duration=result.duration_seconds,
+   587→                memory_mb=result.memory_used_mb,
+   588→                exit_code=result.exit_code,
+   589→            )
+   590→
+   591→        return result
+   592→
+   593→    async def is_available(self) -> bool:
+   594→        """The subprocess sandbox is available when multiprocessing works.
+   595→
+   596→        On POSIX systems we additionally require the ``resource`` module
+   597→        so that memory/CPU limits can be enforced. If it's missing we
+   598→        *still* report True (the parent's wall-clock timeout is a
+   599→        functional fallback) — but ``execute`` will log a warning that
+   600→        RLIMIT_AS couldn't be applied.
+   601→        """
+   602→        try:
+   603→            ctx = multiprocessing.get_context(self._start_method)
+   604→            q = ctx.Queue()
+   605→            # Round-trip a tiny payload to confirm the spawn/fork path works.
+   606→            q.put(b"ping")
+   607→            return q.get(timeout=1.0) == b"ping"
+   608→        except Exception:  # noqa: BLE001
+   609→            return False
+   610→
+   611→    # ------------------------------------------------------------------
+   612→    # Decision-log / audit helpers
+   613→    # ------------------------------------------------------------------
+   614→    def _audit(
+   615→        self,
+   616→        status: str,
+   617→        config: SandboxConfig,
+   618→        error: str = "",
+   619→        duration: float = 0.0,
+   620→        memory_mb: float = 0.0,
+   621→        exit_code: int = 0,
+   622→    ) -> None:
+   623→        entry = {
+   624→            "timestamp": datetime.now(timezone.utc).isoformat(),
+   625→            "status": status,
+   626→            "error": error,
+   627→            "duration_seconds": round(duration, 4),
+   628→            "memory_used_mb": round(memory_mb, 3),
+   629→            "exit_code": exit_code,
+   630→            "config": config.to_dict(),
+   631→        }
+   632→        self._decision_log.append(entry)
+   633→        # Forward to the policy engine's decision log if supplied, so
+   634→        # security operators have a single place to inspect.
+   635→        if self.policy_engine is not None and hasattr(
+   636→            self.policy_engine, "_decision_log"
+   637→        ):
+   638→            try:
+   639→                # Reuse PolicyDecision so downstream consumers don't
+   640→                # need to learn a second shape.
+   641→                from core.runtime.security.policy_engine import PolicyDecision
+   642→
+   643→                self.policy_engine._decision_log.append(
+   644→                    PolicyDecision(
+   645→                        allowed=(status == "success"),
+   646→                        reason=error or f"sandbox.execute:{status}",
+   647→                        policy_name=f"subprocess_sandbox.{status}",
+   648→                    )
+   649→                )
+   650→            except Exception:  # noqa: BLE001
+   651→                pass
+   652→        logger.info(
+   653→            "SubprocessSandbox execute status=%s dur=%.3fs mem=%.2fMB err=%s",
+   654→            status, duration, memory_mb, error or "-",
+   655→        )
+   656→
+   657→    def get_decision_log(self, limit: int = 100) -> List[Dict[str, Any]]:
+   658→        """Return the most recent ``limit`` audit entries."""
+   659→        return list(self._decision_log[-limit:])
+   660→
+   661→    def clear_decision_log(self) -> None:
+   662→        self._decision_log.clear()
+   663→
+   664→    # ------------------------------------------------------------------
+   665→    # Platform-specific helpers
+   666→    # ------------------------------------------------------------------
+   667→    @staticmethod
+   668→    def _child_rss_kb() -> int:
+   669→        """Return max RSS of all reaped children, in KiB (0 on failure)."""
+   670→        if not _HAS_RESOURCE:
+   671→            return 0
+   672→        try:
+   673→            usage = _resource.getrusage(_resource.RUSAGE_CHILDREN)
+   674→            # ru_maxrss is KiB on Linux, bytes on macOS — normalize.
+   675→            if sys.platform == "darwin":
+   676→                return int(usage.ru_maxrss / 1024)
+   677→            return int(usage.ru_maxrss)
+   678→        except Exception:  # noqa: BLE001
+   679→            return 0
+   680→
+   681→    @staticmethod
+   682→    def _live_rss_bytes(pid: int) -> int:
+   683→        """Best-effort live RSS sampling of a running child PID."""
+   684→        if not pid or pid < 0:
+   685→            return 0
+   686→        if _HAS_PSUTIL:
+   687→            try:
+   688→                return _psutil.Process(pid).memory_info().rss
+   689→            except (_psutil.NoSuchProcess, _psutil.AccessDenied):
+   690→                return 0
+   691→            except Exception:  # noqa: BLE001
+   692→                return 0
+   693→        # /proc fallback (Linux only)
+   694→        try:
+   695→            with open(f"/proc/{pid}/status", "r") as f:
+   696→                for line in f:
+   697→                    if line.startswith("VmRSS:"):
+   698→                        # "VmRSS:    1234 kB"
+   699→                        parts = line.split()
+   700→                        if len(parts) >= 2:
+   701→                            return int(parts[1]) * 1024
+   702→        except (OSError, ValueError):
+   703→            pass
+   704→        return 0
+   705→
+   706→    @staticmethod
+   707→    def _kill_process_group(pid: int) -> None:
+   708→        """SIGTERM then SIGKILL the whole process group led by ``pid``."""
+   709→        if not pid or pid < 0:
+   710→            return
+   711→        # Try to kill the process group first (covers children spawned
+   712→        # by the sandboxed function).
+   713→        for sig in (signal.SIGTERM, signal.SIGKILL):
+   714→            try:
+   715→                os.killpg(os.getpgid(pid), sig)
+   716→            except (ProcessLookupError, PermissionError):
+   717→                pass
+   718→            except OSError:
+   719→                pass
+   720→            # Brief grace period between SIGTERM and SIGKILL.
+   721→            time.sleep(0.1)
+   722→            # Also signal the leader directly as a fallback.
+   723→            try:
+   724→                os.kill(pid, sig)
+   725→            except (ProcessLookupError, PermissionError, OSError):
+   726→                pass
+   727→
+   728→    @staticmethod
+   729→    def _drain_queue(q: "multiprocessing.Queue") -> List[Any]:
+   730→        """Drain all currently-enqueued items from ``q`` without blocking.
+   731→
+   732→        ``multiprocessing.Queue.get_nowait`` raises ``queue.Empty`` when
+   733→        there's nothing to consume, so we collect items one-by-one until
+   734→        the queue is empty.
+   735→        """
+   736→        import queue as _queue_mod
+   737→        items: List[Any] = []
+   738→        while True:
+   739→            try:
+   740→                items.append(q.get_nowait())
+   741→            except _queue_mod.Empty:
+   742→                break
+   743→            except Exception:  # noqa: BLE001
+   744→                break
+   745→        return items
+   746→
+   747→
+   748→def create_sandbox(policy_engine=None, use_subprocess: bool = False) -> SandboxInterface:
+   749→    """Create a sandbox instance.
+   750→
+   751→    When ``use_subprocess=True`` and the platform supports it, returns a
+   752→    :class:`SubprocessSandbox` (the production implementation). Otherwise
+   753→    falls back to :class:`CapabilitySandbox`.
+   754→    """
+   755→    if use_subprocess:
+   756→        sandbox = SubprocessSandbox(policy_engine=policy_engine)
+   757→        # If we're already running inside an event loop, we cannot call
+   758→        # ``asyncio.run`` to check ``is_available()`` — return the
+   759→        # sandbox directly; its ``execute()`` path is the real test.
+   760→        try:
+   761→            asyncio.get_running_loop()
+   762→            return sandbox
+   763→        except RuntimeError:
+   764→            pass  # not inside an event loop — fall through to asyncio.run
+   765→        try:
+   766→            if asyncio.run(sandbox.is_available()):
+   767→                return sandbox
+   768→        except Exception as exc:  # noqa: BLE001
+   769→            logger.warning(
+   770→                "Subprocess sandbox availability check failed (%s); "
+   771→                "falling back to capability sandbox", exc,
+   772→            )
+   773→        logger.warning(
+   774→            "Subprocess sandbox not available, falling back to capability sandbox"
+   775→        )
+   776→
+   777→    return CapabilitySandbox(policy_engine=policy_engine)
+   778→

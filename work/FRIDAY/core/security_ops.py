@@ -338,77 +338,142 @@ class SBOMGenerator:
 
     @staticmethod
     def generate(project_root: Path) -> List[SBOMEntry]:
-        """Generate SBOM from installed packages."""
-        entries = []
+        """Generate SBOM from installed packages.
+
+        The work is split between four single-responsibility helpers:
+
+        * :meth:`_parse_pyproject_deps` reads ``pyproject.toml``;
+        * :meth:`_parse_requirements_deps` reads ``requirements.txt``;
+        * :meth:`_merge_deps` dedups the two streams;
+        * :meth:`_enrich_versions` overlays live ``pip list`` versions.
+        """
+        entries: List[SBOMEntry] = []
 
         # Parse pyproject.toml
         pyproject = project_root / "pyproject.toml"
         if pyproject.exists():
-            try:
-                import tomllib
-                with open(pyproject, "rb") as f:
-                    data = tomllib.load(f)
-                deps = data.get("project", {}).get("dependencies", [])
-                optional = data.get("project", {}).get("optional-dependencies", {})
-                for group, group_deps in optional.items():
-                    deps.extend(group_deps)
-
-                for dep in deps:
-                    # Parse "package>=1.0.0" format
-                    name = re.split(r"[>=<!\[ ]", dep)[0]
-                    version = ""
-                    match = re.search(r">=?([0-9][0-9.]*)", dep)
-                    if match:
-                        version = match.group(1)
-                    entries.append(SBOMEntry(
-                        name=name,
-                        version=version or "unknown",
-                        source="pyproject.toml",
-                    ))
-            except Exception as exc:
-                logger.debug(f"Failed to parse pyproject.toml: {exc}")
+            pyproject_entries = SBOMGenerator._parse_pyproject_deps(pyproject)
+            entries.extend(pyproject_entries)
 
         # Parse requirements.txt
         reqs = project_root / "requirements.txt"
         if reqs.exists():
-            try:
-                for line in reqs.read_text().split("\n"):
-                    line = line.strip()
-                    if not line or line.startswith("#"):
-                        continue
-                    name = re.split(r"[>=<!\[ ]", line)[0]
-                    version = ""
-                    match = re.search(r">=?([0-9][0-9.]*)", line)
-                    if match:
-                        version = match.group(1)
-                    # Check if already in list
-                    if not any(e.name == name for e in entries):
-                        entries.append(SBOMEntry(
-                            name=name,
-                            version=version or "unknown",
-                            source="requirements.txt",
-                        ))
-            except Exception as exc:
-                logger.debug(f"Failed to parse requirements.txt: {exc}")
+            req_entries = SBOMGenerator._parse_requirements_deps(reqs)
+            entries = SBOMGenerator._merge_deps(entries, req_entries)
 
         # Try to get installed versions via pip
+        entries = SBOMGenerator._enrich_versions(entries)
+
+        return entries
+
+    # ------------------------------------------------------------------
+    # generate() helpers — each handles one input source.
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _parse_pyproject_deps(pyproject: Path) -> List[SBOMEntry]:
+        """Read ``pyproject.toml`` and return one SBOMEntry per declared dep.
+
+        Pulls from both ``[project.dependencies]`` and every group inside
+        ``[project.optional-dependencies]``. Failures are logged at debug
+        level and result in an empty list so the caller can keep going.
+        """
+        try:
+            import tomllib
+            with open(pyproject, "rb") as f:
+                data = tomllib.load(f)
+            deps = data.get("project", {}).get("dependencies", [])
+            optional = data.get("project", {}).get("optional-dependencies", {})
+            for _group, group_deps in optional.items():
+                deps.extend(group_deps)
+
+            entries: List[SBOMEntry] = []
+            for dep in deps:
+                name = re.split(r"[>=<!\[ ]", dep)[0]
+                version = ""
+                match = re.search(r">=?([0-9][0-9.]*)", dep)
+                if match:
+                    version = match.group(1)
+                entries.append(SBOMEntry(
+                    name=name,
+                    version=version or "unknown",
+                    source="pyproject.toml",
+                ))
+            return entries
+        except Exception as exc:
+            logger.debug(f"Failed to parse pyproject.toml: {exc}")
+            return []
+
+    @staticmethod
+    def _parse_requirements_deps(reqs_path: Path) -> List[SBOMEntry]:
+        """Read a ``requirements.txt`` file and return one SBOMEntry per line.
+
+        Blank lines and ``#`` comments are skipped. Each entry is tagged
+        with ``source="requirements.txt"`` so downstream tools can tell
+        which file declared it.
+        """
+        entries: List[SBOMEntry] = []
+        try:
+            for line in reqs_path.read_text().split("\n"):
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                name = re.split(r"[>=<!\[ ]", line)[0]
+                version = ""
+                match = re.search(r">=?([0-9][0-9.]*)", line)
+                if match:
+                    version = match.group(1)
+                entries.append(SBOMEntry(
+                    name=name,
+                    version=version or "unknown",
+                    source="requirements.txt",
+                ))
+        except Exception as exc:
+            logger.debug(f"Failed to parse requirements.txt: {exc}")
+        return entries
+
+    @staticmethod
+    def _merge_deps(
+        existing: List[SBOMEntry],
+        new: List[SBOMEntry],
+    ) -> List[SBOMEntry]:
+        """Merge ``new`` into ``existing`` keeping the first-seen source.
+
+        Dedup is by case-sensitive ``name`` (matching the original
+        behavior — a later requirement line for an already-seen package
+        is dropped, not overwritten).
+        """
+        merged = list(existing)
+        for entry in new:
+            if not any(e.name == entry.name for e in merged):
+                merged.append(entry)
+        return merged
+
+    @staticmethod
+    def _enrich_versions(entries: List[SBOMEntry]) -> List[SBOMEntry]:
+        """Overlay live ``pip list --format=json`` versions onto ``entries``.
+
+        Mutates entries in place when an installed package matches by
+        case-insensitive name; returns the same list for chaining.
+        Failures are swallowed — ``pip list`` may not be available in
+        every environment (e.g. inside a slim container).
+        """
         try:
             result = subprocess.run(
                 [sys.executable, "-m", "pip", "list", "--format=json"],
                 capture_output=True, text=True, timeout=30,
             )
-            if result.returncode == 0:
-                installed = json.loads(result.stdout)
-                for pkg in installed:
-                    name = pkg.get("name", "").lower()
-                    version = pkg.get("version", "")
-                    for entry in entries:
-                        if entry.name.lower() == name:
-                            entry.version = version
-                            break
+            if result.returncode != 0:
+                return entries
+            installed = json.loads(result.stdout)
+            for pkg in installed:
+                name = pkg.get("name", "").lower()
+                version = pkg.get("version", "")
+                for entry in entries:
+                    if entry.name.lower() == name:
+                        entry.version = version
+                        break
         except Exception:
             pass  # pip list may not be available in all environments
-
         return entries
 
 

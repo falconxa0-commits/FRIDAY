@@ -193,27 +193,12 @@ class CapabilitySandbox(SandboxInterface):
 # ---------------------------------------------------------------------------
 
 
-def _sandbox_worker(
-    func: Any,
-    args: tuple,
-    kwargs: Dict[str, Any],
-    config_dict: Dict[str, Any],
-    result_queue: "multiprocessing.Queue",
-) -> None:
-    """Run inside the spawned child process.
+def _worker_apply_env_isolation(_os: Any, config_dict: Dict[str, Any]) -> None:
+    """Wipe every environment variable not in the whitelist; overlay caller vars.
 
-    Applies POSIX resource limits, installs a SIGALRM wall-clock
-    timeout, then calls ``func(*args, **kwargs)``. The result (or
-    exception) is pushed back to the parent through ``result_queue``.
-
-    Must be a module-level function so :mod:`multiprocessing` can
-    pickle it on spawn-based start methods.
+    Module-level helper so the spawned child can ``pickle`` it back together
+    with ``_sandbox_worker``.
     """
-    # Re-import inside the child to avoid leaking parent state on fork.
-    import os as _os
-    import signal as _signal
-
-    # 1. Environment isolation — wipe everything not whitelisted.
     whitelist = set(config_dict.get("env_whitelist") or [])
     extra_env = config_dict.get("env_vars") or {}
     if whitelist:
@@ -223,20 +208,39 @@ def _sandbox_worker(
     # Caller-supplied vars always win and can extend the whitelist.
     _os.environ.update(extra_env)
 
-    # 2. Become a session leader so the whole process tree dies when
-    #    the parent kills the group. os.setsid may fail if already a
-    #    leader — that's fine.
+
+def _worker_become_session_leader(_os: Any) -> None:
+    """Become a session leader so the whole tree dies on group-kill."""
     try:
         _os.setsid()
     except OSError:
+        # Already a leader — that's fine.
         pass
 
-    # 3. Apply POSIX resource limits (Linux/BSD).
+
+def _worker_parse_resource_limits(
+    config_dict: Dict[str, Any],
+) -> tuple:
+    """Return ``(max_mem_mb, max_cpu, fs_paths, network_allowed)`` ints/bools."""
     max_mem_mb = int(config_dict.get("max_memory_mb") or 0)
     max_cpu = int(config_dict.get("max_cpu_seconds") or 0)
     fs_paths = config_dict.get("max_filesystem_paths") or []
     network_allowed = bool(config_dict.get("network_allowed", False))
+    return max_mem_mb, max_cpu, fs_paths, network_allowed
 
+
+def _worker_apply_rlimits(
+    max_mem_mb: int,
+    max_cpu: int,
+    fs_paths: List[str],
+    result_queue: "multiprocessing.Queue",
+) -> None:
+    """Apply POSIX RLIMIT_AS / RLIMIT_CPU / RLIMIT_FSIZE to the child.
+
+    Records a ``_resource_warning`` payload on the queue if the platform
+    rejects or lacks the requested limits — the parent surfaces it but
+    doesn't abort (the wall-clock timeout is still in effect).
+    """
     try:
         import resource as _r
 
@@ -264,27 +268,44 @@ def _sandbox_worker(
         # feeder thread. Fork-bomb protection is instead provided by
         # the parent's wall-clock timeout + process-group kill.
     except (ImportError, ValueError, OSError) as exc:
-        # Resource limits aren't available or the system rejected the
-        # value. Record but don't abort — the parent's wall-clock
-        # timeout is still in effect as a backstop.
         result_queue.put(("_resource_warning", str(exc)))
 
-    # 4. Install SIGALRM as a wall-clock backup. If the CPU-seconds
-    #    rlimit doesn't fire (e.g. blocking syscall), the alarm will.
-    if max_cpu > 0:
 
-        def _alarm_handler(signum, frame):
-            raise TimeoutError(
-                f"Sandbox wall-clock timeout ({max_cpu}s) exceeded"
-            )
+def _worker_install_alarm(
+    _signal: Any,
+    max_cpu: int,
+) -> None:
+    """Install a SIGALRM wall-clock backup timer.
 
-        try:
-            _signal.signal(_signal.SIGALRM, _alarm_handler)
-            _signal.alarm(max(max_cpu, 1))
-        except (ValueError, OSError):
-            pass  # not in main thread / unsupported
+    If the CPU-seconds rlimit doesn't fire (e.g. blocking syscall), the
+    alarm will. No-op when ``max_cpu <= 0``.
+    """
+    if max_cpu <= 0:
+        return
 
-    # 5. Execute the function.
+    def _alarm_handler(signum, frame):
+        raise TimeoutError(
+            f"Sandbox wall-clock timeout ({max_cpu}s) exceeded"
+        )
+
+    try:
+        _signal.signal(_signal.SIGALRM, _alarm_handler)
+        _signal.alarm(max(max_cpu, 1))
+    except (ValueError, OSError):
+        pass  # not in main thread / unsupported
+
+
+def _worker_invoke_function(
+    func: Any,
+    args: tuple,
+    kwargs: Dict[str, Any],
+    result_queue: "multiprocessing.Queue",
+) -> None:
+    """Call ``func`` and push a ``_success`` / ``_timeout`` / ``_failed`` payload.
+
+    Async functions get a fresh event loop. Any exception is captured as a
+    pickleable dict with type/message/traceback so the parent can re-emit.
+    """
     try:
         if asyncio.iscoroutinefunction(func):
             # The child has no event loop yet — give it one.
@@ -309,6 +330,53 @@ def _sandbox_worker(
                 "traceback": traceback.format_exc(),
             },
         ))
+
+
+def _sandbox_worker(
+    func: Any,
+    args: tuple,
+    kwargs: Dict[str, Any],
+    config_dict: Dict[str, Any],
+    result_queue: "multiprocessing.Queue",
+) -> None:
+    """Run inside the spawned child process.
+
+    Applies POSIX resource limits, installs a SIGALRM wall-clock
+    timeout, then calls ``func(*args, **kwargs)``. The result (or
+    exception) is pushed back to the parent through ``result_queue``.
+
+    Must be a module-level function so :mod:`multiprocessing` can
+    pickle it on spawn-based start methods.
+
+    The work is delegated to :func:`_worker_apply_env_isolation`,
+    :func:`_worker_become_session_leader`,
+    :func:`_worker_parse_resource_limits`,
+    :func:`_worker_apply_rlimits`,
+    :func:`_worker_install_alarm`, and
+    :func:`_worker_invoke_function` to keep cyclomatic complexity low.
+    """
+    # Re-import inside the child to avoid leaking parent state on fork.
+    import os as _os
+    import signal as _signal
+
+    # 1. Environment isolation — wipe everything not whitelisted.
+    _worker_apply_env_isolation(_os, config_dict)
+
+    # 2. Become a session leader so the whole process tree dies when
+    #    the parent kills the group.
+    _worker_become_session_leader(_os)
+
+    # 3. Apply POSIX resource limits (Linux/BSD).
+    max_mem_mb, max_cpu, fs_paths, _network = _worker_parse_resource_limits(
+        config_dict,
+    )
+    _worker_apply_rlimits(max_mem_mb, max_cpu, fs_paths, result_queue)
+
+    # 4. Install SIGALRM as a wall-clock backup.
+    _worker_install_alarm(_signal, max_cpu)
+
+    # 5. Execute the function.
+    _worker_invoke_function(func, args, kwargs, result_queue)
 
 
 class SubprocessSandbox(SandboxInterface):
@@ -375,44 +443,93 @@ class SubprocessSandbox(SandboxInterface):
         start = time.perf_counter()
 
         # Capability pre-check — short-circuit before spawning a process.
-        if self.policy_engine and config.capabilities:
-            for cap in config.capabilities:
-                decision = self.policy_engine.evaluate(cap)
-                if not decision.allowed:
-                    result.status = "failed"
-                    result.error = f"Capability denied: {cap}"
-                    result.duration_seconds = time.perf_counter() - start
-                    self._audit(
-                        status="denied",
-                        config=config,
-                        error=result.error,
-                        duration=result.duration_seconds,
-                    )
-                    return result
+        denied = self._validate_capabilities(config, self.policy_engine)
+        if denied is not None:
+            denied.duration_seconds = time.perf_counter() - start
+            self._audit_execution(config, denied, status="denied")
+            return denied
 
         # Sanity — verify the function is picklable. We do this BEFORE
         # spawning so we can return a clean "failed" result instead of
         # the multiprocessing layer raising in a worker thread.
-        try:
-            pickle.dumps(func)
-            pickle.dumps((args, kwargs))
-        except (pickle.PicklingError, TypeError, AttributeError) as exc:
-            result.status = "failed"
-            result.error = f"Function is not picklable: {exc}"
-            result.duration_seconds = time.perf_counter() - start
-            self._audit(
-                status="failed",
-                config=config,
-                error=result.error,
-                duration=result.duration_seconds,
-            )
-            return result
+        not_picklable = self._validate_picklable(func, args, kwargs)
+        if not_picklable is not None:
+            not_picklable.duration_seconds = time.perf_counter() - start
+            self._audit_execution(config, not_picklable, status="failed")
+            return not_picklable
 
         # Snapshot child RSS before we spawn — RUSAGE_CHILDREN aggregates
         # across ALL reaped children, so we diff against the baseline.
         rss_before_kb = self._child_rss_kb()
+        config_dict = self._prepare_sandbox_config(config)
 
-        config_dict = {
+        # Run the subprocess and classify the outcome.
+        peak_rss_bytes = await self._run_subprocess(
+            func, args, kwargs, config, config_dict, result,
+        )
+
+        # Finalize accounting, apply memory ceiling, and audit.
+        result.duration_seconds = time.perf_counter() - start
+        self._check_memory_usage(config, result, peak_rss_bytes, rss_before_kb)
+        self._audit_execution(config, result)
+
+        return result
+
+    # ------------------------------------------------------------------
+    # execute() helpers — each has a single responsibility.
+    # ------------------------------------------------------------------
+    def _validate_capabilities(
+        self,
+        config: SandboxConfig,
+        policy_engine: Any,
+    ) -> Optional[SandboxResult]:
+        """Return a failed :class:`SandboxResult` if any capability is denied.
+
+        ``None`` means all capabilities passed (or no policy engine is
+        configured) and execution should proceed.
+        """
+        if not policy_engine or not config.capabilities:
+            return None
+        for cap in config.capabilities:
+            decision = policy_engine.evaluate(cap)
+            if not decision.allowed:
+                denied = SandboxResult(status="failed")
+                denied.error = f"Capability denied: {cap}"
+                return denied
+        return None
+
+    @staticmethod
+    def _validate_picklable(
+        func: Any,
+        args: tuple,
+        kwargs: Dict[str, Any],
+    ) -> Optional[SandboxResult]:
+        """Return a failed result if ``func``/``args``/``kwargs`` can't be pickled.
+
+        ``None`` means picklability verification succeeded. We verify
+        before spawning so we can return a clean "failed" result instead
+        of the multiprocessing layer raising in a worker thread.
+        """
+        try:
+            pickle.dumps(func)
+            pickle.dumps((args, kwargs))
+        except (pickle.PicklingError, TypeError, AttributeError) as exc:
+            failed = SandboxResult(status="failed")
+            failed.error = f"Function is not picklable: {exc}"
+            return failed
+        return None
+
+    def _prepare_sandbox_config(
+        self,
+        config: SandboxConfig,
+    ) -> Dict[str, Any]:
+        """Translate the public :class:`SandboxConfig` into the dict the child reads.
+
+        The child runs in a fresh interpreter (``spawn``) and only sees
+        the values we serialize into ``config_dict`` — so each field is
+        defensively copied to prevent cross-process mutation.
+        """
+        return {
             "max_memory_mb": config.max_memory_mb,
             "max_cpu_seconds": config.max_cpu_seconds,
             "max_filesystem_paths": list(config.max_filesystem_paths),
@@ -421,15 +538,29 @@ class SubprocessSandbox(SandboxInterface):
             "env_whitelist": list(self.env_whitelist),
         }
 
+    async def _run_subprocess(
+        self,
+        func: Any,
+        args: tuple,
+        kwargs: Dict[str, Any],
+        config: SandboxConfig,
+        config_dict: Dict[str, Any],
+        result: SandboxResult,
+    ) -> int:
+        """Spawn the sandboxed child, poll it, and classify the outcome.
+
+        Mutates ``result`` in-place with ``status``/``error``/``exit_code``/
+        ``output``. Returns the peak RSS in bytes sampled during the run
+        (live poll only — the final RUSAGE_CHILDREN delta is applied by
+        :meth:`_check_memory_usage`).
+        """
         ctx = multiprocessing.get_context(self._start_method)
         result_queue: "multiprocessing.Queue" = ctx.Queue()
-
         proc = ctx.Process(
             target=_sandbox_worker,
             args=(func, args, kwargs, config_dict, result_queue),
             daemon=False,
         )
-
         peak_rss_bytes = 0
         try:
             proc.start()
@@ -459,90 +590,7 @@ class SubprocessSandbox(SandboxInterface):
                 exitcode = proc.exitcode
                 result.exit_code = exitcode if exitcode is not None else 0
                 payload = self._drain_queue(result_queue)
-                if exitcode is not None and exitcode < 0 and not payload:
-                    # Killed by a signal (SIGXCPU, SIGKILL, …) without
-                    # getting to write a result.
-                    if exitcode == -signal.SIGXCPU:
-                        result.status = "timeout"
-                        result.error = "CPU rlimit (SIGXCPU) hit"
-                    elif exitcode == -signal.SIGKILL:
-                        result.status = "killed"
-                        result.error = "Sandbox killed (SIGKILL — likely OOM)"
-                    elif exitcode == -signal.SIGALRM:
-                        result.status = "timeout"
-                        result.error = "SIGALRM timeout fired"
-                    else:
-                        result.status = "killed"
-                        result.error = f"Sandbox killed by signal {-exitcode}"
-                elif payload:
-                    # Drain returns a list of (kind, value) tuples —
-                    # the worker may push a resource-warning before the
-                    # terminal payload. Find the terminal one.
-                    resource_warning: Optional[str] = None
-                    terminal: Optional[tuple] = None
-                    for item in payload:
-                        if not isinstance(item, tuple) or len(item) != 2:
-                            continue
-                        kind, value = item
-                        if kind == "_resource_warning":
-                            resource_warning = str(value)
-                        else:
-                            terminal = (kind, value)
-                    if resource_warning is not None:
-                        logger.warning(
-                            "SubprocessSandbox resource warning: %s",
-                            resource_warning,
-                        )
-                    if terminal is None and resource_warning is not None:
-                        # Resource warning without a terminal payload —
-                        # the worker died applying limits.
-                        result.status = "failed"
-                        result.error = (
-                            f"Resource limit application failed: {resource_warning}"
-                        )
-                    elif terminal is not None:
-                        kind, value = terminal
-                        if kind == "_success":
-                            result.status = "success"
-                            result.output = value
-                        elif kind == "_timeout":
-                            result.status = "timeout"
-                            result.error = str(value)
-                        elif kind == "_failed":
-                            result.status = "failed"
-                            if isinstance(value, dict):
-                                msg = value.get("message") or value.get("type", "")
-                                result.error = msg or "execution failed"
-                            else:
-                                result.error = str(value)
-                        else:
-                            result.status = "failed"
-                            result.error = f"Unknown payload kind: {kind}"
-                else:
-                    # No payload. Distinguish:
-                    #   exitcode == 0 → function returned None cleanly
-                    #   exitcode != 0 → child died before it could push
-                    #     a result (e.g. MemoryError when the queue
-                    #     feeder thread itself couldn't allocate). This
-                    #     is the most common path when RLIMIT_AS fires
-                    #     and the worker can't report through the queue.
-                    if result.exit_code == 0:
-                        result.status = "success"
-                        result.output = None
-                    elif result.exit_code < 0:
-                        # Killed by a signal we didn't classify above.
-                        result.status = "killed"
-                        result.error = (
-                            f"Sandbox killed by signal {-result.exit_code}"
-                        )
-                    else:
-                        result.status = "failed"
-                        result.error = (
-                            f"Sandbox child exited with code "
-                            f"{result.exit_code} and produced no result "
-                            f"(likely memory/CPU limit enforced by kernel)"
-                        )
-
+                self._classify_outcome(exitcode, payload, result)
         except Exception as exc:  # noqa: BLE001
             result.status = "failed"
             result.error = f"Sandbox infrastructure error: {exc}"
@@ -553,42 +601,173 @@ class SubprocessSandbox(SandboxInterface):
                     proc.join(timeout=1.0)
             except Exception:  # noqa: BLE001
                 pass
-        finally:
-            result.duration_seconds = time.perf_counter() - start
+        return peak_rss_bytes
 
-            # Final RSS accounting — prefer RUSAGE_CHILDREN delta; fall
-            # back to the live peak we sampled during the run.
-            rss_after_kb = self._child_rss_kb()
-            child_delta_kb = max(0, rss_after_kb - rss_before_kb)
-            if child_delta_kb > 0:
-                peak_rss_bytes = max(peak_rss_bytes, child_delta_kb * 1024)
+    @staticmethod
+    def _classify_outcome(
+        exitcode: Optional[int],
+        payload: List[Any],
+        result: SandboxResult,
+    ) -> None:
+        """Classify ``result.status``/``error`` from the child exit code + payload.
 
-            result.memory_used_mb = round(peak_rss_bytes / (1024 * 1024), 3)
+        Three top-level branches:
 
-            # Post-execution memory-limit enforcement. If the child
-            # somehow exceeded the ceiling (e.g. RLIMIT_AS was not
-            # available on this platform), surface it as a failure.
-            if (
-                config.max_memory_mb > 0
-                and result.memory_used_mb > config.max_memory_mb * 1.25
-                and result.status == "success"
-            ):
+        * signal-killed with no payload — pick a status from the signal;
+        * payload present — apply the terminal kind (success/timeout/failed);
+        * no payload — infer from the exit code (clean vs OOM-killed vs other).
+        """
+        if exitcode is not None and exitcode < 0 and not payload:
+            # Killed by a signal (SIGXCPU, SIGKILL, …) without
+            # getting to write a result.
+            if exitcode == -signal.SIGXCPU:
+                result.status = "timeout"
+                result.error = "CPU rlimit (SIGXCPU) hit"
+            elif exitcode == -signal.SIGKILL:
+                result.status = "killed"
+                result.error = "Sandbox killed (SIGKILL — likely OOM)"
+            elif exitcode == -signal.SIGALRM:
+                result.status = "timeout"
+                result.error = "SIGALRM timeout fired"
+            else:
+                result.status = "killed"
+                result.error = f"Sandbox killed by signal {-exitcode}"
+        elif payload:
+            # Drain returns a list of (kind, value) tuples —
+            # the worker may push a resource-warning before the
+            # terminal payload. Find the terminal one.
+            SubprocessSandbox._apply_terminal_payload(payload, result)
+        else:
+            # No payload. Distinguish:
+            #   exitcode == 0 → function returned None cleanly
+            #   exitcode != 0 → child died before it could push
+            #     a result (e.g. MemoryError when the queue
+            #     feeder thread itself couldn't allocate). This
+            #     is the most common path when RLIMIT_AS fires
+            #     and the worker can't report through the queue.
+            if result.exit_code == 0:
+                result.status = "success"
+                result.output = None
+            elif result.exit_code < 0:
+                # Killed by a signal we didn't classify above.
+                result.status = "killed"
+                result.error = (
+                    f"Sandbox killed by signal {-result.exit_code}"
+                )
+            else:
                 result.status = "failed"
                 result.error = (
-                    f"Memory limit exceeded: {result.memory_used_mb}MB "
-                    f"> {config.max_memory_mb}MB ceiling"
+                    f"Sandbox child exited with code "
+                    f"{result.exit_code} and produced no result "
+                    f"(likely memory/CPU limit enforced by kernel)"
                 )
 
-            self._audit(
-                status=result.status,
-                config=config,
-                error=result.error,
-                duration=result.duration_seconds,
-                memory_mb=result.memory_used_mb,
-                exit_code=result.exit_code,
+    @staticmethod
+    def _apply_terminal_payload(
+        payload: List[Any],
+        result: SandboxResult,
+    ) -> None:
+        """Find the terminal (kind, value) payload and apply it to ``result``.
+
+        The worker may push a ``_resource_warning`` *before* the terminal
+        tuple; the warning is logged but only the terminal tuple drives
+        ``result.status`` (unless the worker died applying limits and never
+        produced a terminal tuple — in which case we surface the warning).
+        """
+        resource_warning: Optional[str] = None
+        terminal: Optional[tuple] = None
+        for item in payload:
+            if not isinstance(item, tuple) or len(item) != 2:
+                continue
+            kind, value = item
+            if kind == "_resource_warning":
+                resource_warning = str(value)
+            else:
+                terminal = (kind, value)
+        if resource_warning is not None:
+            logger.warning(
+                "SubprocessSandbox resource warning: %s",
+                resource_warning,
+            )
+        if terminal is None and resource_warning is not None:
+            # Resource warning without a terminal payload —
+            # the worker died applying limits.
+            result.status = "failed"
+            result.error = (
+                f"Resource limit application failed: {resource_warning}"
+            )
+        elif terminal is not None:
+            kind, value = terminal
+            if kind == "_success":
+                result.status = "success"
+                result.output = value
+            elif kind == "_timeout":
+                result.status = "timeout"
+                result.error = str(value)
+            elif kind == "_failed":
+                result.status = "failed"
+                if isinstance(value, dict):
+                    msg = value.get("message") or value.get("type", "")
+                    result.error = msg or "execution failed"
+                else:
+                    result.error = str(value)
+            else:
+                result.status = "failed"
+                result.error = f"Unknown payload kind: {kind}"
+
+    @staticmethod
+    def _check_memory_usage(
+        config: SandboxConfig,
+        result: SandboxResult,
+        peak_rss_bytes: int,
+        rss_before_kb: int,
+    ) -> None:
+        """Finalize ``result.memory_used_mb`` and enforce the post-exec ceiling.
+
+        Applies the RUSAGE_CHILDREN delta on top of the live-sampled peak,
+        then — if the configured memory ceiling was exceeded despite the
+        in-child RLIMIT_AS — flips ``result.status`` to ``failed`` so the
+        caller can react.
+        """
+        rss_after_kb = SubprocessSandbox._child_rss_kb()
+        child_delta_kb = max(0, rss_after_kb - rss_before_kb)
+        if child_delta_kb > 0:
+            peak_rss_bytes = max(peak_rss_bytes, child_delta_kb * 1024)
+        result.memory_used_mb = round(peak_rss_bytes / (1024 * 1024), 3)
+        # Post-execution memory-limit enforcement. If the child
+        # somehow exceeded the ceiling (e.g. RLIMIT_AS was not
+        # available on this platform), surface it as a failure.
+        if (
+            config.max_memory_mb > 0
+            and result.memory_used_mb > config.max_memory_mb * 1.25
+            and result.status == "success"
+        ):
+            result.status = "failed"
+            result.error = (
+                f"Memory limit exceeded: {result.memory_used_mb}MB "
+                f"> {config.max_memory_mb}MB ceiling"
             )
 
-        return result
+    def _audit_execution(
+        self,
+        config: SandboxConfig,
+        result: SandboxResult,
+        status: Optional[str] = None,
+    ) -> None:
+        """Append a decision-log entry for ``result``.
+
+        ``status`` overrides ``result.status`` for callers that want to
+        audit a different bucket (e.g. capability-denied is audited as
+        ``denied`` but the SandboxResult itself reports ``failed``).
+        """
+        self._audit(
+            status=status or result.status,
+            config=config,
+            error=result.error,
+            duration=result.duration_seconds,
+            memory_mb=result.memory_used_mb,
+            exit_code=result.exit_code,
+        )
 
     async def is_available(self) -> bool:
         """The subprocess sandbox is available when multiprocessing works.

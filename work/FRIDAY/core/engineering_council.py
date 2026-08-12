@@ -187,7 +187,15 @@ class EngineeringCouncil:
     async def _review_from_perspective(
         self, role: ReviewerRole, decision: CouncilDecision
     ) -> CouncilReview:
-        """Generate a review from a specific executive perspective."""
+        """Generate a review from a specific executive perspective.
+
+        Domain-specific risk/concern/recommendation detection is delegated
+        to :meth:`_review_security`, :meth:`_review_architecture`,
+        :meth:`_review_performance`, :meth:`_review_reliability`,
+        :meth:`_review_qa`, :meth:`_review_devops`, and
+        :meth:`_review_compliance` so this method is a simple dispatcher.
+        The final verdict is computed by :meth:`_determine_verdict`.
+        """
         name = self._reviewers[role]
         desc_lower = (decision.description + " " + decision.context).lower()
 
@@ -198,74 +206,38 @@ class EngineeringCouncil:
         recommendations: List[str] = []
         confidence = 70  # default
 
+        # Dispatch to the appropriate domain reviewer. Each helper
+        # mutates the lists above and returns an updated confidence.
         if role == ReviewerRole.CHIEF_SECURITY_OFFICER:
-            if any(w in desc_lower for w in ["auth", "token", "secret", "key"]):
-                risks.append("Key management complexity")
-                concerns.append("Secret rotation may cause downtime")
-                recommendations.append("Implement zero-downtime key rotation")
-                confidence = 80
-            if any(w in desc_lower for w in ["network", "port", "external"]):
-                risks.append("Increased attack surface")
-                confidence = 75
-            if any(w in desc_lower for w in ["sandbox", "isolation"]):
-                recommendations.append("Use seccomp + namespace isolation")
-                confidence = 85
-
+            confidence = self._review_security(
+                desc_lower, risks, concerns, alternatives, recommendations, confidence,
+            )
         elif role == ReviewerRole.CHIEF_ARCHITECT:
-            if any(w in desc_lower for w in ["singleton", "global", "module-level"]):
-                risks.append("Breaking change to singleton consumers")
-                concerns.append("Requires dependency injection refactor across all callers")
-                alternatives.append("Use factory pattern with lazy initialization")
-                confidence = 65
-            if any(w in desc_lower for w in ["decompose", "refactor", "split"]):
-                recommendations.append("Maintain backward-compatible facade during transition")
-                confidence = 80
-
+            confidence = self._review_architecture(
+                desc_lower, risks, concerns, alternatives, recommendations, confidence,
+            )
         elif role == ReviewerRole.CHIEF_PERFORMANCE_OFFICER:
-            if any(w in desc_lower for w in ["cache", "index", "optimize"]):
-                recommendations.append("Benchmark before and after")
-                confidence = 85
-            if any(w in desc_lower for w in ["async", "thread", "concurrent"]):
-                risks.append("Potential deadlock under high concurrency")
-                recommendations.append("Stress test with 100+ concurrent requests")
-                confidence = 75
-
+            confidence = self._review_performance(
+                desc_lower, risks, concerns, alternatives, recommendations, confidence,
+            )
         elif role == ReviewerRole.CHIEF_RELIABILITY_OFFICER:
-            if any(w in desc_lower for w in ["persistence", "disk", "file"]):
-                risks.append("Data loss on crash if not atomic")
-                recommendations.append("Use write-then-rename pattern")
-                confidence = 80
-            if any(w in desc_lower for w in ["distributed", "cluster", "scale"]):
-                risks.append("Split-brain scenarios")
-                concerns.append("Network partition handling")
-                confidence = 60
-
+            confidence = self._review_reliability(
+                desc_lower, risks, concerns, alternatives, recommendations, confidence,
+            )
         elif role == ReviewerRole.CHIEF_QA_OFFICER:
             recommendations.append("Add regression tests before merging")
             recommendations.append("Verify no existing tests break")
             confidence = 75
-
         elif role == ReviewerRole.CHIEF_DEVOPS_OFFICER:
-            if any(w in desc_lower for w in ["docker", "container", "deploy"]):
-                recommendations.append("Update Dockerfile and docker-compose")
-                recommendations.append("Add health check endpoint")
-                confidence = 80
-            concerns.append("Deployment rollback plan needed")
-
+            confidence = self._review_devops(
+                desc_lower, risks, concerns, alternatives, recommendations, confidence,
+            )
         elif role == ReviewerRole.CHIEF_COMPLIANCE_OFFICER:
-            if any(w in desc_lower for w in ["audit", "log", "receipt"]):
-                recommendations.append("Ensure NDPR/GDPR compliance")
-                confidence = 75
+            confidence = self._review_compliance(
+                desc_lower, risks, concerns, alternatives, recommendations, confidence,
+            )
 
-        # Determine verdict
-        if len(risks) == 0 and len(concerns) == 0:
-            verdict = Verdict.APPROVE
-        elif len(risks) <= 2 and all(r.lower().startswith("potential") for r in risks):
-            verdict = Verdict.APPROVE_WITH_CONCERNS
-        elif len(risks) > 3:
-            verdict = Verdict.REJECT
-        else:
-            verdict = Verdict.APPROVE_WITH_CONCERNS
+        verdict = self._determine_verdict(risks, concerns)
 
         return CouncilReview(
             reviewer=name,
@@ -278,6 +250,136 @@ class EngineeringCouncil:
             recommendations=recommendations,
             reasoning=f"Reviewed from {name} perspective.",
         )
+
+    # ------------------------------------------------------------------
+    # Domain-specific reviewers — each has a single responsibility
+    # (matching one ReviewerRole) and mutates the supplied lists in-place.
+    # They return the updated confidence so the dispatcher can stay tiny.
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _review_security(
+        desc_lower: str,
+        risks: List[str],
+        concerns: List[str],
+        alternatives: List[str],
+        recommendations: List[str],
+        confidence: int,
+    ) -> int:
+        if any(w in desc_lower for w in ["auth", "token", "secret", "key"]):
+            risks.append("Key management complexity")
+            concerns.append("Secret rotation may cause downtime")
+            recommendations.append("Implement zero-downtime key rotation")
+            confidence = 80
+        if any(w in desc_lower for w in ["network", "port", "external"]):
+            risks.append("Increased attack surface")
+            confidence = 75
+        if any(w in desc_lower for w in ["sandbox", "isolation"]):
+            recommendations.append("Use seccomp + namespace isolation")
+            confidence = 85
+        return confidence
+
+    @staticmethod
+    def _review_architecture(
+        desc_lower: str,
+        risks: List[str],
+        concerns: List[str],
+        alternatives: List[str],
+        recommendations: List[str],
+        confidence: int,
+    ) -> int:
+        if any(w in desc_lower for w in ["singleton", "global", "module-level"]):
+            risks.append("Breaking change to singleton consumers")
+            concerns.append("Requires dependency injection refactor across all callers")
+            alternatives.append("Use factory pattern with lazy initialization")
+            confidence = 65
+        if any(w in desc_lower for w in ["decompose", "refactor", "split"]):
+            recommendations.append("Maintain backward-compatible facade during transition")
+            confidence = 80
+        return confidence
+
+    @staticmethod
+    def _review_performance(
+        desc_lower: str,
+        risks: List[str],
+        concerns: List[str],
+        alternatives: List[str],
+        recommendations: List[str],
+        confidence: int,
+    ) -> int:
+        if any(w in desc_lower for w in ["cache", "index", "optimize"]):
+            recommendations.append("Benchmark before and after")
+            confidence = 85
+        if any(w in desc_lower for w in ["async", "thread", "concurrent"]):
+            risks.append("Potential deadlock under high concurrency")
+            recommendations.append("Stress test with 100+ concurrent requests")
+            confidence = 75
+        return confidence
+
+    @staticmethod
+    def _review_reliability(
+        desc_lower: str,
+        risks: List[str],
+        concerns: List[str],
+        alternatives: List[str],
+        recommendations: List[str],
+        confidence: int,
+    ) -> int:
+        if any(w in desc_lower for w in ["persistence", "disk", "file"]):
+            risks.append("Data loss on crash if not atomic")
+            recommendations.append("Use write-then-rename pattern")
+            confidence = 80
+        if any(w in desc_lower for w in ["distributed", "cluster", "scale"]):
+            risks.append("Split-brain scenarios")
+            concerns.append("Network partition handling")
+            confidence = 60
+        return confidence
+
+    @staticmethod
+    def _review_devops(
+        desc_lower: str,
+        risks: List[str],
+        concerns: List[str],
+        alternatives: List[str],
+        recommendations: List[str],
+        confidence: int,
+    ) -> int:
+        if any(w in desc_lower for w in ["docker", "container", "deploy"]):
+            recommendations.append("Update Dockerfile and docker-compose")
+            recommendations.append("Add health check endpoint")
+            confidence = 80
+        concerns.append("Deployment rollback plan needed")
+        return confidence
+
+    @staticmethod
+    def _review_compliance(
+        desc_lower: str,
+        risks: List[str],
+        concerns: List[str],
+        alternatives: List[str],
+        recommendations: List[str],
+        confidence: int,
+    ) -> int:
+        if any(w in desc_lower for w in ["audit", "log", "receipt"]):
+            recommendations.append("Ensure NDPR/GDPR compliance")
+            confidence = 75
+        return confidence
+
+    @staticmethod
+    def _determine_verdict(risks: List[str], concerns: List[str]) -> Verdict:
+        """Translate the collected risks/concerns into a Verdict bucket.
+
+        * no risks and no concerns → APPROVE;
+        * at most 2 *potential* risks → APPROVE_WITH_CONCERNS;
+        * more than 3 risks → REJECT;
+        * otherwise → APPROVE_WITH_CONCERNS.
+        """
+        if len(risks) == 0 and len(concerns) == 0:
+            return Verdict.APPROVE
+        if len(risks) <= 2 and all(r.lower().startswith("potential") for r in risks):
+            return Verdict.APPROVE_WITH_CONCERNS
+        if len(risks) > 3:
+            return Verdict.REJECT
+        return Verdict.APPROVE_WITH_CONCERNS
 
     def _synthesize_consensus(self, decision: CouncilDecision) -> CouncilDecision:
         """Synthesize individual reviews into a consensus."""

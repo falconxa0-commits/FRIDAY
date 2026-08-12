@@ -614,6 +614,11 @@ class FridayBrain:
         GLM-4-Flash supports function calling via the ZhipuAI SDK
         using OpenAI-compatible tools format.
         Max 5 rounds to prevent infinite loops.
+
+        Work is delegated to :meth:`_call_glm_with_tools` (the API
+        round-trip), :meth:`_process_tool_call` (argument parsing +
+        tool execution), and :meth:`_should_continue_tool_loop`
+        (loop-control guard) so this method stays a small orchestrator.
         """
         max_rounds = 5
         glm_client = self.glm_brain._ensure_client()
@@ -627,12 +632,8 @@ class FridayBrain:
 
         for round_num in range(max_rounds):
             try:
-                response = await asyncio.to_thread(
-                    glm_client.chat.completions.create,
-                    model=self.glm_brain._model_name,
-                    messages=messages,
-                    tools=tools if tools else None,
-                    stream=False,
+                response = await self._call_glm_with_tools(
+                    glm_client, messages, tools,
                 )
             except Exception as e:
                 self.logger.error(f"GLM tool call error (round {round_num}): {e}")
@@ -647,35 +648,15 @@ class FridayBrain:
             # Model wants to call tools
             if finish_reason == "tool_calls" and tool_calls:
                 # Add assistant message with tool_calls to history
-                messages.append({
-                    "role": "assistant",
-                    "content": getattr(message, "content", "") or "",
-                    "tool_calls": [
-                        {
-                            "id": tc.id,
-                            "type": "function",
-                            "function": {
-                                "name": tc.function.name,
-                                "arguments": tc.function.arguments,
-                            },
-                        }
-                        for tc in tool_calls
-                    ],
-                })
+                messages.append(self._build_assistant_tool_message(message, tool_calls))
 
                 # Execute each tool and collect results
                 for tool_call in tool_calls:
-                    tool_name = tool_call.function.name
-                    try:
-                        tool_input = json.loads(tool_call.function.arguments)
-                    except (json.JSONDecodeError, TypeError):
-                        tool_input = {}
-
+                    tool_name, tool_input, tool_result = await self._process_tool_call(
+                        tool_call,
+                    )
                     self.logger.info(f"GLM tool call: {tool_name}({tool_input})")
                     yield f"\n[System: {tool_name}(...)]\n"
-
-                    tool_result = await self._execute_tool(tool_name, tool_input)
-
                     messages.append({
                         "role": "tool",
                         "tool_call_id": tool_call.id,
@@ -686,25 +667,110 @@ class FridayBrain:
                 continue
 
             # No more tool calls — stream the final text response
-            final_content = getattr(message, "content", "") or ""
-            # Store assistant response in memory
-            if self.memory and final_content.strip():
-                try:
-                    self.memory.store_conversation("assistant", final_content)
-                except Exception as e:
-                    self.logger.warning(f"Memory store failed: {e}")
-            # Stream word by word for natural feel
-            words = final_content.split(" ")
-            for i, word in enumerate(words):
-                if i < len(words) - 1:
-                    yield word + " "
-                else:
-                    yield word
+            async for chunk in self._stream_final_response(message):
+                yield chunk
             return
 
         # Max rounds reached — yield what we have
-        self.logger.warning("GLM tool calling reached max rounds (5)")
-        yield "I reached the maximum reasoning steps. Please try rephrasing your request."
+        if not self._should_continue_tool_loop(max_rounds, max_rounds):
+            self.logger.warning("GLM tool calling reached max rounds (5)")
+            yield (
+                "I reached the maximum reasoning steps. "
+                "Please try rephrasing your request."
+            )
+
+    # ------------------------------------------------------------------
+    # _glm_stream_with_tools() helpers — each has a single responsibility.
+    # ------------------------------------------------------------------
+    async def _call_glm_with_tools(
+        self,
+        glm_client,
+        messages: list,
+        tools: list,
+    ):
+        """Invoke the GLM chat-completions endpoint with tools enabled.
+
+        Runs the (blocking) SDK call in a worker thread so the event
+        loop stays responsive. Returns the raw SDK response object so
+        callers can inspect ``choices[0]`` directly.
+        """
+        return await asyncio.to_thread(
+            glm_client.chat.completions.create,
+            model=self.glm_brain._model_name,
+            messages=messages,
+            tools=tools if tools else None,
+            stream=False,
+        )
+
+    @staticmethod
+    def _build_assistant_tool_message(message, tool_calls) -> Dict[str, Any]:
+        """Build the assistant-message dict that carries tool_calls.
+
+        Mirrors the OpenAI/ZhipuAI shape so the next round-trip can
+        attribute each ``tool`` role message back to its originating
+        ``tool_call.id``.
+        """
+        return {
+            "role": "assistant",
+            "content": getattr(message, "content", "") or "",
+            "tool_calls": [
+                {
+                    "id": tc.id,
+                    "type": "function",
+                    "function": {
+                        "name": tc.function.name,
+                        "arguments": tc.function.arguments,
+                    },
+                }
+                for tc in tool_calls
+            ],
+        }
+
+    async def _process_tool_call(self, tool_call) -> tuple:
+        """Parse a single tool_call's arguments and execute it.
+
+        Returns ``(tool_name, tool_input, tool_result)`` so the caller
+        can decide what (if anything) to surface to the user and append
+        to the conversation history.
+        """
+        tool_name = tool_call.function.name
+        try:
+            tool_input = json.loads(tool_call.function.arguments)
+        except (json.JSONDecodeError, TypeError):
+            tool_input = {}
+        tool_result = await self._execute_tool(tool_name, tool_input)
+        return tool_name, tool_input, tool_result
+
+    @staticmethod
+    def _should_continue_tool_loop(round_num: int, max_rounds: int) -> bool:
+        """Return True when the tool-calling loop should keep going.
+
+        Centralises the boundary check (``round_num < max_rounds``) so
+        future tuning (e.g. dynamic round caps based on cost budget)
+        can land in one place.
+        """
+        return round_num < max_rounds
+
+    async def _stream_final_response(self, message) -> AsyncGenerator[str, None]:
+        """Persist the final assistant message and stream it word-by-word.
+
+        Memory-store failures are logged but never break the stream —
+        the user gets their answer even if memory persistence fails.
+        """
+        final_content = getattr(message, "content", "") or ""
+        # Store assistant response in memory
+        if self.memory and final_content.strip():
+            try:
+                self.memory.store_conversation("assistant", final_content)
+            except Exception as e:
+                self.logger.warning(f"Memory store failed: {e}")
+        # Stream word by word for natural feel
+        words = final_content.split(" ")
+        for i, word in enumerate(words):
+            if i < len(words) - 1:
+                yield word + " "
+            else:
+                yield word
 
     # ------------------------------------------------------------------
     # Creative suite routing — thin delegating wrappers

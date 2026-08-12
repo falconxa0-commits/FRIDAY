@@ -1,5 +1,12 @@
 """Evolution Engine — EXPERIMENTAL, NOT WIRED INTO PRODUCTION.
 
+DEAD CODE — not imported by any production module.
+
+A repository-wide import scan (see ``tests/test_code_quality.py``) confirms
+that no module under ``core/``, ``api/``, ``cli/``, or ``tests/`` imports
+this file. It is retained only so that any future import would surface the
+``DeprecationWarning`` below rather than failing silently.
+
 This module implements an A/B-testing framework for prompt variants and
 LLM-powered self-evolution of agent system prompts. It is **not wired
 into the main chat loop** and is retained for future experimentation.
@@ -10,13 +17,12 @@ is added.
 """
 
 import logging
-import json
 import hashlib
 import time
 import warnings
 from typing import Dict, List, Any, Optional
 from datetime import datetime
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 warnings.warn(
     "core.evolution is experimental and not wired into the main loop. "

@@ -264,34 +264,15 @@ WS_HEARTBEAT_TIMEOUT = 10  # seconds to wait for pong
 @app.websocket("/api/stream")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
-    try:
-        # --- authenticate -------------------------------------------
-        token_msg = await asyncio.wait_for(
-            websocket.receive_json(), timeout=10
-        )
-        if FRIDAY_API_TOKEN and not hmac.compare_digest(
-            token_msg.get("token", ""), FRIDAY_API_TOKEN
-        ):
-            await websocket.send_json({"error": "Unauthorized"})
-            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-            return
+    if not await _authenticate_websocket(websocket):
+        return
 
+    try:
         # --- get singleton brain ------------------------------------
         brain = await _get_brain()
 
         # --- determine if GLM native streaming should be used ------
-        use_glm_stream = (BRAIN_PROVIDER == "glm")
-        glm_brain = None
-        if use_glm_stream:
-            try:
-                from core.glm_brain import GLMBrain
-                glm_brain = GLMBrain()
-                if not glm_brain.available():
-                    glm_brain = None
-                    logger.info("GLM not available, falling back to brain.chat_stream")
-            except Exception:
-                glm_brain = None
-                logger.warning("GLMBrain import failed, falling back to brain.chat_stream")
+        glm_brain = _init_glm_brain()
 
         # --- ledger -------------------------------------------------
         from core.ledger import get_ledger
@@ -327,21 +308,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 logger.info("WS heartbeat timeout — closing connection")
                 break
 
-            if data == "__pong__":
-                continue  # heartbeat response
-
-            # Route to GLM native streaming or default brain stream
-            if glm_brain is not None:
-                async for chunk in glm_brain.chat_stream(data):
-                    await websocket.send_text(chunk)
-            else:
-                async for chunk in brain.chat_stream(data):
-                    await websocket.send_text(chunk)
-
-            # Push pending actions to UI
-            await websocket.send_json(
-                {"pending_actions": list(ledger.pending_actions.values())}
-            )
+            await _handle_ws_message(websocket, data, glm_brain, brain, ledger)
 
     except WebSocketDisconnect:
         logger.info("WebSocket client disconnected")
@@ -355,3 +322,108 @@ async def websocket_endpoint(websocket: WebSocket):
             await websocket.close()
         except Exception as e:
             logger.debug(f"Non-critical error: {e}")
+
+
+# ------------------------------------------------------------------
+# websocket_endpoint() helpers — each has a single responsibility.
+# ------------------------------------------------------------------
+async def _authenticate_websocket(websocket: WebSocket) -> bool:
+    """Receive the auth token and validate it.
+
+    Returns ``True`` when the caller should proceed with the session,
+    ``False`` when the connection has been rejected (and closed) —
+    either because no token arrived within 10s or because the supplied
+    token did not match :data:`FRIDAY_API_TOKEN`.
+    """
+    token_msg = await asyncio.wait_for(
+        websocket.receive_json(), timeout=10
+    )
+    if FRIDAY_API_TOKEN and not hmac.compare_digest(
+        token_msg.get("token", ""), FRIDAY_API_TOKEN
+    ):
+        await websocket.send_json({"error": "Unauthorized"})
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return False
+    return True
+
+
+def _init_glm_brain():
+    """Construct a :class:`GLMBrain` if GLM streaming is configured.
+
+    Returns ``None`` when GLM isn't the configured provider or when the
+    GLM client can't be initialised — callers should fall back to the
+    default ``brain.chat_stream`` path in that case.
+    """
+    if BRAIN_PROVIDER != "glm":
+        return None
+    try:
+        from core.glm_brain import GLMBrain
+        glm_brain = GLMBrain()
+        if not glm_brain.available():
+            logger.info("GLM not available, falling back to brain.chat_stream")
+            return None
+        return glm_brain
+    except Exception:
+        logger.warning("GLMBrain import failed, falling back to brain.chat_stream")
+        return None
+
+
+async def _handle_ws_message(
+    websocket: WebSocket,
+    data: str,
+    glm_brain,
+    brain,
+    ledger,
+) -> None:
+    """Dispatch one inbound WebSocket message.
+
+    Branches on the message body:
+
+    * ``"__pong__"`` — heartbeat response, nothing to do;
+    * anything else — route to the chat handler and then push pending
+      ledger actions back to the UI.
+
+    Both downstream helpers swallow their own transport errors via the
+    outer ``try/except WebSocketDisconnect`` in
+    :func:`websocket_endpoint`.
+    """
+    if data == "__pong__":
+        return  # heartbeat response
+    await _process_chat_request(websocket, data, glm_brain, brain)
+    await _process_branch_request(websocket, ledger)
+
+
+async def _process_chat_request(
+    websocket: WebSocket,
+    data: str,
+    glm_brain,
+    brain,
+) -> None:
+    """Stream the brain's response to the client.
+
+    Uses the native GLM streamer when ``glm_brain`` is available;
+    otherwise falls back to the default brain stream. Each yielded
+    chunk is written to the websocket as plain text so the client can
+    render tokens incrementally.
+    """
+    if glm_brain is not None:
+        async for chunk in glm_brain.chat_stream(data):
+            await websocket.send_text(chunk)
+    else:
+        async for chunk in brain.chat_stream(data):
+            await websocket.send_text(chunk)
+
+
+async def _process_branch_request(
+    websocket: WebSocket,
+    ledger,
+) -> None:
+    """Push pending ledger actions back to the UI.
+
+    Named "branch" because this is the hook where conversation-branch
+    routing would dispatch — today it simply forwards the current set
+    of pending actions awaiting user approval.
+    """
+    await websocket.send_json(
+        {"pending_actions": list(ledger.pending_actions.values())}
+    )

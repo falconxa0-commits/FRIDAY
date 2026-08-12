@@ -260,52 +260,99 @@ def check_no_hardcoded_secrets():
         "test_key", "test-key", "sk_test_", "<your", "REPLACE",
     )
 
-    def is_print_or_log(line: str) -> bool:
-        stripped = line.strip()
-        return (
-            stripped.startswith("print(")
-            or stripped.startswith("logging.")
-            or "logger." in stripped
-            or stripped.startswith("echo ")
-            or stripped.startswith("os.system(")
-        )
-
     found = False
     for py in ROOT.rglob("*.py"):
-        if "test" in str(py) or "__pycache__" in str(py) or ".env" in str(py):
-            continue
-        # The audit script itself needs a non-empty throwaway token to
-        # force auth enforcement during check_auth_rejection. Skip it.
-        if py.name == "hellfire_audit.py":
+        if _skip_audit_file(py):
             continue
         try:
             text = py.read_text()
-            for i, line in enumerate(text.splitlines(), 1):
-                # Skip lines that are env var reads
-                if 'os.getenv' in line or 'os.environ' in line or 'get_env_var' in line:
-                    continue
-                # Skip lines inside print/logging/echo (instructional output)
-                if is_print_or_log(line):
-                    continue
-                # Skip placeholder/example markers
-                lowered = line.lower()
-                if any(marker in lowered for marker in placeholder_markers):
-                    continue
-                for pattern in secret_patterns:
-                    if pattern.search(line):
-                        # Also skip if the matched value itself contains a placeholder
-                        # (defensive double-check on the matched substring)
-                        match = pattern.search(line)
-                        matched_text = match.group(0).lower()
-                        if any(m in matched_text for m in placeholder_markers):
-                            continue
-                        fail(str(py.relative_to(ROOT)), f"line {i}: potential hardcoded secret")
-                        found = True
         except (UnicodeDecodeError, PermissionError) as e:
             logger.debug(f"Non-critical error: {e}")
-    
+            continue
+        if _scan_file_for_secrets(py, text, secret_patterns, placeholder_markers):
+            found = True
+
     if not found:
         pass_("No hardcoded secrets found")
+
+
+def _skip_audit_file(py: Path) -> bool:
+    """Return True if ``py`` should be excluded from the secret scan.
+
+    Skips test files, byte-compiled caches, .env files, and the audit
+    script itself (which uses a non-empty throwaway token to force
+    auth enforcement during ``check_auth_rejection``).
+    """
+    if "test" in str(py) or "__pycache__" in str(py) or ".env" in str(py):
+        return True
+    if py.name == "hellfire_audit.py":
+        return True
+    return False
+
+
+def _scan_file_for_secrets(
+    py: Path,
+    text: str,
+    secret_patterns,
+    placeholder_markers,
+) -> bool:
+    """Scan a single file's text for hardcoded secrets.
+
+    Returns ``True`` if any line failed the scan (so the caller can keep
+    the ``found`` flag). Each failing line is recorded via :func:`fail`.
+    Lines that read from env, are inside print/logging, or contain
+    placeholder markers are skipped (see :func:`_is_env_read`,
+    :func:`_is_print_or_log`, :func:`_check_placeholder`).
+    """
+    found_in_file = False
+    for i, line in enumerate(text.splitlines(), 1):
+        if _is_env_read(line):
+            continue
+        if _is_print_or_log(line):
+            continue
+        if _check_placeholder(line.lower(), placeholder_markers):
+            continue
+        for pattern in secret_patterns:
+            match = pattern.search(line)
+            if not match:
+                continue
+            # Also skip if the matched value itself contains a placeholder
+            # (defensive double-check on the matched substring)
+            if _check_placeholder(match.group(0).lower(), placeholder_markers):
+                continue
+            fail(str(py.relative_to(ROOT)), f"line {i}: potential hardcoded secret")
+            found_in_file = True
+    return found_in_file
+
+
+def _is_env_read(line: str) -> bool:
+    """True if the line reads from the environment rather than assigning a literal."""
+    return (
+        'os.getenv' in line
+        or 'os.environ' in line
+        or 'get_env_var' in line
+    )
+
+
+def _is_print_or_log(line: str) -> bool:
+    """True if the line is instructional output (print/logging/echo/os.system).
+
+    Such lines often contain placeholder secrets for onboarding docs and
+    must not be flagged as real keys.
+    """
+    stripped = line.strip()
+    return (
+        stripped.startswith("print(")
+        or stripped.startswith("logging.")
+        or "logger." in stripped
+        or stripped.startswith("echo ")
+        or stripped.startswith("os.system(")
+    )
+
+
+def _check_placeholder(line: str, markers) -> bool:
+    """True if ``line`` contains any of the placeholder/example markers."""
+    return any(marker in line for marker in markers)
 
 # ── 7. GLM_API_KEY is always read from env, never hardcoded ──
 def check_glm_key_from_env():
