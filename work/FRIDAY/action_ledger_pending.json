@@ -872,15 +872,84 @@
     "status": "pending",
     "timestamp": "2026-08-12T20:07:04.522865"
   },
-  "f1bc332c-5fda-459b-b0e5-253f4949a676": {
-    "id": "f1bc332c-5fda-459b-b0e5-253f4949a676",
-    "component": "MCPChat",
-    "action": "chat",
+  "0af9d98e-7027-4088-be1d-4c8a44863939": {
+    "id": "0af9d98e-7027-4088-be1d-4c8a44863939",
+    "component": "Test",
+    "action": "test_action",
+    "params": {},
+    "risk_level": "low",
+    "status": "pending",
+    "timestamp": "2026-08-12T21:02:49.814432"
+  },
+  "2999b827-39b3-436a-b769-d7c56ea5e4fa": {
+    "id": "2999b827-39b3-436a-b769-d7c56ea5e4fa",
+    "component": "Test",
+    "action": "test",
+    "params": {},
+    "risk_level": "medium",
+    "status": "pending",
+    "timestamp": "2026-08-12T21:02:50.818695"
+  },
+  "3bfc124c-c5a6-4d7c-a129-6c8323176335": {
+    "id": "3bfc124c-c5a6-4d7c-a129-6c8323176335",
+    "component": "MCPVision",
+    "action": "vision_analyze",
     "params": {
-      "message_length": 2
+      "prompt": "Describe this image in detail."
     },
     "risk_level": "low",
     "status": "approved",
-    "timestamp": "2026-08-12T20:07:13.078471"
+    "timestamp": "2026-08-12T21:04:13.035547"
+  },
+  "5cee91b1-d694-4c59-b2f4-3a47f070a91d": {
+    "id": "5cee91b1-d694-4c59-b2f4-3a47f070a91d",
+    "component": "MCPSearch",
+    "action": "web_search",
+    "params": {
+      "query": "test"
+    },
+    "risk_level": "low",
+    "status": "approved",
+    "timestamp": "2026-08-12T21:04:13.041690"
+  },
+  "4422780d-335d-41f0-9e99-611e632c0ffe": {
+    "id": "4422780d-335d-41f0-9e99-611e632c0ffe",
+    "component": "MCPChat",
+    "action": "chat",
+    "params": {
+      "message_length": 4
+    },
+    "risk_level": "low",
+    "status": "approved",
+    "timestamp": "2026-08-12T21:04:13.057876"
+  },
+  "ff7db859-cf1a-4209-8992-f8de59271fff": {
+    "id": "ff7db859-cf1a-4209-8992-f8de59271fff",
+    "component": "MCPChat",
+    "action": "chat",
+    "params": {
+      "message_length": 4
+    },
+    "risk_level": "low",
+    "status": "approved",
+    "timestamp": "2026-08-12T21:04:13.212330"
+  },
+  "697ef86c-093f-4fd6-b54f-8609538ad6b0": {
+    "id": "697ef86c-093f-4fd6-b54f-8609538ad6b0",
+    "component": "Test",
+    "action": "test_action",
+    "params": {},
+    "risk_level": "low",
+    "status": "pending",
+    "timestamp": "2026-08-12T21:04:13.229255"
+  },
+  "84757b59-f120-4784-8d86-ced04c0f4b18": {
+    "id": "84757b59-f120-4784-8d86-ced04c0f4b18",
+    "component": "Test",
+    "action": "test",
+    "params": {},
+    "risk_level": "medium",
+    "status": "pending",
+    "timestamp": "2026-08-12T21:04:14.233846"
   }
 }
