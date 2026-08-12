@@ -138,8 +138,8 @@ class DocValidator:
                         ast.parse(block)
                     except SyntaxError:
                         invalid_blocks += 1
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Non-critical error: %s", exc)
 
         passed = invalid_blocks == 0
         return DocValidationResult(
@@ -175,8 +175,8 @@ class DocValidator:
                     target = (docs_dir / path).resolve()
                     if not target.exists():
                         broken_links += 1
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Non-critical error: %s", exc)
 
         passed = broken_links == 0
         return DocValidationResult(

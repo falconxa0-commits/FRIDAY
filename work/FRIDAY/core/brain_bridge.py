@@ -296,8 +296,8 @@ class BrainBridge:
                 if sub and hasattr(sub, 'stop'):
                     try:
                         await sub.stop()
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logger.debug("Non-critical error: %s", exc)
 
             # Stop the runtime manager
             if self._runtime_manager:

@@ -165,69 +165,104 @@ RISK_ASSESSMENT: [overall risk summary]"""
         current_path: Optional[DecisionPath] = None
 
         for line in llm_response.split("\n"):
-            line = line.strip()
-            if not line:
+            parsed = self._parse_path_token(line)
+            if parsed is None:
                 continue
+            key, value = parsed
 
-            if line.upper().startswith("PATH:"):
+            if key == "PATH":
                 if current_path:
                     paths.append(current_path)
-                name = line.split(":", 1)[1].strip()
                 current_path = DecisionPath(
-                    name=name, description="",
+                    name=value, description="",
                     probability=0.0, desirability=0.0, risk_level=0.0,
                 )
-
-            elif current_path is None:
                 continue
 
-            elif line.upper().startswith("DESCRIPTION:"):
-                current_path.description = line.split(":", 1)[1].strip()
+            if current_path is None:
+                continue
 
-            elif line.upper().startswith("PROBABILITY:"):
-                try:
-                    current_path.probability = float(
-                        line.split(":", 1)[1].strip()
-                    )
-                except ValueError:
-                    current_path.probability = 0.5
-
-            elif line.upper().startswith("DESIRABILITY:"):
-                try:
-                    current_path.desirability = float(
-                        line.split(":", 1)[1].strip()
-                    )
-                except ValueError:
-                    current_path.desirability = 0.5
-
-            elif line.upper().startswith("RISK:"):
-                try:
-                    current_path.risk_level = float(
-                        line.split(":", 1)[1].strip()
-                    )
-                except ValueError:
-                    current_path.risk_level = 0.5
-
-            elif line.upper().startswith("OUTCOMES:"):
-                outcomes_str = line.split(":", 1)[1].strip()
-                current_path.key_outcomes = [
-                    o.strip()
-                    for o in outcomes_str.split(";")
-                    if o.strip()
-                ]
-
-            elif line.upper().startswith("CAVEATS:"):
-                caveats_str = line.split(":", 1)[1].strip()
-                current_path.caveats = [
-                    c.strip()
-                    for c in caveats_str.split(";")
-                    if c.strip()
-                ]
+            self._normalize_path(current_path, key, value)
 
         if current_path:
             paths.append(current_path)
 
         return paths[:num_paths]
+
+    # ------------------------------------------------------------------
+    # _parse_simulation_paths helpers (extracted to reduce complexity)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _parse_path_token(token: str) -> Optional[tuple]:
+        """Parse a single LLM-output line into a (key, value) tuple.
+
+        Recognised keys (case-insensitive prefix match): ``PATH``,
+        ``DESCRIPTION``, ``PROBABILITY``, ``DESIRABILITY``, ``RISK``,
+        ``OUTCOMES``, ``CAVEATS``.
+
+        Args:
+            token: A single line from the LLM response.
+
+        Returns:
+            Tuple ``(key, value)`` where ``key`` is the uppercase attribute
+            name and ``value`` is the trimmed remainder after the colon.
+            Returns ``None`` if the line is empty or doesn't match any
+            known prefix.
+        """
+        token = token.strip()
+        if not token:
+            return None
+        upper = token.upper()
+        for key in (
+            "PATH", "DESCRIPTION", "PROBABILITY",
+            "DESIRABILITY", "RISK", "OUTCOMES", "CAVEATS",
+        ):
+            if upper.startswith(key + ":"):
+                value = token.split(":", 1)[1].strip()
+                return (key, value)
+        return None
+
+    @staticmethod
+    def _normalize_path(path: DecisionPath, key: str, value: str) -> None:
+        """Apply a parsed ``(key, value)`` token to a DecisionPath.
+
+        Handles float conversion (with a ``0.5`` default on parse error)
+        for ``PROBABILITY`` / ``DESIRABILITY`` / ``RISK`` and list
+        splitting for ``OUTCOMES`` / ``CAVEATS``. ``PATH`` is handled
+        by the caller (it starts a new path) and ``DESCRIPTION`` is
+        a simple string assignment.
+
+        Args:
+            path: The DecisionPath to mutate.
+            key: The uppercase attribute name (NOT ``PATH``).
+            value: The raw string value parsed from the LLM output.
+        """
+        if key == "DESCRIPTION":
+            path.description = value
+        elif key == "PROBABILITY":
+            try:
+                path.probability = float(value)
+            except ValueError:
+                path.probability = 0.5
+        elif key == "DESIRABILITY":
+            try:
+                path.desirability = float(value)
+            except ValueError:
+                path.desirability = 0.5
+        elif key == "RISK":
+            try:
+                path.risk_level = float(value)
+            except ValueError:
+                path.risk_level = 0.5
+        elif key == "OUTCOMES":
+            path.key_outcomes = [
+                o.strip() for o in value.split(";") if o.strip()
+            ]
+        elif key == "CAVEATS":
+            path.caveats = [
+                c.strip() for c in value.split(";") if c.strip()
+            ]
 
     # ------------------------------------------------------------------
     # Analysis

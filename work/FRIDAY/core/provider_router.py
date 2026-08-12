@@ -330,63 +330,36 @@ class ProviderRouter:
                     yield "Error: Claude client unavailable (no API key)"
                     return
 
-                async with client.messages.stream(
-                    model=brain.claude_model,
-                    max_tokens=4096,
-                    system=system_prompt,
-                    tools=tools,
-                    messages=brain.conversation_history,
-                ) as stream:
-                    async for event in stream:
-                        if (
-                            event.type == "content_block_delta"
-                            and event.delta.type == "text_delta"
-                        ):
-                            text = event.delta.text
-                            full_response += text
-                            yield text
+                final_content_holder: list = []
+                async for chunk in self._call_claude_with_tools(
+                    brain.conversation_history, tools, system_prompt, brain,
+                    final_content_holder,
+                ):
+                    full_response += chunk
+                    yield chunk
 
-                    final_msg = await stream.get_final_message()
-                    for content in final_msg.content:
-                        if content.type == "tool_use":
-                            tool_calls.append(content)
+                final_content = final_content_holder[0] if final_content_holder else []
+                tool_calls = [
+                    c for c in final_content
+                    if self._extract_tool_result(c) is not None
+                ]
 
                 if not tool_calls:
                     # No tools called — we're done
-                    brain.conversation_history.append({
-                        "role": "assistant",
-                        "content": full_response,
-                    })
-
-                    # Store assistant response in memory
-                    if brain.memory:
-                        try:
-                            brain.memory.store_conversation(
-                                "assistant", full_response
-                            )
-                        except Exception as e:
-                            logger.debug(f"Non-critical error: {e}")
-
+                    await self._store_assistant_response(brain, full_response)
                     break
 
                 # Process tool calls
                 brain.conversation_history.append({
                     "role": "assistant",
-                    "content": final_msg.content,
+                    "content": final_content,
                 })
 
                 tool_results = []
                 for tool in tool_calls:
                     yield f"\n[System: {tool.name}(...)]\n"
-                    result = await brain._execute_tool(tool.name, tool.input)
-                    tool_results.append({
-                        "role": "user",
-                        "content": [{
-                            "type": "tool_result",
-                            "tool_use_id": tool.id,
-                            "content": result,
-                        }],
-                    })
+                    tool_result = await self._process_claude_tool_call(tool, brain)
+                    tool_results.append(tool_result)
 
                 brain.conversation_history.extend(tool_results)
 
@@ -402,3 +375,109 @@ class ProviderRouter:
                 brain.logger.error(f"Error in chat_stream: {e}", exc_info=True)
                 yield f"\n[System error: {str(e)}]\n"
                 break
+
+    # ------------------------------------------------------------------
+    # _claude_stream_with_tools helpers (extracted to reduce complexity)
+    # ------------------------------------------------------------------
+
+    async def _call_claude_with_tools(
+        self,
+        messages: list,
+        tools: list,
+        system_prompt: str,
+        brain,
+        final_content_out: list,
+    ) -> AsyncGenerator[str, None]:
+        """Make a streaming Claude API call with tools enabled.
+
+        Yields text deltas as they arrive. After the stream completes,
+        appends the final message's content (list of content blocks,
+        which may include ``tool_use`` blocks) to ``final_content_out``
+        so the caller can extract tool calls.
+
+        Args:
+            messages: Conversation history to send to Claude.
+            tools: Tool definitions list (Claude tool schemas).
+            system_prompt: System prompt string.
+            brain: The owning ``FridayBrain`` (for ``claude_client`` /
+                ``claude_model`` access).
+            final_content_out: Mutable list — the final message content
+                will be appended here (``final_content_out[0]``).
+        """
+        client = brain.claude_client
+        async with client.messages.stream(
+            model=brain.claude_model,
+            max_tokens=4096,
+            system=system_prompt,
+            tools=tools,
+            messages=messages,
+        ) as stream:
+            async for event in stream:
+                if event.type == "content_block_delta" and event.delta.type == "text_delta":
+                    yield event.delta.text
+
+            final_msg = await stream.get_final_message()
+        final_content_out.append(final_msg.content)
+
+    @staticmethod
+    def _extract_tool_result(content_block):
+        """Return ``content_block`` if it is a ``tool_use`` block, else ``None``.
+
+        Args:
+            content_block: A content block from the Claude API final
+                message (e.g. ``TextBlock``, ``ToolUseBlock``).
+
+        Returns:
+            The content block itself if it is a ``tool_use`` block,
+            ``None`` otherwise.
+        """
+        if content_block.type == "tool_use":
+            return content_block
+        return None
+
+    async def _process_claude_tool_call(self, tool_use, brain):
+        """Execute a single Claude ``tool_use`` block and return the result envelope.
+
+        Args:
+            tool_use: The ``tool_use`` content block from Claude's response.
+            brain: The owning ``FridayBrain`` (for ``brain._execute_tool``).
+
+        Returns:
+            A dict shaped like::
+
+                {
+                    "role": "user",
+                    "content": [{
+                        "type": "tool_result",
+                        "tool_use_id": <tool_use.id>,
+                        "content": <result>,
+                    }],
+                }
+        """
+        result = await brain._execute_tool(tool_use.name, tool_use.input)
+        return {
+            "role": "user",
+            "content": [{
+                "type": "tool_result",
+                "tool_use_id": tool_use.id,
+                "content": result,
+            }],
+        }
+
+    async def _store_assistant_response(self, brain, full_response: str) -> None:
+        """Append the assistant response to history and store in memory.
+
+        Args:
+            brain: The owning ``FridayBrain`` (for ``conversation_history``
+                and ``memory`` access).
+            full_response: The concatenated assistant text response.
+        """
+        brain.conversation_history.append({
+            "role": "assistant",
+            "content": full_response,
+        })
+        if brain.memory:
+            try:
+                brain.memory.store_conversation("assistant", full_response)
+            except Exception as e:
+                logger.debug(f"Non-critical error: {e}")

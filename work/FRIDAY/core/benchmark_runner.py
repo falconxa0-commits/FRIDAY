@@ -115,8 +115,8 @@ class BenchmarkRunner:
                         if line.strip().startswith("{"):
                             metrics = json.loads(line)
                             break
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("Non-critical error: %s", exc)
 
                 return BenchmarkResult(
                     name=script_path,

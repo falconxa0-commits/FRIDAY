@@ -939,138 +939,154 @@ async def serve_stdio():
             try:
                 request = json.loads(line)
             except json.JSONDecodeError:
-                response = {"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": None}
-                writer.write((json.dumps(response) + "\n").encode())
-                await writer.drain()
+                await _send_mcp_response(
+                    writer, None,
+                    {"error": {"code": -32700, "message": "Parse error"}},
+                )
+                continue
+
+            result = await _handle_mcp_request(server, request)
+            if result is None:
+                # Notification — no response required.
                 continue
 
             request_id = request.get("id")
-            method = request.get("method", "")
-            params = request.get("params", {})
-
-            # ── JSON-RPC method routing ─────────────────────────────
-            if method == "initialize":
-                response = {
-                    "jsonrpc": "2.0",
-                    "id": request_id,
-                    "result": {
-                        "protocolVersion": "2024-11-05",
-                        "capabilities": {
-                            "tools": {"listChanged": False},
-                            # Advertise that this server requires an
-                            # authenticate handshake before tools/call.
-                            # Clients SHOULD call friday/authenticate
-                            # immediately after initialize. Servers in
-                            # FRIDAY_DEV_MODE advertise requiresAuth=False
-                            # so clients know they can skip the handshake.
-                            "auth": {
-                                "requiresAuth": AUTH_REQUIRED,
-                                "method": "friday/authenticate",
-                                "tokenEnvVar": "FRIDAY_MCP_TOKEN",
-                            },
-                        },
-                        "serverInfo": {
-                            "name": "friday-mcp",
-                            "version": "1.0.0",
-                        },
-                    },
-                }
-            elif method in ("friday/authenticate", "authenticate"):
-                # Auth handshake — must be called before tools/call.
-                token = params.get("token") if isinstance(params, dict) else None
-                if server.authenticate(token):
-                    response = {
-                        "jsonrpc": "2.0",
-                        "id": request_id,
-                        "result": {
-                            "authenticated": True,
-                            "methods": ["tools/list", "tools/call"],
-                        },
-                    }
-                else:
-                    response = {
-                        "jsonrpc": "2.0",
-                        "id": request_id,
-                        "error": {
-                            "code": -32001,
-                            "message": (
-                                "Unauthorized: invalid or missing MCP token. "
-                                "Set FRIDAY_MCP_TOKEN env var on the server, "
-                                "pass it as params.token to friday/authenticate."
-                            ),
-                        },
-                    }
-            elif method == "tools/list":
-                # tools/list is allowed pre-auth so clients can render UI
-                # and prompt the user for the token. The actual tool CALLS
-                # are gated (see tools/call branch below).
-                response = {
-                    "jsonrpc": "2.0",
-                    "id": request_id,
-                    "result": {"tools": TOOLS},
-                }
-            elif method == "tools/call":
-                # AUTH GATE — reject if not authenticated.
-                auth_error = server._check_authenticated()
-                if auth_error is not None:
-                    response = {**auth_error, "id": request_id}
-                else:
-                    tool_name = params.get("name", "")
-                    tool_params = params.get("arguments", {})
-                    result = await server.dispatch(tool_name, tool_params)
-                    response = {
-                        "jsonrpc": "2.0",
-                        "id": request_id,
-                        "result": {
-                            "content": [
-                                {"type": "text", "text": json.dumps(result, default=str)},
-                            ],
-                        },
-                    }
-            elif method.startswith("friday.") and method != "friday/authenticate":
-                # Direct namespaced method call (e.g. friday.chat) —
-                # routes through the same dispatch as tools/call.
-                # AUTH GATE — reject if not authenticated.
-                auth_error = server._check_authenticated()
-                if auth_error is not None:
-                    response = {**auth_error, "id": request_id}
-                else:
-                    result = await server.dispatch(method, params)
-                    response = {
-                        "jsonrpc": "2.0",
-                        "id": request_id,
-                        "result": {
-                            "content": [
-                                {"type": "text", "text": json.dumps(result, default=str)},
-                            ],
-                            "receipt": result.get("receipt"),
-                        },
-                    }
-            elif method == "notifications/initialized":
-                # No response needed for notifications
-                continue
-            else:
-                response = {
-                    "jsonrpc": "2.0",
-                    "id": request_id,
-                    "error": {"code": -32601, "message": f"Method not found: {method}"},
-                }
-
-            writer.write((json.dumps(response, default=str) + "\n").encode())
-            await writer.drain()
+            await _send_mcp_response(writer, request_id, result)
 
         except Exception as exc:
             logger.error(f"MCP server error: {exc}")
             try:
-                error_response = {
-                    "jsonrpc": "2.0",
-                    "error": {"code": -32603, "message": "Internal error"},
-                    "id": None,
-                }
-                writer.write((json.dumps(error_response) + "\n").encode())
-                await writer.drain()
+                await _send_mcp_response(
+                    writer, None,
+                    {"error": {"code": -32603, "message": "Internal error"}},
+                )
             except Exception as e:
                 logger.debug(f"Non-critical error: {e}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# serve_stdio helpers (extracted to reduce complexity)
+# ──────────────────────────────────────────────────────────────────────────────
+
+async def _handle_mcp_request(server, request):
+    """Dispatch a single parsed JSON-RPC request and return its body.
+
+    Args:
+        server: The :class:`FridayMCPServer` instance.
+        request: Parsed JSON-RPC request dict
+            (``{"jsonrpc": "2.0", "id": ..., "method": ..., "params": ...}``).
+
+    Returns:
+        - ``None`` for notifications (no response should be sent).
+        - A dict with one of ``{"result": ...}`` or ``{"error": ...}``
+          keys representing the JSON-RPC response body. The caller is
+          responsible for wrapping it with the JSON-RPC envelope
+          (``{"jsonrpc": "2.0", "id": <id>, **body}``) via
+          :func:`_send_mcp_response`.
+    """
+    request_id = request.get("id")
+    method = request.get("method", "")
+    params = request.get("params", {})
+
+    # ── JSON-RPC method routing ─────────────────────────────
+    if method == "initialize":
+        return {"result": {
+            "protocolVersion": "2024-11-05",
+            "capabilities": {
+                "tools": {"listChanged": False},
+                # Advertise that this server requires an authenticate
+                # handshake before tools/call. Clients SHOULD call
+                # friday/authenticate immediately after initialize. Servers
+                # in FRIDAY_DEV_MODE advertise requiresAuth=False so
+                # clients know they can skip the handshake.
+                "auth": {
+                    "requiresAuth": AUTH_REQUIRED,
+                    "method": "friday/authenticate",
+                    "tokenEnvVar": "FRIDAY_MCP_TOKEN",
+                },
+            },
+            "serverInfo": {
+                "name": "friday-mcp",
+                "version": "1.0.0",
+            },
+        }}
+
+    if method in ("friday/authenticate", "authenticate"):
+        # Auth handshake — must be called before tools/call.
+        token = params.get("token") if isinstance(params, dict) else None
+        if server.authenticate(token):
+            return {"result": {
+                "authenticated": True,
+                "methods": ["tools/list", "tools/call"],
+            }}
+        return {"error": {
+            "code": -32001,
+            "message": (
+                "Unauthorized: invalid or missing MCP token. "
+                "Set FRIDAY_MCP_TOKEN env var on the server, "
+                "pass it as params.token to friday/authenticate."
+            ),
+        }}
+
+    if method == "tools/list":
+        # tools/list is allowed pre-auth so clients can render UI
+        # and prompt the user for the token. The actual tool CALLS
+        # are gated (see tools/call branch below).
+        return {"result": {"tools": TOOLS}}
+
+    if method == "tools/call":
+        # AUTH GATE — reject if not authenticated.
+        auth_error = server._check_authenticated()
+        if auth_error is not None:
+            return {"error": auth_error["error"]}
+        tool_name = params.get("name", "")
+        tool_params = params.get("arguments", {})
+        result = await server.dispatch(tool_name, tool_params)
+        return {"result": {
+            "content": [
+                {"type": "text", "text": json.dumps(result, default=str)},
+            ],
+        }}
+
+    if method.startswith("friday.") and method != "friday/authenticate":
+        # Direct namespaced method call (e.g. friday.chat) —
+        # routes through the same dispatch as tools/call.
+        # AUTH GATE — reject if not authenticated.
+        auth_error = server._check_authenticated()
+        if auth_error is not None:
+            return {"error": auth_error["error"]}
+        result = await server.dispatch(method, params)
+        return {"result": {
+            "content": [
+                {"type": "text", "text": json.dumps(result, default=str)},
+            ],
+            "receipt": result.get("receipt"),
+        }}
+
+    if method == "notifications/initialized":
+        # No response needed for notifications.
+        return None
+
+    return {"error": {"code": -32601, "message": f"Method not found: {method}"}}
+
+
+async def _send_mcp_response(writer, request_id, result):
+    """Send a JSON-RPC response over the given writer.
+
+    Wraps ``result`` (which must be a dict with a ``result`` and/or
+    ``error`` key) in the JSON-RPC 2.0 envelope and writes it as a
+    single newline-terminated JSON line, then drains the writer.
+
+    Args:
+        writer: The :class:`asyncio.StreamWriter` connected to stdout.
+        request_id: The JSON-RPC request id (``None`` for parse errors
+            and other out-of-band responses).
+        result: The response body dict (e.g. ``{"result": {...}}`` or
+            ``{"error": {"code": ..., "message": ...}}``).
+    """
+    response = {"jsonrpc": "2.0", "id": request_id, **result}
+    writer.write((json.dumps(response, default=str) + "\n").encode())
+    await writer.drain()
 
 
 # ──────────────────────────────────────────────────────────────────────────────

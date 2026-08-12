@@ -73,7 +73,12 @@ class ActionLedger:
             except Exception:
                 logger.exception('Notification callback raised an error')
     GENESIS_HASH = 'genesis'
-    CHAIN_PERSIST_PATH = os.environ.get('FRIDAY_CHAIN_PATH', 'action_ledger_chain.json')
+    # Default path for the persisted audit chain. Can be overridden via
+    # FRIDAY_CHAIN_PATH env var (used by tests to isolate persistence).
+    CHAIN_PERSIST_PATH = os.environ.get(
+        'FRIDAY_CHAIN_PATH',
+        'action_ledger_chain.json'
+    )
     SENSITIVE_PARAM_KEYS = frozenset({'password', 'passwd', 'pwd', 'api_key', 'apikey', 'token', 'secret', 'payment_method', 'card_number', 'cvv', 'expiry', 'client_secret', 'access_token', 'refresh_token', 'stripe_token', 'payment_intent_id'})
 
     @staticmethod
@@ -110,11 +115,15 @@ class ActionLedger:
         """
         if cls._HMAC_SECRET is not None:
             return cls._HMAC_SECRET.encode('utf-8')
+
+        # Ensure .env is loaded so FRIDAY_API_TOKEN is available
+        # even if config.settings wasn't imported first.
         try:
             from dotenv import load_dotenv
             load_dotenv()
         except ImportError:
-            pass
+            pass  # python-dotenv not installed
+
         env_secret = os.environ.get('FRIDAY_LEDGER_HMAC_SECRET')
         if env_secret and env_secret.strip():
             cls._HMAC_SECRET = env_secret.strip()
@@ -318,7 +327,7 @@ class ActionLedger:
         if event is None:
             return False
         if self.pending_actions.get(action_id, {}).get('status') == 'approved':
-            return False
+            return True
         logger.info('Action %s awaiting manual approval (Profile: %s)', action_id, self.profile)
         try:
             await asyncio.wait_for(event.wait(), timeout=timeout)
@@ -382,11 +391,29 @@ class ActionLedger:
             return False
         if action_data.get('status') == 'approved':
             return True
+
+        description = self._build_voice_description(action_data)
+
+        speak = self._make_voice_speaker(speaker)
+        listen_once = self._make_voice_listener(listener, timeout)
+
+        approved = await self._run_voice_approval_loop(
+            speak, listen_once, description, max_retries
+        )
+
+        await self._finalize_voice_approval(action_id, action_data, approved, speak)
+        return bool(approved)
+
+    @staticmethod
+    def _build_voice_description(action_data: dict) -> str:
+        """Build the spoken description of a pending action."""
         component = action_data.get('component', 'unknown')
         act = action_data.get('action', 'unknown')
         params = action_data.get('params', {})
-        description = f'Action pending: {component} wants to {act}. Parameters: {params}. Say yes to approve, or no to reject.'
+        return f'Action pending: {component} wants to {act}. Parameters: {params}. Say yes to approve, or no to reject.'
 
+    def _make_voice_speaker(self, speaker):
+        """Return an async speak function bound to the given speaker."""
         async def _speak(text: str) -> None:
             if speaker and hasattr(speaker, 'speak'):
                 try:
@@ -398,15 +425,13 @@ class ActionLedger:
                         speaker.speak(text)
                         return
                     except Exception as e:
-                        logger.debug(f'Non-critical error: {e}')
+                        logger.debug("Non-critical error: %s", e)
             print(f'[VOICE APPROVAL] {text}')
+        return _speak
 
+    def _make_voice_listener(self, listener, timeout):
+        """Return an async listen-once function bound to the given listener."""
         async def _listen_once() -> str:
-            """Capture one audio chunk and return the transcribed text.
-
-            Returns "" if no audio was captured or transcription failed.
-            Bounds the listen by ``timeout`` seconds.
-            """
             if not (listener and hasattr(listener, 'record_audio')):
                 return ''
             import tempfile
@@ -418,17 +443,7 @@ class ActionLedger:
                 recorded = await asyncio.wait_for(asyncio.to_thread(listener.record_audio, tmp_path, 8), timeout=timeout)
                 if not recorded:
                     return ''
-                try:
-                    from voice.transcriber import FridayTranscriber
-                    transcriber = FridayTranscriber()
-                    text = await asyncio.to_thread(transcriber.transcribe, tmp_path)
-                    return text or ''
-                except ImportError:
-                    logger.warning('Voice approval: whisper not installed - cannot transcribe')
-                    return ''
-                except Exception as exc:
-                    logger.warning('Voice approval: transcription failed: %s', exc)
-                    return ''
+                return await self._transcribe_audio(tmp_path)
             except asyncio.TimeoutError:
                 logger.info('Voice approval: no response within %ss - treating as no input', timeout)
                 return ''
@@ -437,39 +452,61 @@ class ActionLedger:
                     try:
                         _os.unlink(tmp_path)
                     except OSError as e:
-                        logger.debug(f'Non-critical error: {e}')
-        await _speak(description)
+                        logger.debug("Non-critical error: %s", e)
+        return _listen_once
+
+    @staticmethod
+    async def _transcribe_audio(tmp_path: str) -> str:
+        """Transcribe audio from a temp file. Returns empty string on failure."""
+        try:
+            from voice.transcriber import FridayTranscriber
+            transcriber = FridayTranscriber()
+            text = await asyncio.to_thread(transcriber.transcribe, tmp_path)
+            return text or ''
+        except ImportError:
+            logger.warning('Voice approval: whisper not installed - cannot transcribe')
+            return ''
+        except Exception as exc:
+            logger.warning('Voice approval: transcription failed: %s', exc)
+            return ''
+
+    async def _run_voice_approval_loop(self, speak, listen_once, description, max_retries):
+        """Run the voice approval loop. Returns True/False/None."""
+        await speak(description)
         attempts = 0
         approved = None
         while attempts <= max_retries:
             attempts += 1
-            response_text = await _listen_once()
+            response_text = await listen_once()
             if not response_text:
                 if attempts == 1:
-                    await _speak('No response detected within the timeout window. Rejecting the action for safety.')
+                    await speak('No response detected within the timeout window. Rejecting the action for safety.')
                 approved = False
                 break
             approved = self._parse_voice_intent(response_text)
             logger.info('Voice approval attempt %d: heard=%r parsed=%r', attempts, response_text, approved)
             if approved is True:
-                await _speak('Approved. Proceeding.')
+                await speak('Approved. Proceeding.')
                 break
             if approved is False:
-                await _speak('Rejected. The action will not run.')
+                await speak('Rejected. The action will not run.')
                 break
             if attempts <= max_retries:
-                await _speak("I didn't catch that. Please say yes or no.")
+                await speak("I didn't catch that. Please say yes or no.")
                 continue
-            await _speak('Still unclear. Rejecting the action for safety.')
+            await speak('Still unclear. Rejecting the action for safety.')
             approved = False
             break
+        return approved
+
+    async def _finalize_voice_approval(self, action_id, action_data, approved, speak):
+        """Finalize the voice approval result — approve or reject + log."""
         if approved:
             self.approve_action(action_id)
             self._log_audit(action_data, approved_by='voice')
         else:
             self.reject_action(action_id)
             self._log_audit(action_data, approved_by='voice_rejected')
-        return bool(approved)
 
     @staticmethod
     def _parse_voice_intent(text: str):
@@ -493,6 +530,7 @@ class ActionLedger:
                 return False
         return None
 _ledger: Optional[ActionLedger] = None
+
 
 def get_ledger(instance=None) -> ActionLedger:
     """Get the singleton ActionLedger instance.

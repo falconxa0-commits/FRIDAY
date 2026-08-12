@@ -188,8 +188,8 @@ class HealthMonitor:
                 modules += 1
                 try:
                     loc += len(path.read_text(errors="replace").split("\n"))
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("Non-critical error: %s", exc)
             return modules, loc
         except Exception:
             return 0, 0

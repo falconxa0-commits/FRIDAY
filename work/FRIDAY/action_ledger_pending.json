@@ -807,8 +807,73 @@
     "status": "pending",
     "timestamp": "2026-08-12T19:07:23.008432"
   },
-  "d8479108-ab24-4e70-b03b-1742e65e8a72": {
-    "id": "d8479108-ab24-4e70-b03b-1742e65e8a72",
+  "d7d604da-90db-407a-8826-32c73ca4247c": {
+    "id": "d7d604da-90db-407a-8826-32c73ca4247c",
+    "component": "Test",
+    "action": "test_action",
+    "params": {},
+    "risk_level": "low",
+    "status": "pending",
+    "timestamp": "2026-08-12T19:59:36.057531"
+  },
+  "b551c85d-1ed3-4fcb-9592-f26a95449af8": {
+    "id": "b551c85d-1ed3-4fcb-9592-f26a95449af8",
+    "component": "Test",
+    "action": "test",
+    "params": {},
+    "risk_level": "medium",
+    "status": "pending",
+    "timestamp": "2026-08-12T19:59:37.062125"
+  },
+  "0907364f-9bf0-4171-ae8d-a7df8d4cf919": {
+    "id": "0907364f-9bf0-4171-ae8d-a7df8d4cf919",
+    "component": "Test",
+    "action": "test_action",
+    "params": {},
+    "risk_level": "low",
+    "status": "pending",
+    "timestamp": "2026-08-12T20:05:06.288307"
+  },
+  "e5139fb8-0075-4c30-a770-0a5eca6cb6b1": {
+    "id": "e5139fb8-0075-4c30-a770-0a5eca6cb6b1",
+    "component": "Test",
+    "action": "test",
+    "params": {},
+    "risk_level": "medium",
+    "status": "pending",
+    "timestamp": "2026-08-12T20:05:07.292728"
+  },
+  "e92d12f6-c8d1-436f-95aa-ba55e60c46e8": {
+    "id": "e92d12f6-c8d1-436f-95aa-ba55e60c46e8",
+    "component": "PrivacyAudit",
+    "action": "purge_provider",
+    "params": {
+      "provider": "glm"
+    },
+    "risk_level": "high",
+    "status": "pending",
+    "timestamp": "2026-08-12T20:06:14.605941"
+  },
+  "b1503331-375c-4ec0-9af9-5f8496fbc83f": {
+    "id": "b1503331-375c-4ec0-9af9-5f8496fbc83f",
+    "component": "Test",
+    "action": "test_action",
+    "params": {},
+    "risk_level": "low",
+    "status": "pending",
+    "timestamp": "2026-08-12T20:07:03.518574"
+  },
+  "7df68c87-f4c5-45d5-9e2a-f310113ee140": {
+    "id": "7df68c87-f4c5-45d5-9e2a-f310113ee140",
+    "component": "Test",
+    "action": "test",
+    "params": {},
+    "risk_level": "medium",
+    "status": "pending",
+    "timestamp": "2026-08-12T20:07:04.522865"
+  },
+  "f1bc332c-5fda-459b-b0e5-253f4949a676": {
+    "id": "f1bc332c-5fda-459b-b0e5-253f4949a676",
     "component": "MCPChat",
     "action": "chat",
     "params": {
@@ -816,6 +881,6 @@
     },
     "risk_level": "low",
     "status": "approved",
-    "timestamp": "2026-08-12T19:09:46.998329"
+    "timestamp": "2026-08-12T20:07:13.078471"
   }
 }

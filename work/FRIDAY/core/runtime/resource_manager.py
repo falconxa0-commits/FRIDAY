@@ -149,8 +149,8 @@ class ResourceManager:
                 usage.memory_mb = mem_info.rss / (1024 * 1024)
                 usage.cpu_percent = process.cpu_percent(interval=0.1)
                 usage.file_descriptors = process.num_fds() if hasattr(process, 'num_fds') else 0
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Non-critical error: %s", exc)
 
         usage.concurrent_requests = int(self._counters.get("concurrent_requests", 0))
         usage.total_tokens_consumed = int(self._counters.get("total_tokens_per_day", 0))

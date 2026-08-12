@@ -320,54 +320,130 @@ class EngineeringOrg:
         start_time = time.perf_counter()
 
         # Run the work function
-        work_error = None
-        if work_fn:
-            try:
-                await work_fn(task)
-            except Exception as exc:
-                work_error = str(exc)
-                logger.error(f"Task {task_id[:8]} work failed: {exc}")
+        work_error = await self._run_work_function(work_fn, task)
 
+        # Run validation (if not skipped)
+        tests_passed, tests_failed, validation_report = await self._run_validation(skip_validation)
+
+        duration = time.perf_counter() - start_time
+
+        # Complete the task (or fail it if work / validation failed)
+        return await self._complete_or_fail(
+            task, work_error, lead, lead_name, duration,
+            tests_passed=tests_passed,
+            tests_failed=tests_failed,
+            validation_report=validation_report,
+        )
+
+    # ------------------------------------------------------------------
+    # execute_task helpers (extracted to reduce complexity)
+    # ------------------------------------------------------------------
+
+    async def _run_work_function(
+        self, work_fn: Optional[Callable], task: Task,
+    ) -> Optional[str]:
+        """Run the work function for a task.
+
+        Args:
+            work_fn: Optional async callable. If ``None``, no work is run.
+            task: The task being executed (passed to ``work_fn``).
+
+        Returns:
+            The error message string on failure, ``None`` on success or
+            when ``work_fn`` is ``None``.
+        """
+        if not work_fn:
+            return None
+        try:
+            await work_fn(task)
+            return None
+        except Exception as exc:
+            logger.error(f"Task {task.id[:8]} work failed: {exc}")
+            return str(exc)
+
+    async def _run_validation(
+        self, skip_validation: bool,
+    ) -> tuple:
+        """Run the validation pipeline.
+
+        Args:
+            skip_validation: If ``True``, skip the pipeline and return
+                zero counts with a ``None`` report.
+
+        Returns:
+            A 3-tuple ``(tests_passed, tests_failed, validation_report)``.
+            On validation pipeline exception, returns ``(0, 0, None)``
+            (matching the original swallow-and-continue behaviour).
+        """
+        if skip_validation:
+            return (0, 0, None)
+        try:
+            report = await self.validation.run()
+            tests_passed = sum(
+                1 for c in report.checks
+                if c.name == "unit_tests" and c.status == CheckStatus.PASSED
+            )
+            tests_failed = sum(
+                1 for c in report.checks
+                if c.status in (CheckStatus.FAILED, CheckStatus.ERROR)
+            )
+            return (tests_passed, tests_failed, report)
+        except Exception as exc:
+            logger.error(f"Validation pipeline error: {exc}")
+            return (0, 0, None)
+
+    async def _complete_or_fail(
+        self,
+        task: Task,
+        work_error: Optional[str],
+        lead: Optional["Lead"],
+        lead_name: str,
+        duration: float,
+        tests_passed: int = 0,
+        tests_failed: int = 0,
+        validation_report: Optional[ValidationReport] = None,
+    ) -> Optional[TaskReceipt]:
+        """Complete or fail the task based on work / validation results.
+
+        Args:
+            task: The task being executed.
+            work_error: Error string from the work function (``None`` on success).
+            lead: The Lead responsible for the task (for stat bookkeeping).
+            lead_name: Name of the lead (for audit / receipt metadata).
+            duration: Wall-clock duration in seconds.
+            tests_passed: Number of passing unit tests.
+            tests_failed: Number of failing tests.
+            validation_report: ValidationReport (``None`` if validation
+                was skipped or errored).
+
+        Returns:
+            ``TaskReceipt`` on success, ``None`` on failure (work error
+            or validation failure).
+        """
+        # Work-function failure → fail task and bail.
         if work_error:
             await self.task_queue.fail_task(
-                task_id, actor=lead_name, error=work_error, can_retry=True
+                task.id, actor=lead_name, error=work_error, can_retry=True,
             )
             if lead:
                 lead.tasks_failed += 1
             return None
 
-        # Run validation
-        tests_passed = 0
-        tests_failed = 0
-        if not skip_validation:
-            try:
-                report = await self.validation.run()
-                tests_passed = sum(
-                    1 for c in report.checks
-                    if c.name == "unit_tests" and c.status == CheckStatus.PASSED
-                )
-                tests_failed = sum(
-                    1 for c in report.checks
-                    if c.status in (CheckStatus.FAILED, CheckStatus.ERROR)
-                )
-                if not report.passed:
-                    await self.task_queue.fail_task(
-                        task_id,
-                        actor=lead_name,
-                        error=f"Validation failed: {report.summary}",
-                        can_retry=True,
-                    )
-                    if lead:
-                        lead.tasks_failed += 1
-                    return None
-            except Exception as exc:
-                logger.error(f"Validation pipeline error: {exc}")
+        # Validation failure → fail task and bail.
+        if validation_report is not None and not validation_report.passed:
+            await self.task_queue.fail_task(
+                task.id,
+                actor=lead_name,
+                error=f"Validation failed: {validation_report.summary}",
+                can_retry=True,
+            )
+            if lead:
+                lead.tasks_failed += 1
+            return None
 
-        duration = time.perf_counter() - start_time
-
-        # Complete the task
+        # Success — complete the task.
         receipt = await self.task_queue.complete_task(
-            task_id,
+            task.id,
             actor=lead_name,
             tests_passed=tests_passed,
             tests_failed=tests_failed,
