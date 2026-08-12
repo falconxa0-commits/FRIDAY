@@ -109,13 +109,16 @@ async def handle_request(server, request: Dict) -> Optional[Dict]:
 
 def _build_initialize_response(server) -> Dict:
     """Build the initialize response with capabilities."""
-    from mcp_server import AUTH_REQUIRED
+    # Use lazy import to avoid circular dependency: mcp_server imports
+    # mcp_transport at function level, so this import only executes at
+    # call time when the circular chain is already resolved.
+    import mcp_server
     return {
         "protocolVersion": "2024-11-05",
         "capabilities": {
             "tools": {"listChanged": False},
             "auth": {
-                "requiresAuth": AUTH_REQUIRED,
+                "requiresAuth": mcp_server.AUTH_REQUIRED,
                 "method": "friday/authenticate",
                 "tokenEnvVar": "FRIDAY_MCP_TOKEN",
             },
@@ -147,8 +150,9 @@ def _handle_authenticate(server, params) -> Dict:
 
 def _get_tools_list(server):
     """Get the tools list from the server."""
-    from mcp_server import TOOLS
-    return TOOLS
+    # Use lazy import to avoid circular dependency.
+    import mcp_server
+    return mcp_server.TOOLS
 
 
 async def _handle_tools_call(server, params) -> Dict:

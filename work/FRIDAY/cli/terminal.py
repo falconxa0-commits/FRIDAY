@@ -161,7 +161,7 @@ async def boot_sequence() -> dict:
     console.print()
     console.print(
         Align.center(
-            Text("Personal AI Assistant v3.2", style=f"bold {COL_ACCENT}")
+            Text("Personal AI Assistant v4.0", style=f"bold {COL_ACCENT}")
         )
     )
     console.print(

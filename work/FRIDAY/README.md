@@ -1,4 +1,4 @@
-# Project FRIDAY v3.2 — Personal AI Assistant
+# Project FRIDAY v4.0 — Personal AI Assistant
 
 ![Production Readiness: Beta](https://img.shields.io/badge/Production_Readiness-Beta-yellow)
 ![Tests: 304 passing](https://img.shields.io/badge/Tests-304_passing-brightgreen)
