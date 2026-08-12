@@ -158,91 +158,174 @@ class SecretScanner:
         re.compile(r".*\.tampered\..*\.json"),
     ]
 
+    # Markers indicating a matched value is a placeholder, not a real secret.
+    PLACEHOLDER_MARKERS = (
+        "your_", "placeholder", "example", "xxx", "changeme",
+        "test", "hardcoded_secret", "your-key", "your-free",
+        "your-real", "any-secret", "your_glm", "your_api",
+        "your-anthropic", "your-spotify", "your-weather",
+        "your-picovoice", "your-elevenlabs", "your-tavily",
+        "your-home", "your-supabase", "your-openai",
+        "your_gemini", "sk_test_", "pm_card_",
+    )
+
+    # Markers indicating the *whole line* is a placeholder/example.
+    PLACEHOLDER_LINE_MARKERS = (
+        "your-key", "your_key", "your-free", "your-real",
+        "any-secret", "example", "placeholder", "changeme",
+        "hardcoded_secret", "your_glm_api_key",
+    )
+
+    @staticmethod
+    def _relative_path_str(filepath: Path, root: Path) -> str:
+        """Return ``filepath`` relative to ``root``, falling back to its str form.
+
+        Args:
+            filepath: The file being scanned.
+            root: The project root to relativise against.
+
+        Returns:
+            A relative path string when the file is under ``root``,
+            otherwise the absolute path as a string.
+        """
+        try:
+            return str(filepath.relative_to(root))
+        except ValueError:
+            return str(filepath)
+
+    @staticmethod
+    def _is_test_or_fixture_file(rel_path_str: str, filepath: Path) -> bool:
+        """Return True if the path is a test, benchmark, or verification file.
+
+        Such files contain intentional fake secrets for testing the
+        scanner itself; real secrets would never be committed in test
+        fixtures.
+        """
+        return (
+            rel_path_str.startswith("tests/")
+            or rel_path_str.startswith("benchmarks/")
+            or rel_path_str.startswith("scripts/verify_")
+            or rel_path_str.startswith("scripts/hellfire_audit")
+            or rel_path_str.startswith("scripts/smoke_test")
+            or "test_" in filepath.name
+            or filepath.name == "conftest.py"
+        )
+
+    @staticmethod
+    def _is_placeholder_text(text: str) -> bool:
+        """Return True if ``text`` matches a known placeholder marker.
+
+        Checked against the matched value AND against the entire line
+        (via :meth:`_is_placeholder_line`).
+        """
+        text_lower = text.lower()
+        return any(p in text_lower for p in SecretScanner.PLACEHOLDER_MARKERS)
+
+    @staticmethod
+    def _is_placeholder_line(line: str) -> bool:
+        """Return True if the entire line is a placeholder/example."""
+        line_lower = line.lower()
+        return any(
+            p in line_lower
+            for p in SecretScanner.PLACEHOLDER_LINE_MARKERS
+        )
+
+    @staticmethod
+    def _should_skip_line(line: str, is_test_file: bool, rel_path_str: str) -> bool:
+        """Return True if a line should be skipped during scanning.
+
+        Skips:
+            - Comment lines (``#`` or ``//``)
+            - All lines in test/benchmark/script files
+            - Placeholder/example lines in fixture-style paths
+        """
+        stripped = line.strip()
+        if stripped.startswith("#") or stripped.startswith("//"):
+            return True
+        if is_test_file:
+            return True
+        # Skip .env.example and test fixtures
+        if "example" in rel_path_str or "test" in rel_path_str.lower():
+            line_lower = line.lower()
+            if "your_" in line_lower or "placeholder" in line_lower or "xxx" in line_lower:
+                return True
+        return False
+
+    @staticmethod
+    def _scan_line_for_secrets(
+        line: str,
+        line_num: int,
+        rel_path_str: str,
+        is_test_file: bool,
+    ) -> List[SecurityFinding]:
+        """Scan a single source line for hardcoded secrets.
+
+        Args:
+            line: The raw source line.
+            line_num: 1-indexed line number for findings.
+            rel_path_str: The file's relative path (for findings).
+            is_test_file: Whether the file is a test/fixture file
+                (lines are skipped entirely in that case).
+
+        Returns:
+            A list of :class:`SecurityFinding` (may be empty).
+        """
+        if SecretScanner._should_skip_line(line, is_test_file, rel_path_str):
+            return []
+
+        findings: List[SecurityFinding] = []
+        for pattern, description in SecretScanner.SECRET_PATTERNS:
+            match = pattern.search(line)
+            if not match:
+                continue
+            matched_text = match.group(0)
+            # Check if it's a placeholder
+            if SecretScanner._is_placeholder_text(matched_text):
+                continue
+            # Also check if the line itself is a placeholder/example
+            if SecretScanner._is_placeholder_line(line):
+                continue
+
+            findings.append(SecurityFinding(
+                type=SecurityFindingType.HARDCODED_SECRET,
+                severity=SecuritySeverity.HIGH,
+                file=rel_path_str,
+                line=line_num,
+                message=f"Possible {description}: {matched_text[:40]}...",
+                remediation="Move to environment variable. Never commit secrets to source control.",
+                metadata={"pattern": description, "matched": matched_text[:60]},
+            ))
+        return findings
+
     @staticmethod
     def scan_file(filepath: Path, project_root: Optional[Path] = None) -> List[SecurityFinding]:
-        """Scan a single file for secrets."""
+        """Scan a single file for secrets.
+
+        Delegates per-line scanning to :meth:`_scan_line_for_secrets`
+        and per-file path/exemption checks to the other ``_`` helpers.
+        """
         root = project_root or _PROJECT_ROOT
         if filepath.suffix in SecretScanner.SKIP_EXTENSIONS:
             return []
 
-        # Skip test files, benchmark files, and verification scripts — they
-        # contain intentional test secrets that are not real credentials.
-        # Real secrets would never be in committed test files.
-        rel_path_str = ""
-        try:
-            rel_path_str = str(filepath.relative_to(root))
-        except ValueError:
-            rel_path_str = str(filepath)
+        rel_path_str = SecretScanner._relative_path_str(filepath, root)
 
         # Exempt: test fixtures, benchmark scripts, verification scripts
         # These contain intentional fake secrets for testing the scanner itself
-        is_test_file = (
-            rel_path_str.startswith("tests/") or
-            rel_path_str.startswith("benchmarks/") or
-            rel_path_str.startswith("scripts/verify_") or
-            rel_path_str.startswith("scripts/hellfire_audit") or
-            rel_path_str.startswith("scripts/smoke_test") or
-            "test_" in filepath.name or
-            filepath.name == "conftest.py"
-        )
+        is_test_file = SecretScanner._is_test_or_fixture_file(rel_path_str, filepath)
 
         try:
             source = filepath.read_text(encoding="utf-8", errors="replace")
         except Exception:
             return []
 
-        findings = []
+        findings: List[SecurityFinding] = []
         lines = source.split("\n")
-
         for i, line in enumerate(lines, 1):
-            # Skip comments
-            stripped = line.strip()
-            if stripped.startswith("#") or stripped.startswith("//"):
-                continue
-
-            # Skip test files entirely — they contain intentional fake secrets
-            if is_test_file:
-                continue
-
-            # Skip .env.example and test fixtures
-            if "example" in rel_path_str or "test" in rel_path_str.lower():
-                if "your_" in line.lower() or "placeholder" in line.lower() or "xxx" in line.lower():
-                    continue
-
-            for pattern, description in SecretScanner.SECRET_PATTERNS:
-                match = pattern.search(line)
-                if match:
-                    # Check if it's a placeholder
-                    matched_text = match.group(0)
-                    placeholder_markers = [
-                        "your_", "placeholder", "example", "xxx", "changeme",
-                        "test", "hardcoded_secret", "your-key", "your-free",
-                        "your-real", "any-secret", "your_glm", "your_api",
-                        "your-anthropic", "your-spotify", "your-weather",
-                        "your-picovoice", "your-elevenlabs", "your-tavily",
-                        "your-home", "your-supabase", "your-openai",
-                        "your_gemini", "sk_test_", "pm_card_",
-                    ]
-                    if any(p in matched_text.lower() for p in placeholder_markers):
-                        continue
-                    # Also check if the line itself is a placeholder/example
-                    line_lower = line.lower()
-                    if any(p in line_lower for p in [
-                        "your-key", "your_key", "your-free", "your-real",
-                        "any-secret", "example", "placeholder", "changeme",
-                        "hardcoded_secret", "your_glm_api_key",
-                    ]):
-                        continue
-
-                    findings.append(SecurityFinding(
-                        type=SecurityFindingType.HARDCODED_SECRET,
-                        severity=SecuritySeverity.HIGH,
-                        file=rel_path_str,
-                        line=i,
-                        message=f"Possible {description}: {matched_text[:40]}...",
-                        remediation="Move to environment variable. Never commit secrets to source control.",
-                        metadata={"pattern": description, "matched": matched_text[:60]},
-                    ))
+            line_findings = SecretScanner._scan_line_for_secrets(
+                line, i, rel_path_str, is_test_file
+            )
+            findings.extend(line_findings)
 
         return findings
 

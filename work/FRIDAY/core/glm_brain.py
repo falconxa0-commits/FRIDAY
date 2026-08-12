@@ -9,7 +9,7 @@ import asyncio
 import base64
 import logging
 import os
-from typing import AsyncGenerator, Dict, List, Optional
+from typing import Any, AsyncGenerator, Dict, List, Optional
 
 from config.settings import GLM_API_KEY
 
@@ -248,6 +248,146 @@ class GLMBrain:
     # Web search (via ZhipuAI web_search tool)
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _parse_web_search_results(response: Any, max_results: int) -> List[Dict]:
+        """Extract real search results from ``response.web_search``.
+
+        ZhipuAI returns search results as a list of dicts with
+        ``title``/``link``/``content`` (or alias) keys. This helper
+        normalises them into the FRIDAY search-result schema.
+
+        Args:
+            response: The ZhipuAI completion response object.
+            max_results: Maximum number of results to return.
+
+        Returns:
+            A list of normalised search-result dicts (may be empty).
+        """
+        web_search_data = getattr(response, "web_search", None)
+        if not web_search_data or not isinstance(web_search_data, list):
+            return []
+
+        results: List[Dict] = []
+        for item in web_search_data[:max_results]:
+            if not isinstance(item, dict):
+                continue
+            results.append({
+                "title": item.get("title", "") or item.get("media", ""),
+                "url": item.get("link", "") or item.get("url", ""),
+                "snippet": (item.get("content", "") or
+                            item.get("snippet", "") or
+                            item.get("summary", ""))[:500],
+                "source": "zhipuai_web_search",
+            })
+        return results
+
+    @staticmethod
+    def _is_search_tool_call(tool_call: Any) -> bool:
+        """Return True if ``tool_call.function.name`` contains 'search'.
+
+        Args:
+            tool_call: A single ``choices[0].message.tool_calls`` entry.
+
+        Returns:
+            True if the tool call's function name mentions "search".
+        """
+        func = getattr(tool_call, "function", None)
+        if not func:
+            return False
+        tool_name = getattr(func, "name", "") or ""
+        return "search" in tool_name.lower()
+
+    @staticmethod
+    def _extract_tool_call_items(data: Any) -> List[Dict]:
+        """Return the list of search-result items from parsed tool-call JSON.
+
+        Handles two payload shapes:
+            - a top-level list of item dicts
+            - a dict with a ``results`` key containing a list of item dicts
+
+        Args:
+            data: The parsed JSON payload from ``func.arguments``.
+
+        Returns:
+            A list of dict-shaped search-result items (may be empty).
+        """
+        if isinstance(data, list):
+            return [i for i in data if isinstance(i, dict)]
+        if isinstance(data, dict) and "results" in data:
+            return [i for i in (data.get("results") or []) if isinstance(i, dict)]
+        return []
+
+    @staticmethod
+    def _parse_tool_call_results(tool_calls: Any, max_results: int) -> List[Dict]:
+        """Extract search results from a ``tool_calls`` fallback payload.
+
+        Some ZhipuAI SDK versions put results in
+        ``choices[0].message.tool_calls`` with ``name="web_search"``.
+        This helper parses either a top-level list or a dict containing
+        a ``results`` key (delegated to
+        :meth:`_extract_tool_call_items`).
+
+        Args:
+            tool_calls: The ``message.tool_calls`` list from the response.
+            max_results: Maximum number of results to return.
+
+        Returns:
+            A list of normalised search-result dicts (may be empty).
+        """
+        if not tool_calls:
+            return []
+
+        import json as _json
+        results: List[Dict] = []
+        for tool_call in tool_calls:
+            if not GLMBrain._is_search_tool_call(tool_call):
+                continue
+            try:
+                data = _json.loads(tool_call.function.arguments or "{}")
+            except Exception as e:
+                logger.debug(f"Non-critical error parsing tool_call: {e}")
+                continue
+
+            for item in GLMBrain._extract_tool_call_items(data)[:max_results]:
+                results.append({
+                    "title": item.get("title", ""),
+                    "url": item.get("url", "") or item.get("link", ""),
+                    "snippet": (item.get("snippet", "") or
+                                item.get("content", ""))[:500],
+                    "source": "zhipuai_tool_call",
+                })
+        return results
+
+    @staticmethod
+    def _create_synthesized_result(content: str) -> List[Dict]:
+        """Wrap an LLM synthesised answer as a clearly-labelled fallback result.
+
+        This is used ONLY when the API returned no real search results.
+        The result is explicitly marked as ``llm_synthesised`` and carries
+        a warning so downstream code does not mistake it for a cited source.
+
+        Args:
+            content: The LLM's synthesised answer text.
+
+        Returns:
+            A one-element list containing the labelled fallback result,
+            or an empty list if ``content`` is empty.
+        """
+        if not content:
+            return []
+        return [{
+            "title": "GLM Synthesised Answer (NOT a real search result)",
+            "url": "",
+            "snippet": content[:500],
+            "source": "llm_synthesised",
+            "warning": (
+                "No web_search results were returned by the API. "
+                "This is the LLM's synthesised answer, not a "
+                "real search result. Treat as LLM output, not "
+                "as a cited source."
+            ),
+        }]
+
     async def web_search(self, query: str, max_results: int = 5) -> List[Dict]:
         """Perform web search using the ZhipuAI built-in web_search tool.
 
@@ -263,9 +403,14 @@ class GLMBrain:
 
         This corrected implementation:
             1. Extracts real search results from ``response.web_search``
-            2. Falls back to ``choice.message.content`` ONLY if no
-               web_search field is present (and labels it clearly as
-               "LLM synthesised answer" — not a search result)
+               (via :meth:`_parse_web_search_results`)
+            2. Falls back to ``choices[0].message.tool_calls`` parsing
+               (via :meth:`_parse_tool_call_results`) if no web_search
+               field is present
+            3. Falls back to the LLM's synthesised answer (via
+               :meth:`_create_synthesized_result`) ONLY if no real
+               search results were found, and labels it clearly as
+               "LLM synthesised answer" — not a search result
         """
         client = self._ensure_client()
         if client is None:
@@ -284,87 +429,26 @@ class GLMBrain:
 
             response = await asyncio.to_thread(_call_search)
 
-            results: List[Dict] = []
+            # PRIMARY: real search results from ``response.web_search``
+            results = self._parse_web_search_results(response, max_results)
 
-            # PRIMARY: ZhipuAI returns real search results in
-            # ``response.web_search`` (a list of dicts with
-            # title/url/snippet/content keys).
-            web_search_data = getattr(response, "web_search", None)
-            if web_search_data and isinstance(web_search_data, list):
-                for item in web_search_data[:max_results]:
-                    if isinstance(item, dict):
-                        results.append({
-                            "title": item.get("title", "") or item.get("media", ""),
-                            "url": item.get("link", "") or item.get("url", ""),
-                            "snippet": (item.get("content", "") or
-                                        item.get("snippet", "") or
-                                        item.get("summary", ""))[:500],
-                            "source": "zhipuai_web_search",
-                        })
-
-            # FALLBACK 1: Some ZhipuAI SDK versions put results in
-            # ``choices[0].message.tool_calls`` with name="web_search".
-            # We extract the *search-result array* (not the function
-            # arguments) if the tool-call result is structured that way.
+            # FALLBACK 1: tool_calls payload (some SDK versions)
             if not results:
                 choice = response.choices[0] if response.choices else None
                 if choice and hasattr(choice, "message"):
                     msg = choice.message
                     if hasattr(msg, "tool_calls") and msg.tool_calls:
-                        import json as _json
-                        for tool_call in msg.tool_calls:
-                            # Look for a tool_call with name == "web_search"
-                            func = getattr(tool_call, "function", None)
-                            if not func:
-                                continue
-                            tool_name = getattr(func, "name", "") or ""
-                            if "search" not in tool_name.lower():
-                                continue
-                            try:
-                                data = _json.loads(func.arguments or "{}")
-                                if isinstance(data, list):
-                                    for item in data[:max_results]:
-                                        if isinstance(item, dict):
-                                            results.append({
-                                                "title": item.get("title", ""),
-                                                "url": item.get("url", "") or item.get("link", ""),
-                                                "snippet": (item.get("snippet", "") or
-                                                            item.get("content", ""))[:500],
-                                                "source": "zhipuai_tool_call",
-                                            })
-                                elif isinstance(data, dict) and "results" in data:
-                                    for item in (data.get("results") or [])[:max_results]:
-                                        if isinstance(item, dict):
-                                            results.append({
-                                                "title": item.get("title", ""),
-                                                "url": item.get("url", "") or item.get("link", ""),
-                                                "snippet": (item.get("snippet", "") or
-                                                            item.get("content", ""))[:500],
-                                                "source": "zhipuai_tool_call",
-                                            })
-                            except Exception as e:
-                                logger.debug(f"Non-critical error parsing tool_call: {e}")
+                        results = self._parse_tool_call_results(
+                            msg.tool_calls, max_results
+                        )
 
-            # FALLBACK 2: If we still have no real search results,
-            # return the LLM's synthesised answer but LABEL IT CLEARLY
-            # as "LLM synthesised answer" — not as a search result.
-            # This prevents downstream code from treating hallucinated
-            # text as if it were a real web-search hit.
+            # FALLBACK 2: LLM synthesised answer (clearly labelled)
             if not results:
                 choice = response.choices[0] if response.choices else None
-                if choice and hasattr(choice, "message") and choice.message.content:
-                    results.append({
-                        "title": "GLM Synthesised Answer (NOT a real search result)",
-                        "url": "",
-                        "snippet": choice.message.content[:500],
-                        "source": "llm_synthesised",
-                        "warning": (
-                            "No web_search results were returned by the API. "
-                            "This is the LLM's synthesised answer, not a "
-                            "real search result. Treat as LLM output, not "
-                            "as a cited source."
-                        ),
-                    })
+                content = ""
+                if choice and hasattr(choice, "message"):
+                    content = getattr(choice.message, "content", "") or ""
+                results = self._create_synthesized_result(content)
 
             return results[:max_results]
 

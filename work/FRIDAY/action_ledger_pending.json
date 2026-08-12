@@ -684,15 +684,33 @@
     "status": "pending",
     "timestamp": "2026-08-12T17:23:56.857022"
   },
-  "8941ea97-52ef-40e9-a0f1-907c800eff20": {
-    "id": "8941ea97-52ef-40e9-a0f1-907c800eff20",
-    "component": "Weather",
-    "action": "get_weather",
+  "f4271176-82db-4360-aac9-610753da6959": {
+    "id": "f4271176-82db-4360-aac9-610753da6959",
+    "component": "Test",
+    "action": "test_action",
+    "params": {},
+    "risk_level": "low",
+    "status": "pending",
+    "timestamp": "2026-08-12T17:52:23.359196"
+  },
+  "adbf1821-dd12-4712-a0f5-faf4ff7b04a4": {
+    "id": "adbf1821-dd12-4712-a0f5-faf4ff7b04a4",
+    "component": "Test",
+    "action": "test",
+    "params": {},
+    "risk_level": "medium",
+    "status": "pending",
+    "timestamp": "2026-08-12T17:52:24.363850"
+  },
+  "ff6c8fa6-8468-4bf8-86e9-cf2c2ddc57d4": {
+    "id": "ff6c8fa6-8468-4bf8-86e9-cf2c2ddc57d4",
+    "component": "MCPChat",
+    "action": "chat",
     "params": {
-      "city": "Lagos"
+      "message_length": 2
     },
     "risk_level": "low",
     "status": "approved",
-    "timestamp": "2026-08-12T17:25:43.857872"
+    "timestamp": "2026-08-12T18:02:37.892964"
   }
 }

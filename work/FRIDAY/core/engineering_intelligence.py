@@ -281,60 +281,127 @@ class TechnicalDebtAnalyzer:
 class DependencyAnalyzer:
     """Builds import graph and detects circular dependencies."""
 
+    SKIP_DIRS: Tuple[str, ...] = (".venv", "__pycache__", ".git", "node_modules")
+
     @staticmethod
     def analyze(project_root: Path) -> Tuple[Dict[str, ModuleInfo], List[Finding]]:
-        """Analyze all Python files and build dependency graph."""
+        """Analyze all Python files and build dependency graph.
+
+        Orchestrates:
+            - :meth:`_collect_python_files` for path discovery
+            - :meth:`_build_module_info` for per-file ModuleInfo parsing
+            - :meth:`_build_reverse_imports` for the ``imported_by`` field
+            - :meth:`_detect_circular_dependencies` for cycle findings
+
+        Args:
+            project_root: The repository root to analyse.
+
+        Returns:
+            A tuple ``(modules, findings)`` where ``modules`` maps
+            dotted module names to :class:`ModuleInfo` instances and
+            ``findings`` contains any circular-dependency findings.
+        """
         project_root = Path(project_root)
         modules: Dict[str, ModuleInfo] = {}
-        findings: List[Finding] = []
 
-        # Collect all Python files
-        py_files = []
+        # Collect all Python files (skipping venv / cache / git / node_modules)
+        py_files = DependencyAnalyzer._collect_python_files(project_root)
+
+        # Build module info for each file
+        for filepath in py_files:
+            mod_info = DependencyAnalyzer._build_module_info(filepath, project_root)
+            if mod_info is not None:
+                module_name = filepath.relative_to(project_root)
+                module_name = str(module_name).replace("/", ".").replace(".py", "")
+                modules[module_name] = mod_info
+
+        # Build reverse imports (populates each module's imported_by list)
+        DependencyAnalyzer._build_reverse_imports(modules)
+
+        # Detect circular dependencies → findings
+        findings = DependencyAnalyzer._detect_circular_dependencies(modules)
+
+        return modules, findings
+
+    @staticmethod
+    def _collect_python_files(project_root: Path) -> List[Path]:
+        """Return every Python file under ``project_root`` excluding skip dirs.
+
+        Args:
+            project_root: The repository root to walk.
+
+        Returns:
+            A list of ``Path`` objects pointing at .py files outside the
+            ``SKIP_DIRS`` set.
+        """
+        py_files: List[Path] = []
         for path in project_root.rglob("*.py"):
-            if any(part in path.parts for part in (".venv", "__pycache__", ".git", "node_modules")):
+            if any(part in path.parts for part in DependencyAnalyzer.SKIP_DIRS):
                 continue
             py_files.append(path)
+        return py_files
 
-        # Build module info
-        for filepath in py_files:
-            try:
-                source = filepath.read_text(encoding="utf-8", errors="replace")
-                tree = ast.parse(source)
-            except Exception:
-                continue
+    @staticmethod
+    def _build_module_info(
+        filepath: Path, project_root: Path
+    ) -> Optional[ModuleInfo]:
+        """Parse a single Python file into a :class:`ModuleInfo` instance.
 
-            rel_path = str(filepath.relative_to(project_root))
-            module_name = rel_path.replace("/", ".").replace(".py", "")
+        Returns ``None`` if the file cannot be read or parsed.
 
-            imports = []
-            classes = 0
-            functions = 0
+        Args:
+            filepath: The .py file to parse.
+            project_root: The repository root (used to compute the
+                relative ``path`` field of the resulting ModuleInfo).
 
-            for node in ast.walk(tree):
-                if isinstance(node, ast.Import):
-                    for alias in node.names:
-                        imports.append(alias.name)
-                elif isinstance(node, ast.ImportFrom):
-                    if node.module:
-                        imports.append(node.module)
-                elif isinstance(node, ast.ClassDef):
-                    classes += 1
-                elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                    functions += 1
+        Returns:
+            A populated :class:`ModuleInfo`, or ``None`` on read/parse error.
+        """
+        try:
+            source = filepath.read_text(encoding="utf-8", errors="replace")
+            tree = ast.parse(source)
+        except Exception:
+            return None
 
-            loc = len(source.split("\n"))
-            modules[module_name] = ModuleInfo(
-                path=rel_path,
-                loc=loc,
-                classes=classes,
-                functions=functions,
-                imports=imports,
-                imported_by=[],
-                complexity=0.0,
-                finding_count=0,
-            )
+        rel_path = str(filepath.relative_to(project_root))
 
-        # Build reverse imports
+        imports: List[str] = []
+        classes = 0
+        functions = 0
+
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    imports.append(alias.name)
+            elif isinstance(node, ast.ImportFrom):
+                if node.module:
+                    imports.append(node.module)
+            elif isinstance(node, ast.ClassDef):
+                classes += 1
+            elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                functions += 1
+
+        loc = len(source.split("\n"))
+        return ModuleInfo(
+            path=rel_path,
+            loc=loc,
+            classes=classes,
+            functions=functions,
+            imports=imports,
+            imported_by=[],
+            complexity=0.0,
+            finding_count=0,
+        )
+
+    @staticmethod
+    def _build_reverse_imports(modules: Dict[str, ModuleInfo]) -> None:
+        """Populate ``imported_by`` for every module based on its imports.
+
+        Mutates the ``modules`` dict in place.
+
+        Args:
+            modules: The module map produced by :meth:`_build_module_info`.
+        """
         for mod_name, mod_info in modules.items():
             for imp in mod_info.imports:
                 # Find which local module this import corresponds to
@@ -343,8 +410,22 @@ class DependencyAnalyzer:
                         modules[other_name].imported_by.append(mod_name)
                         break
 
-        # Detect circular dependencies
+    @staticmethod
+    def _detect_circular_dependencies(
+        modules: Dict[str, ModuleInfo]
+    ) -> List[Finding]:
+        """Detect circular dependencies and return them as findings.
+
+        Args:
+            modules: The fully-built module map (with ``imports``
+                populated).
+
+        Returns:
+            A list of :class:`Finding` instances — one per detected
+            circular dependency.
+        """
         cycles = DependencyAnalyzer._find_cycles(modules)
+        findings: List[Finding] = []
         for cycle in cycles:
             findings.append(Finding(
                 type=FindingType.CIRCULAR_DEP,
@@ -355,8 +436,7 @@ class DependencyAnalyzer:
                 recommendation="Break the cycle by extracting shared logic to a lower-level module.",
                 metadata={"cycle": cycle},
             ))
-
-        return modules, findings
+        return findings
 
     @staticmethod
     def _find_cycles(modules: Dict[str, ModuleInfo]) -> List[List[str]]:
