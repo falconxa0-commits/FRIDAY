@@ -247,36 +247,7 @@ Be specific and actionable, not generic."""
             line = line.strip()
             if not line:
                 continue
-
-            if line.upper().startswith("CONTEXT_SUMMARY:"):
-                current_section = "context_summary"
-                result.context_summary = line.split(":", 1)[1].strip()
-            elif line.upper().startswith("HOLISTIC_ADVICE:"):
-                current_section = "holistic_advice"
-                result.holistic_advice = line.split(":", 1)[1].strip()
-            elif line.upper().startswith("RECOMMENDATION:"):
-                current_section = "recommendation"
-                parts = line.split("|")
-                if len(parts) >= 5:
-                    result.recommendations.append(ActionRecommendation(
-                        title=parts[0].split(":", 1)[1].strip(),
-                        priority=parts[1].strip(),
-                        category=parts[2].strip(),
-                        time_sensitivity=parts[3].strip(),
-                        reasoning=parts[4].strip(),
-                        source_integration="synthesis",
-                        description=parts[4].strip(),
-                    ))
-            elif line.upper().startswith("RISK_FACTORS:"):
-                current_section = "risk_factors"
-            elif line.upper().startswith("OPPORTUNITIES:"):
-                current_section = "opportunities"
-            elif line.startswith("-") or line.startswith("•"):
-                item = line.lstrip("- •").strip()
-                if current_section == "risk_factors" and item:
-                    result.risk_factors.append(item)
-                elif current_section == "opportunities" and item:
-                    result.opportunities.append(item)
+            current_section = self._parse_synthesis_line(line, result, current_section)
 
         # Fallback if parsing didn't work well
         if not result.holistic_advice:
@@ -284,6 +255,51 @@ Be specific and actionable, not generic."""
             result.context_summary = "Synthesis generated from multi-source data."
 
         return result
+
+    @staticmethod
+    def _parse_synthesis_line(line: str, result, current_section: str) -> str:
+        """Parse a single line of synthesis output. Returns the new current_section."""
+        if line.upper().startswith("CONTEXT_SUMMARY:"):
+            result.context_summary = line.split(":", 1)[1].strip()
+            return "context_summary"
+        elif line.upper().startswith("HOLISTIC_ADVICE:"):
+            result.holistic_advice = line.split(":", 1)[1].strip()
+            return "holistic_advice"
+        elif line.upper().startswith("RECOMMENDATION:"):
+            SynthesisEngine._parse_recommendation_line(line, result)
+            return "recommendation"
+        elif line.upper().startswith("RISK_FACTORS:"):
+            return "risk_factors"
+        elif line.upper().startswith("OPPORTUNITIES:"):
+            return "opportunities"
+        elif line.startswith("-") or line.startswith("•"):
+            SynthesisEngine._parse_list_item(line, current_section, result)
+            return current_section
+        return current_section
+
+    @staticmethod
+    def _parse_recommendation_line(line: str, result) -> None:
+        """Parse a recommendation line and append to result."""
+        parts = line.split("|")
+        if len(parts) >= 5:
+            result.recommendations.append(ActionRecommendation(
+                title=parts[0].split(":", 1)[1].strip(),
+                priority=parts[1].strip(),
+                category=parts[2].strip(),
+                time_sensitivity=parts[3].strip(),
+                reasoning=parts[4].strip(),
+                source_integration="synthesis",
+                description=parts[4].strip(),
+            ))
+
+    @staticmethod
+    def _parse_list_item(line: str, current_section: str, result) -> None:
+        """Parse a list item (bullet point) and append to the appropriate section."""
+        item = line.lstrip("- •").strip()
+        if current_section == "risk_factors" and item:
+            result.risk_factors.append(item)
+        elif current_section == "opportunities" and item:
+            result.opportunities.append(item)
 
     # ------------------------------------------------------------------
     # Heuristic fallback

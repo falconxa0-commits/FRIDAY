@@ -79,9 +79,32 @@ async def get_stats():
     total_tokens_out = sum(r.get("tokens_out", 0) for r in _request_log)
     total_cost = sum(r.get("cost_usd", 0.0) for r in _request_log)
 
-    # Breakdown by provider
+    provider_stats = _build_provider_stats(_request_log)
+    recent = _request_log[-20:] if _request_log else []
+    current_provider = BRAIN_PROVIDER
+    provider_cost_note = _get_provider_cost_note(current_provider)
+    rate_limit_warning = _check_rate_limits(current_provider)
+    zai_limits = _ZAI_FREE_TIER_LIMITS if current_provider == "glm" else None
+
+    return {
+        "current_provider": current_provider,
+        "provider_cost_note": provider_cost_note,
+        "total_requests": total_requests,
+        "total_tokens_in": total_tokens_in,
+        "total_tokens_out": total_tokens_out,
+        "total_cost_usd": round(total_cost, 6),
+        "provider_breakdown": provider_stats,
+        "recent_requests": recent,
+        "zai_rate_limits": zai_limits,
+        "rate_limit_warning": rate_limit_warning,
+        "optimization_suggestions": _generate_optimization_suggestions(provider_stats),
+    }
+
+
+def _build_provider_stats(request_log: list) -> Dict[str, Dict]:
+    """Build per-provider statistics from the request log."""
     provider_stats: Dict[str, Dict] = {}
-    for r in _request_log:
+    for r in request_log:
         prov = r.get("provider", "unknown")
         if prov not in provider_stats:
             provider_stats[prov] = {
@@ -102,77 +125,63 @@ async def get_stats():
     for ps in provider_stats.values():
         ps["models_used"] = sorted(ps["models_used"])
         ps["cost_usd"] = round(ps["cost_usd"], 6)
+    return provider_stats
 
-    # Last N requests
-    recent = _request_log[-20:] if _request_log else []
 
-    # Current provider info
-    current_provider = BRAIN_PROVIDER
-    provider_cost_note = ""
-    if current_provider == "glm":
-        provider_cost_note = "GLM free tier — $0.00 cost"
-    elif current_provider == "ollama":
-        provider_cost_note = "Ollama local — $0.00 cost"
+def _get_provider_cost_note(provider: str) -> str:
+    """Get a human-readable cost note for the current provider."""
+    if provider == "glm":
+        return "GLM free tier — $0.00 cost"
+    elif provider == "ollama":
+        return "Ollama local — $0.00 cost"
     else:
-        provider_cost_note = f"{current_provider} — paid API"
+        return f"{provider} — paid API"
 
-    # ---- Rate-limit warning (Z.ai free tier) --------------------------
-    # Compute usage in the last 60 seconds vs RPM limit, and today's
-    # total tokens vs the daily token cap.
-    rate_limit_warning = None
-    zai_limits = _ZAI_FREE_TIER_LIMITS if current_provider == "glm" else None
-    if zai_limits:
-        now = datetime.datetime.now()
-        one_minute_ago = now - datetime.timedelta(seconds=60)
-        requests_last_minute = sum(
-            1 for r in _request_log
-            if datetime.datetime.fromisoformat(r["timestamp"]) >= one_minute_ago
+
+def _check_rate_limits(provider: str):
+    """Check Z.ai free-tier rate limits and return warning if near threshold."""
+    zai_limits = _ZAI_FREE_TIER_LIMITS if provider == "glm" else None
+    if not zai_limits:
+        return None
+
+    now = datetime.datetime.now()
+    one_minute_ago = now - datetime.timedelta(seconds=60)
+    requests_last_minute = sum(
+        1 for r in _request_log
+        if datetime.datetime.fromisoformat(r["timestamp"]) >= one_minute_ago
+    )
+    today = now.date()
+    tokens_today = sum(
+        r.get("tokens_in", 0) + r.get("tokens_out", 0)
+        for r in _request_log
+        if datetime.datetime.fromisoformat(r["timestamp"]).date() == today
+    )
+    rpm_limit = zai_limits["requests_per_minute"]
+    tpd_limit = zai_limits["tokens_per_day"]
+    rpm_pct = (requests_last_minute / rpm_limit * 100) if rpm_limit else 0
+    tpd_pct = (tokens_today / tpd_limit * 100) if tpd_limit else 0
+
+    warnings = []
+    if rpm_pct >= 80:
+        warnings.append(
+            f"RPM at {rpm_pct:.0f}% of free-tier limit "
+            f"({requests_last_minute}/{rpm_limit} requests/min)"
         )
-        today = now.date()
-        tokens_today = sum(
-            r.get("tokens_in", 0) + r.get("tokens_out", 0)
-            for r in _request_log
-            if datetime.datetime.fromisoformat(r["timestamp"]).date() == today
+    if tpd_pct >= 80:
+        warnings.append(
+            f"Daily tokens at {tpd_pct:.0f}% of free-tier limit "
+            f"({tokens_today}/{tpd_limit} tokens/day)"
         )
-        rpm_limit = zai_limits["requests_per_minute"]
-        tpd_limit = zai_limits["tokens_per_day"]
-        rpm_pct = (requests_last_minute / rpm_limit * 100) if rpm_limit else 0
-        tpd_pct = (tokens_today / tpd_limit * 100) if tpd_limit else 0
-
-        warnings = []
-        if rpm_pct >= 80:
-            warnings.append(
-                f"RPM at {rpm_pct:.0f}% of free-tier limit "
-                f"({requests_last_minute}/{rpm_limit} requests/min)"
-            )
-        if tpd_pct >= 80:
-            warnings.append(
-                f"Daily tokens at {tpd_pct:.0f}% of free-tier limit "
-                f"({tokens_today}/{tpd_limit} tokens/day)"
-            )
-        if warnings:
-            rate_limit_warning = {
-                "level": "warning" if (rpm_pct < 100 and tpd_pct < 100) else "critical",
-                "messages": warnings,
-                "rpm_pct": round(rpm_pct, 1),
-                "tpd_pct": round(tpd_pct, 1),
-                "requests_last_minute": requests_last_minute,
-                "tokens_today": tokens_today,
-            }
-
-    return {
-        "current_provider": current_provider,
-        "provider_cost_note": provider_cost_note,
-        "total_requests": total_requests,
-        "total_tokens_in": total_tokens_in,
-        "total_tokens_out": total_tokens_out,
-        "total_cost_usd": round(total_cost, 6),
-        "provider_breakdown": provider_stats,
-        "recent_requests": recent,
-        "zai_rate_limits": zai_limits,
-        "rate_limit_warning": rate_limit_warning,
-        "optimization_suggestions": _generate_optimization_suggestions(provider_stats),
-    }
+    if warnings:
+        return {
+            "level": "warning" if (rpm_pct < 100 and tpd_pct < 100) else "critical",
+            "messages": warnings,
+            "rpm_pct": round(rpm_pct, 1),
+            "tpd_pct": round(tpd_pct, 1),
+            "requests_last_minute": requests_last_minute,
+            "tokens_today": tokens_today,
+        }
+    return None
 
 
 def _generate_optimization_suggestions(provider_stats: Dict[str, Dict]) -> List[dict]:
