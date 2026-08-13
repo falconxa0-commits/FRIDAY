@@ -10,6 +10,7 @@ Modules:
     - federation: Node identity, heartbeat, discovery
     - worker: Worker runtime with task claiming and recovery
     - distributed_runtime: Unified facade
+    - circuit_breaker: Redis failure protection
 
 Feature flag: FRIDAY_DISTRIBUTED_RUNTIME=1 enables distributed mode.
 When disabled (default), all operations fall back to Age IV local mode.
@@ -19,6 +20,7 @@ from core.runtime.v5.distributed_task_queue import DistributedTaskQueue
 from core.runtime.v5.federation import FederationManager, NodeInfo, NodeStatus
 from core.runtime.v5.worker import WorkerRuntime, WorkerStatus
 from core.runtime.v5.distributed_runtime import DistributedRuntime
+from core.runtime.v5.circuit_breaker import CircuitBreaker, CircuitState
 
 __all__ = [
     "DistributedEventBus",
@@ -26,4 +28,5 @@ __all__ = [
     "FederationManager", "NodeInfo", "NodeStatus",
     "WorkerRuntime", "WorkerStatus",
     "DistributedRuntime",
+    "CircuitBreaker", "CircuitState",
 ]

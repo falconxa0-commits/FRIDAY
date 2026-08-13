@@ -295,6 +295,85 @@ class DistributedEventBus:
             self._subscribers[event_type].append(handler)
         logger.debug(f"Subscribed handler to '{event_type}'")
 
+    async def replay(
+        self,
+        event_type: Optional[str] = None,
+        after_event_id: str = "",
+        handler: Optional[Callable] = None,
+    ) -> int:
+        """Replay missed events to a handler.
+
+        Delivers events from history that:
+            - Match event_type (if specified)
+            - Were published after after_event_id (if specified)
+            - Haven't been delivered to this handler's idempotency context
+
+        Args:
+            event_type: Filter by event type (None = all types).
+            after_event_id: Only deliver events after this event ID.
+            handler: The handler to deliver to. If None, replays to all
+                    existing subscribers of the given event_type.
+
+        Returns:
+            Number of events replayed.
+        """
+        history = list(self._history)
+        if event_type:
+            history = [e for e in history if e.type == event_type]
+
+        # Find the starting point
+        if after_event_id:
+            start_idx = 0
+            for i, e in enumerate(history):
+                if e.id == after_event_id:
+                    start_idx = i + 1
+                    break
+            history = history[start_idx:]
+        else:
+            # No after_event_id — replay all matching
+            pass
+
+        count = 0
+        for event in history:
+            if handler:
+                try:
+                    await handler(event)
+                    count += 1
+                except Exception as exc:
+                    logger.error(f"Replay handler error for '{event.type}': {exc}")
+            else:
+                # Replay to existing subscribers
+                handlers = list(self._subscribers.get(event.type, []))
+                handlers.extend(self._wildcard_subscribers)
+                for h in handlers:
+                    try:
+                        await h(event)
+                        count += 1
+                    except Exception as exc:
+                        logger.debug(f"Replay handler error: {exc}")
+
+        if count > 0:
+            logger.info(f"Replayed {count} events (type={event_type}, after={after_event_id[:8] or 'start'})")
+        return count
+
+    def get_last_event_id(self, event_type: Optional[str] = None) -> str:
+        """Get the ID of the last event in history.
+
+        Useful for subscribers to track their replay cursor.
+
+        Args:
+            event_type: Filter by type (None = all types).
+
+        Returns:
+            Event ID, or empty string if no events.
+        """
+        history = list(self._history)
+        if event_type:
+            history = [e for e in history if e.type == event_type]
+        if not history:
+            return ""
+        return history[-1].id
+
     def unsubscribe(self, event_type: str, handler: Callable) -> None:
         """Unsubscribe a handler."""
         if event_type == "*":
