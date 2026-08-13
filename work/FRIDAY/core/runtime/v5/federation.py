@@ -190,6 +190,13 @@ class FederationManager:
             return False
 
         async with self._lock:
+            # Check if a node with this ID was previously banned
+            existing = self._nodes.get(node_info.id)
+            if existing and existing.status == NodeStatus.BANNED:
+                logger.warning(
+                    f"Rejected registration: node {node_info.id[:8]} is banned"
+                )
+                return False
             node_info.status = NodeStatus.ACTIVE
             node_info.registered_at = datetime.now(timezone.utc).isoformat()
             node_info.last_heartbeat = node_info.registered_at

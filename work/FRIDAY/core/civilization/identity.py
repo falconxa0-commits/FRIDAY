@@ -37,7 +37,10 @@ class CapabilityToken:
     def is_expired(self) -> bool:
         if not self.expires_at:
             return False
-        return datetime.now(timezone.utc).isoformat() > self.expires_at
+        try:
+            return datetime.now(timezone.utc) > datetime.fromisoformat(self.expires_at)
+        except (ValueError, TypeError):
+            return False
 
     @property
     def is_valid(self) -> bool:
@@ -91,6 +94,9 @@ class IdentityEngine:
             from datetime import timedelta
             expires_at = (datetime.now(timezone.utc) +
                           timedelta(seconds=expires_in_seconds)).isoformat()
+        elif expires_in_seconds == 0:
+            # 0 means "immediately expired" — set to current time
+            expires_at = datetime.now(timezone.utc).isoformat()
 
         token = CapabilityToken(
             citizen_id=citizen.id.id,

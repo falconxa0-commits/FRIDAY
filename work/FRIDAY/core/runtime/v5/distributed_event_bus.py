@@ -225,7 +225,7 @@ class DistributedEventBus:
         """
         event = DistributedEvent(
             type=event_type,
-            data=data or {},
+            data=dict(data) if data else {},  # copy to prevent mutation
             source=source,
             correlation_id=correlation_id,
             idempotency_key=idempotency_key or str(uuid.uuid4()),
