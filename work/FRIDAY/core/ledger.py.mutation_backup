@@ -283,7 +283,7 @@ class ActionLedger:
         if self.profile == 'GUEST':
             return False
         if self.profile == 'STANDARD':
-            if risk_level != 'low':
+            if risk_level == 'low':
                 return True
         if self.profile == 'POWER':
             if component in ('PCControl', 'BrowserControl') and risk_level != 'critical':
