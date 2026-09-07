@@ -1,0 +1,814 @@
+     1→"""Knowledge Graph Ω — core unit + invariant tests.
+     2→
+     3→Covers:
+     4→    - Entity creation, ID derivation, alias management, attribute caps
+     5→    - Relationship creation, ID derivation, evidence, reinforcement
+     6→    - EntityExtractor pattern matching (email, URL, date, money, person, org, etc.)
+     7→    - RelationshipDetector syntactic + co-occurrence detection
+     8→    - KnowledgeGraph add/remove/traverse/neighbors
+     9→    - QueryEngine filtering, traversal, scoring
+    10→    - MergeResolver conflict detection
+    11→    - KnowledgeGraphManager extract → store → query end-to-end
+    12→"""
+    13→from __future__ import annotations
+    14→
+    15→import asyncio
+    16→import pytest
+    17→
+    18→from core.knowledge_graph import (
+    19→    KnowledgeGraphManager, KnowledgeGraphConfig,
+    20→    Entity, EntityType, Relationship, RelationshipType,
+    21→    EntityExtractor, ExtractionResult,
+    22→    RelationshipDetector, DetectionResult,
+    23→    KnowledgeGraph, GraphStats,
+    24→    KnowledgeQuery, QueryEngine, QueryResult,
+    25→    EntityFilter, RelationshipFilter, TraversalSpec,
+    26→    MergeConflict, MergeResolver, ConflictType, ConflictResolution,
+    27→    canonicalize_name, derive_entity_id, derive_relationship_id,
+    28→    BIDIRECTIONAL_TYPES, HIGH_STAKES_TYPES,
+    29→)
+    30→from core.living_memory import (
+    31→    LivingMemoryManager, LivingMemoryConfig,
+    32→    AuthorizationContext, MemoryCapability,
+    33→    InMemoryPersistence,
+    34→)
+    35→
+    36→
+    37→# ----------------------------------------------------------------------
+    38→# Fixtures
+    39→# ----------------------------------------------------------------------
+    40→
+    41→
+    42→@pytest.fixture
+    43→def founder_ctx():
+    44→    return AuthorizationContext(
+    45→        citizen_id="founder-00000001",
+    46→        rank_level=100,
+    47→        capabilities={c.value for c in MemoryCapability},
+    48→        tenant_id="default",
+    49→        is_founder=True,
+    50→    )
+    51→
+    52→
+    53→@pytest.fixture
+    54→def worker_ctx():
+    55→    return AuthorizationContext(
+    56→        citizen_id="worker-00000001",
+    57→        rank_level=20,
+    58→        capabilities={
+    59→            MemoryCapability.MEMORY_READ.value,
+    60→            MemoryCapability.MEMORY_WRITE.value,
+    61→            MemoryCapability.MEMORY_ASSOCIATE.value,
+    62→        },
+    63→        tenant_id="default",
+    64→    )
+    65→
+    66→
+    67→@pytest.fixture
+    68→def m3_manager():
+    69→    return LivingMemoryManager(persistence=InMemoryPersistence())
+    70→
+    71→
+    72→@pytest.fixture
+    73→def kg_manager(m3_manager):
+    74→    return KnowledgeGraphManager(
+    75→        living_memory_manager=m3_manager,
+    76→        config=KnowledgeGraphConfig(),
+    77→    )
+    78→
+    79→
+    80→# ----------------------------------------------------------------------
+    81→# Entity
+    82→# ----------------------------------------------------------------------
+    83→
+    84→
+    85→class TestEntity:
+    86→    def test_create_basic(self):
+    87→        e = Entity.create(name="Alice Smith", entity_type=EntityType.PERSON)
+    88→        assert e.entity_type == EntityType.PERSON
+    89→        assert e.canonical_name == "alice smith"
+    90→        assert e.entity_id.startswith("kg-")
+    91→
+    92→    def test_create_derives_stable_id(self):
+    93→        e1 = Entity.create(name="Alice Smith", entity_type=EntityType.PERSON, tenant_id="t1")
+    94→        e2 = Entity.create(name="Alice Smith", entity_type=EntityType.PERSON, tenant_id="t1")
+    95→        assert e1.entity_id == e2.entity_id  # deterministic
+    96→
+    97→    def test_create_different_tenants_different_ids(self):
+    98→        e1 = Entity.create(name="Alice", entity_type=EntityType.PERSON, tenant_id="t1")
+    99→        e2 = Entity.create(name="Alice", entity_type=EntityType.PERSON, tenant_id="t2")
+   100→        assert e1.entity_id != e2.entity_id
+   101→
+   102→    def test_create_different_types_different_ids(self):
+   103→        e1 = Entity.create(name="Apple", entity_type=EntityType.ORGANIZATION)
+   104→        e2 = Entity.create(name="Apple", entity_type=EntityType.CONCEPT)
+   105→        assert e1.entity_id != e2.entity_id
+   106→
+   107→    def test_canonicalize_name_collapses_whitespace(self):
+   108→        assert canonicalize_name("  Alice   Smith  ") == "alice smith"
+   109→
+   110→    def test_canonicalize_name_rejects_empty(self):
+   111→        with pytest.raises(ValueError):
+   112→            canonicalize_name("")
+   113→        with pytest.raises(ValueError):
+   114→            canonicalize_name("   ")
+   115→
+   116→    def test_canonicalize_name_rejects_too_long(self):
+   117→        with pytest.raises(ValueError):
+   118→            canonicalize_name("x" * 300)
+   119→
+   120→    def test_add_alias(self):
+   121→        e = Entity.create(name="Alice", entity_type=EntityType.PERSON, aliases=["Al", "Ali"])
+   122→        assert len(e.aliases) == 2
+   123→        assert e.add_alias("Alice A")  # new alias
+   124→        assert not e.add_alias("Al")  # duplicate
+   125→        assert not e.add_alias("Alice")  # canonical name, not alias
+   126→
+   127→    def test_add_alias_cap(self):
+   128→        e = Entity.create(name="X", entity_type=EntityType.CONCEPT)
+   129→        for i in range(32):
+   130→            e.add_alias(f"alias-{i:02d}-padding")
+   131→        with pytest.raises(ValueError):
+   132→            e.add_alias("one-too-many-alias")
+   133→
+   134→    def test_add_alias_cap_via_post_init(self):
+   135→        """Alias cap also enforced at __post_init__ (not just add_alias)."""
+   136→        aliases = [f"alias-{i:02d}-padding" for i in range(33)]  # 33 > cap
+   137→        with pytest.raises(ValueError):
+   138→            Entity.create(name="X", entity_type=EntityType.CONCEPT, aliases=aliases)
+   139→
+   140→    def test_set_attribute(self):
+   141→        e = Entity.create(name="Alice", entity_type=EntityType.PERSON)
+   142→        e.set_attribute("role", "engineer")
+   143→        assert e.attributes["role"] == "engineer"
+   144→
+   145→    def test_set_attribute_cap(self):
+   146→        e = Entity.create(name="X", entity_type=EntityType.CONCEPT)
+   147→        for i in range(128):
+   148→            e.set_attribute(f"attr_{i:03d}", i)
+   149→        with pytest.raises(ValueError):
+   150→            e.set_attribute("one_too_many", "value")
+   151→
+   152→    def test_matches_name(self):
+   153→        e = Entity.create(name="Alice", entity_type=EntityType.PERSON, aliases=["Al"])
+   154→        assert e.matches_name("Alice")
+   155→        assert e.matches_name("alice")  # case-insensitive
+   156→        assert e.matches_name("Al")
+   157→        assert not e.matches_name("Bob")
+   158→
+   159→    def test_invalid_confidence_rejected(self):
+   160→        with pytest.raises(ValueError):
+   161→            Entity(
+   162→                entity_id="kg-test123",
+   163→                entity_type=EntityType.PERSON,
+   164→                canonical_name="test",
+   165→                confidence=1.5,
+   166→            )
+   167→
+   168→    def test_to_dict_round_trip(self):
+   169→        e = Entity.create(name="Alice", entity_type=EntityType.PERSON, aliases=["Al"])
+   170→        e.set_attribute("role", "engineer")
+   171→        d = e.to_dict()
+   172→        e2 = Entity.from_dict(d)
+   173→        assert e2.entity_id == e.entity_id
+   174→        assert e2.canonical_name == e.canonical_name
+   175→        assert e2.aliases == e.aliases
+   176→        assert e2.attributes == e.attributes
+   177→
+   178→
+   179→# ----------------------------------------------------------------------
+   180→# Relationship
+   181→# ----------------------------------------------------------------------
+   182→
+   183→
+   184→class TestRelationship:
+   185→    def test_create_basic(self):
+   186→        r = Relationship.create(
+   187→            source_entity_id="kg-src0000000001",
+   188→            target_entity_id="kg-tgt0000000001",
+   189→            rel_type=RelationshipType.WORKS_FOR,
+   190→        )
+   191→        assert r.relationship_type == RelationshipType.WORKS_FOR
+   192→        assert r.relationship_id.startswith("kgr-")
+   193→
+   194→    def test_create_derives_stable_id(self):
+   195→        r1 = Relationship.create("kg-a00000000001", "kg-b00000000001", RelationshipType.WORKS_FOR)
+   196→        r2 = Relationship.create("kg-a00000000001", "kg-b00000000001", RelationshipType.WORKS_FOR)
+   197→        assert r1.relationship_id == r2.relationship_id
+   198→
+   199→    def test_self_relationship_rejected(self):
+   200→        with pytest.raises(ValueError):
+   201→            Relationship.create(
+   202→                "kg-a00000000001", "kg-a00000000001", RelationshipType.WORKS_FOR,
+   203→            )
+   204→
+   205→    def test_self_relationship_rejected_via_post_init(self):
+   206→        """Self-relationship also rejected at __post_init__ (not just create)."""
+   207→        with pytest.raises(ValueError):
+   208→            Relationship(
+   209→                relationship_id="kgr-test00000001",
+   210→                source_entity_id="kg-a00000000001",
+   211→                target_entity_id="kg-a00000000001",
+   212→                relationship_type=RelationshipType.WORKS_FOR,
+   213→            )
+   214→
+   215→    def test_invalid_weight_rejected(self):
+   216→        with pytest.raises(ValueError):
+   217→            Relationship.create(
+   218→                "kg-a00000000001", "kg-b00000000001", RelationshipType.WORKS_FOR, weight=1.5,
+   219→            )
+   220→
+   221→    def test_bidirectional_auto_set_for_similar_to(self):
+   222→        r = Relationship.create(
+   223→            "kg-a00000000001", "kg-b00000000001", RelationshipType.SIMILAR_TO,
+   224→        )
+   225→        assert r.bidirectional is True
+   226→
+   227→    def test_bidirectional_auto_set_for_related_to(self):
+   228→        r = Relationship.create(
+   229→            "kg-a00000000001", "kg-b00000000001", RelationshipType.RELATED_TO,
+   230→        )
+   231→        assert r.bidirectional is True
+   232→
+   233→    def test_directed_for_works_for(self):
+   234→        r = Relationship.create(
+   235→            "kg-a00000000001", "kg-b00000000001", RelationshipType.WORKS_FOR,
+   236→        )
+   237→        assert r.bidirectional is False
+   238→
+   239→    def test_add_evidence(self):
+   240→        r = Relationship.create("kg-a00000000001", "kg-b00000000001", RelationshipType.WORKS_FOR)
+   241→        assert r.add_evidence("ep-00000001")
+   242→        assert not r.add_evidence("ep-00000001")  # duplicate
+   243→        assert r.reinforcement_count == 1
+   244→
+   245→    def test_add_evidence_cap(self):
+   246→        r = Relationship.create("kg-a00000000001", "kg-b00000000001", RelationshipType.WORKS_FOR)
+   247→        for i in range(64):
+   248→            r.add_evidence(f"ep-{i:08d}")
+   249→        with pytest.raises(ValueError):
+   250→            r.add_evidence("one-too-many")
+   251→
+   252→    def test_add_evidence_cap_via_post_init(self):
+   253→        """Evidence cap also enforced at __post_init__."""
+   254→        evidence = [f"ep-{i:08d}" for i in range(65)]  # 65 > cap
+   255→        with pytest.raises(ValueError):
+   256→            Relationship(
+   257→                relationship_id="kgr-test00000002",
+   258→                source_entity_id="kg-a00000000001",
+   259→                target_entity_id="kg-b00000000001",
+   260→                relationship_type=RelationshipType.WORKS_FOR,
+   261→                evidence=evidence,
+   262→            )
+   263→
+   264→    def test_reinforce_increases_weight(self):
+   265→        r = Relationship.create("kg-a00000000001", "kg-b00000000001", RelationshipType.WORKS_FOR, weight=0.5)
+   266→        r.reinforce(delta=0.1)
+   267→        assert r.weight == 0.6
+   268→        assert r.reinforcement_count == 1
+   269→
+   270→    def test_reinforce_clamps_at_1(self):
+   271→        r = Relationship.create("kg-a00000000001", "kg-b00000000001", RelationshipType.WORKS_FOR, weight=0.9)
+   272→        r.reinforce(delta=0.5)
+   273→        assert r.weight == 1.0
+   274→
+   275→    def test_involves(self):
+   276→        r = Relationship.create("kg-a00000000001", "kg-b00000000001", RelationshipType.WORKS_FOR)
+   277→        assert r.involves("kg-a00000000001")
+   278→        assert r.involves("kg-b00000000001")
+   279→        assert not r.involves("kg-c00000000001")
+   280→
+   281→    def test_other_endpoint_directed(self):
+   282→        r = Relationship.create("kg-a00000000001", "kg-b00000000001", RelationshipType.WORKS_FOR)
+   283→        assert r.other_endpoint("kg-a00000000001") == "kg-b00000000001"
+   284→        # Directed: from target, no other endpoint
+   285→        assert r.other_endpoint("kg-b00000000001") is None
+   286→
+   287→    def test_other_endpoint_bidirectional(self):
+   288→        r = Relationship.create("kg-a00000000001", "kg-b00000000001", RelationshipType.SIMILAR_TO)
+   289→        assert r.other_endpoint("kg-a00000000001") == "kg-b00000000001"
+   290→        assert r.other_endpoint("kg-b00000000001") == "kg-a00000000001"
+   291→
+   292→    def test_to_dict_round_trip(self):
+   293→        r = Relationship.create("kg-a00000000001", "kg-b00000000001", RelationshipType.WORKS_FOR, weight=0.7)
+   294→        r.add_evidence("ep-00000001")
+   295→        d = r.to_dict()
+   296→        r2 = Relationship.from_dict(d)
+   297→        assert r2.relationship_id == r.relationship_id
+   298→        assert r2.weight == r.weight
+   299→        assert r2.evidence == r.evidence
+   300→
+   301→
+   302→# ----------------------------------------------------------------------
+   303→# EntityExtractor
+   304→# ----------------------------------------------------------------------
+   305→
+   306→
+   307→class TestEntityExtractor:
+   308→    def test_extract_email(self):
+   309→        ex = EntityExtractor()
+   310→        mentions = ex.extract_mentions("Contact alice@example.com for info")
+   311→        assert any(m.entity_type == EntityType.OTHER and "@" in m.text for m in mentions)
+   312→
+   313→    def test_extract_url(self):
+   314→        ex = EntityExtractor()
+   315→        mentions = ex.extract_mentions("Visit https://example.com/page today")
+   316→        assert any(m.entity_type == EntityType.DOCUMENT and "http" in m.text for m in mentions)
+   317→
+   318→    def test_extract_iso_date(self):
+   319→        ex = EntityExtractor()
+   320→        mentions = ex.extract_mentions("Deadline is 2026-12-31")
+   321→        assert any(m.entity_type == EntityType.DATE for m in mentions)
+   322→
+   323→    def test_extract_money(self):
+   324→        ex = EntityExtractor()
+   325→        mentions = ex.extract_mentions("Cost is $1,500.00 or 200 USD")
+   326→        assert any(m.entity_type == EntityType.MONEY for m in mentions)
+   327→
+   328→    def test_extract_organization_with_suffix(self):
+   329→        ex = EntityExtractor()
+   330→        mentions = ex.extract_mentions("Acme Corp announced layoffs")
+   331→        org_mentions = [m for m in mentions if m.entity_type == EntityType.ORGANIZATION]
+   332→        assert len(org_mentions) >= 1
+   333→
+   334→    def test_extract_person_with_title(self):
+   335→        ex = EntityExtractor()
+   336→        mentions = ex.extract_mentions("Mr. John Smith joined the team")
+   337→        person_mentions = [m for m in mentions if m.entity_type == EntityType.PERSON]
+   338→        assert len(person_mentions) >= 1
+   339→
+   340→    def test_extract_quoted_concept(self):
+   341→        ex = EntityExtractor()
+   342→        mentions = ex.extract_mentions('The "Knowledge Graph" is a new feature')
+   343→        concept_mentions = [m for m in mentions if m.entity_type == EntityType.CONCEPT]
+   344→        assert len(concept_mentions) >= 1
+   345→
+   346→    def test_extract_project_tag(self):
+   347→        ex = EntityExtractor()
+   348→        mentions = ex.extract_mentions("Working on project:friday_m4")
+   349→        project_mentions = [m for m in mentions if m.entity_type == EntityType.PROJECT]
+   350→        assert len(project_mentions) >= 1
+   351→
+   352→    def test_extract_empty_text(self):
+   353→        ex = EntityExtractor()
+   354→        assert ex.extract_mentions("") == []
+   355→
+   356→    def test_extract_truncates_oversized_text(self):
+   357→        ex = EntityExtractor()
+   358→        huge = "x" * 20_000
+   359→        # Should not crash, should truncate
+   360→        mentions = ex.extract_mentions(huge)
+   361→        assert isinstance(mentions, list)
+   362→
+   363→    def test_extract_entities_deduplicates(self):
+   364→        ex = EntityExtractor()
+   365→        # Mr. title triggers person extraction; should deduplicate Alice
+   366→        result = ex.extract_entities("Mr. Alice works for Acme. Mr. Alice is great.", tenant_id="t1")
+   367→        alice_entities = [e for e in result.entities if "alice" in e.canonical_name]
+   368→        assert len(alice_entities) == 1
+   369→
+   370→    def test_extract_returns_extraction_result(self):
+   371→        ex = EntityExtractor()
+   372→        result = ex.extract_entities("Alice works for Acme Corp", tenant_id="t1")
+   373→        assert isinstance(result, ExtractionResult)
+   374→        assert result.extractor_version == "rule-based-v1"
+   375→        assert len(result.entities) > 0
+   376→        assert len(result.mentions) > 0
+   377→
+   378→
+   379→# ----------------------------------------------------------------------
+   380→# RelationshipDetector
+   381→# ----------------------------------------------------------------------
+   382→
+   383→
+   384→class TestRelationshipDetector:
+   385→    def test_detect_works_for(self):
+   386→        ex = EntityExtractor()
+   387→        det = RelationshipDetector()
+   388→        # Use Mr. title to ensure person extraction
+   389→        text = "Mr. John Smith works for Acme Corp"
+   390→        result = ex.extract_entities(text, tenant_id="t1")
+   391→        detection = det.detect(text, result.entities, result.mentions, tenant_id="t1")
+   392→        assert detection.pattern_matches >= 1
+   393→        rel_types = [r.relationship_type for r in detection.relationships]
+   394→        assert RelationshipType.WORKS_FOR in rel_types
+   395→
+   396→    def test_detect_located_in(self):
+   397→        ex = EntityExtractor()
+   398→        det = RelationshipDetector()
+   399→        text = "Acme Corp is located in Lagos"
+   400→        result = ex.extract_entities(text, tenant_id="t1")
+   401→        detection = det.detect(text, result.entities, result.mentions, tenant_id="t1")
+   402→        rel_types = [r.relationship_type for r in detection.relationships]
+   403→        assert RelationshipType.LOCATED_IN in rel_types
+   404→
+   405→    def test_detect_similar_to(self):
+   406→        ex = EntityExtractor()
+   407→        det = RelationshipDetector()
+   408→        text = 'Acme Corp is similar to Beta Corp'
+   409→        result = ex.extract_entities(text, tenant_id="t1")
+   410→        detection = det.detect(text, result.entities, result.mentions, tenant_id="t1")
+   411→        rel_types = [r.relationship_type for r in detection.relationships]
+   412→        assert RelationshipType.SIMILAR_TO in rel_types
+   413→
+   414→    def test_detect_co_occurrence_creates_related_to(self):
+   415→        ex = EntityExtractor()
+   416→        det = RelationshipDetector(co_occurrence_window=10)
+   417→        # Two entities near each other, no syntactic pattern
+   418→        text = "Alice and Bob discussed the project"
+   419→        result = ex.extract_entities(text, tenant_id="t1")
+   420→        # Force at least 2 person entities
+   421→        if len(result.entities) < 2:
+   422→            # Add manual entities
+   423→            result.entities.append(Entity.create("Alice", EntityType.PERSON, tenant_id="t1"))
+   424→            result.entities.append(Entity.create("Bob", EntityType.PERSON, tenant_id="t1"))
+   425→        detection = det.detect(text, result.entities, result.mentions, tenant_id="t1")
+   426→        # May or may not have co-occurrence depending on entity extraction
+   427→        # Just verify it doesn't crash
+   428→        assert isinstance(detection, DetectionResult)
+   429→
+   430→    def test_detect_no_entities_returns_empty(self):
+   431→        det = RelationshipDetector()
+   432→        result = det.detect("hello world", [], [], tenant_id="t1")
+   433→        assert len(result.relationships) == 0
+   434→
+   435→    def test_detect_max_relationships_cap(self):
+   436→        det = RelationshipDetector(max_relationships_per_text=5)
+   437→        ex = EntityExtractor()
+   438→        # Use multiple person mentions to force co-occurrence relationships
+   439→        text = "Mr. Alice and Mr. Bob and Mr. Charlie and Mr. Dave and Mr. Eve and Mr. Frank met"
+   440→        result = ex.extract_entities(text, tenant_id="t1")
+   441→        detection = det.detect(text, result.entities, result.mentions, tenant_id="t1")
+   442→        assert len(detection.relationships) <= 5
+   443→
+   444→
+   445→# ----------------------------------------------------------------------
+   446→# KnowledgeGraph
+   447→# ----------------------------------------------------------------------
+   448→
+   449→
+   450→class TestKnowledgeGraph:
+   451→    @pytest.mark.asyncio
+   452→    async def test_add_and_get_entity(self):
+   453→        g = KnowledgeGraph(tenant_id="t1")
+   454→        e = Entity.create("Alice", EntityType.PERSON, tenant_id="t1")
+   455→        assert await g.add_entity(e)
+   456→        assert await g.get_entity(e.entity_id) is not None
+   457→
+   458→    @pytest.mark.asyncio
+   459→    async def test_add_duplicate_entity_returns_false(self):
+   460→        g = KnowledgeGraph(tenant_id="t1")
+   461→        e = Entity.create("Alice", EntityType.PERSON, tenant_id="t1")
+   462→        await g.add_entity(e)
+   463→        assert not await g.add_entity(e)
+   464→
+   465→    @pytest.mark.asyncio
+   466→    async def test_find_entity_by_name(self):
+   467→        g = KnowledgeGraph(tenant_id="t1")
+   468→        e = Entity.create("Alice", EntityType.PERSON, tenant_id="t1", aliases=["Al"])
+   469→        await g.add_entity(e)
+   470→        assert await g.find_entity_by_name("Alice") is not None
+   471→        assert await g.find_entity_by_name("Al") is not None
+   472→        assert await g.find_entity_by_name("Bob") is None
+   473→
+   474→    @pytest.mark.asyncio
+   475→    async def test_entity_cap_enforced(self):
+   476→        g = KnowledgeGraph(tenant_id="t1", max_entities=3)
+   477→        for i in range(3):
+   478→            await g.add_entity(Entity.create(f"ent-{i:02d}-padding", EntityType.CONCEPT, tenant_id="t1"))
+   479→        with pytest.raises(ValueError):
+   480→            await g.add_entity(Entity.create("one-too-many-padding", EntityType.CONCEPT, tenant_id="t1"))
+   481→
+   482→    @pytest.mark.asyncio
+   483→    async def test_add_relationship_requires_both_endpoints(self):
+   484→        g = KnowledgeGraph(tenant_id="t1")
+   485→        e1 = Entity.create("Alice", EntityType.PERSON, tenant_id="t1")
+   486→        await g.add_entity(e1)
+   487→        # e2 not added
+   488→        rel = Relationship.create(e1.entity_id, "kg-nonexistent01", RelationshipType.WORKS_FOR, tenant_id="t1")
+   489→        with pytest.raises(ValueError):
+   490→            await g.add_relationship(rel)
+   491→
+   492→    @pytest.mark.asyncio
+   493→    async def test_add_and_traverse_relationships(self):
+   494→        g = KnowledgeGraph(tenant_id="t1")
+   495→        a = Entity.create("Alice", EntityType.PERSON, tenant_id="t1")
+   496→        b = Entity.create("Acme", EntityType.ORGANIZATION, tenant_id="t1")
+   497→        c = Entity.create("Lagos", EntityType.PLACE, tenant_id="t1")
+   498→        for e in [a, b, c]:
+   499→            await g.add_entity(e)
+   500→        await g.add_relationship(Relationship.create(a.entity_id, b.entity_id, RelationshipType.WORKS_FOR, tenant_id="t1"))
+   501→        await g.add_relationship(Relationship.create(b.entity_id, c.entity_id, RelationshipType.LOCATED_IN, tenant_id="t1"))
+   502→        # Traverse from Alice
+   503→        results = await g.traverse(a.entity_id, max_depth=3)
+   504→        # Should reach Acme (depth 1) and Lagos (depth 2)
+   505→        ids = [r[0] for r in results]
+   506→        assert b.entity_id in ids
+   507→        assert c.entity_id in ids
+   508→
+   509→    @pytest.mark.asyncio
+   510→    async def test_neighbors_filtered_by_type(self):
+   511→        g = KnowledgeGraph(tenant_id="t1")
+   512→        a = Entity.create("Alice", EntityType.PERSON, tenant_id="t1")
+   513→        b = Entity.create("Acme", EntityType.ORGANIZATION, tenant_id="t1")
+   514→        await g.add_entity(a)
+   515→        await g.add_entity(b)
+   516→        await g.add_relationship(Relationship.create(a.entity_id, b.entity_id, RelationshipType.WORKS_FOR, tenant_id="t1"))
+   517→        # Filter by WORKS_FOR
+   518→        nbrs = await g.neighbors(a.entity_id, rel_type=RelationshipType.WORKS_FOR)
+   519→        assert len(nbrs) == 1
+   520→        # Filter by different type
+   521→        nbrs = await g.neighbors(a.entity_id, rel_type=RelationshipType.LOCATED_IN)
+   522→        assert len(nbrs) == 0
+   523→
+   524→    @pytest.mark.asyncio
+   525→    async def test_degree_cap_enforced(self):
+   526→        g = KnowledgeGraph(tenant_id="t1", max_relationships_per_entity=2)
+   527→        a = Entity.create("Hub", EntityType.CONCEPT, tenant_id="t1")
+   528→        await g.add_entity(a)
+   529→        for i in range(2):
+   530→            e = Entity.create(f"sibling{i:02d}-padding", EntityType.CONCEPT, tenant_id="t1")
+   531→            await g.add_entity(e)
+   532→            await g.add_relationship(Relationship.create(a.entity_id, e.entity_id, RelationshipType.RELATED_TO, tenant_id="t1"))
+   533→        # Third relationship should fail
+   534→        e3 = Entity.create("sibling03-padding", EntityType.CONCEPT, tenant_id="t1")
+   535→        await g.add_entity(e3)
+   536→        with pytest.raises(ValueError):
+   537→            await g.add_relationship(Relationship.create(a.entity_id, e3.entity_id, RelationshipType.RELATED_TO, tenant_id="t1"))
+   538→
+   539→    @pytest.mark.asyncio
+   540→    async def test_remove_entity_cleans_relationships(self):
+   541→        g = KnowledgeGraph(tenant_id="t1")
+   542→        a = Entity.create("Alice", EntityType.PERSON, tenant_id="t1")
+   543→        b = Entity.create("Acme", EntityType.ORGANIZATION, tenant_id="t1")
+   544→        await g.add_entity(a)
+   545→        await g.add_entity(b)
+   546→        await g.add_relationship(Relationship.create(a.entity_id, b.entity_id, RelationshipType.WORKS_FOR, tenant_id="t1"))
+   547→        assert await g.relationship_count() == 1
+   548→        # Remove Alice — relationship should also be gone
+   549→        await g.remove_entity(a.entity_id)
+   550→        assert await g.relationship_count() == 0
+   551→
+   552→    @pytest.mark.asyncio
+   553→    async def test_stats(self):
+   554→        g = KnowledgeGraph(tenant_id="t1")
+   555→        a = Entity.create("Alice", EntityType.PERSON, tenant_id="t1")
+   556→        b = Entity.create("Acme", EntityType.ORGANIZATION, tenant_id="t1")
+   557→        await g.add_entity(a)
+   558→        await g.add_entity(b)
+   559→        await g.add_relationship(Relationship.create(a.entity_id, b.entity_id, RelationshipType.WORKS_FOR, tenant_id="t1"))
+   560→        stats = await g.stats()
+   561→        assert stats.entity_count == 2
+   562→        assert stats.relationship_count == 1
+   563→        assert stats.by_entity_type.get("person") == 1
+   564→        assert stats.by_relationship_type.get("works_for") == 1
+   565→
+   566→
+   567→# ----------------------------------------------------------------------
+   568→# QueryEngine
+   569→# ----------------------------------------------------------------------
+   570→
+   571→
+   572→class TestQueryEngine:
+   573→    @pytest.mark.asyncio
+   574→    async def test_query_by_entity_type(self):
+   575→        g = KnowledgeGraph(tenant_id="t1")
+   576→        await g.add_entity(Entity.create("Alice", EntityType.PERSON, tenant_id="t1"))
+   577→        await g.add_entity(Entity.create("Acme", EntityType.ORGANIZATION, tenant_id="t1"))
+   578→        engine = QueryEngine(g)
+   579→        q = KnowledgeQuery(
+   580→            entity_filter=EntityFilter(entity_type=EntityType.PERSON),
+   581→            limit=10,
+   582→        )
+   583→        results = await engine.execute(q)
+   584→        assert len(results) == 1
+   585→        assert results[0].entity.canonical_name == "alice"
+   586→
+   587→    @pytest.mark.asyncio
+   588→    async def test_query_by_name_pattern(self):
+   589→        g = KnowledgeGraph(tenant_id="t1")
+   590→        await g.add_entity(Entity.create("Alice", EntityType.PERSON, tenant_id="t1"))
+   591→        await g.add_entity(Entity.create("Bob", EntityType.PERSON, tenant_id="t1"))
+   592→        engine = QueryEngine(g)
+   593→        q = KnowledgeQuery(
+   594→            entity_filter=EntityFilter(name_pattern="ali*"),
+   595→            limit=10,
+   596→        )
+   597→        results = await engine.execute(q)
+   598→        assert len(results) == 1
+   599→        assert results[0].entity.canonical_name == "alice"
+   600→
+   601→    @pytest.mark.asyncio
+   602→    async def test_query_by_attribute(self):
+   603→        g = KnowledgeGraph(tenant_id="t1")
+   604→        e = Entity.create("Alice", EntityType.PERSON, tenant_id="t1")
+   605→        e.set_attribute("role", "engineer")
+   606→        await g.add_entity(e)
+   607→        e2 = Entity.create("Bob", EntityType.PERSON, tenant_id="t1")
+   608→        e2.set_attribute("role", "manager")
+   609→        await g.add_entity(e2)
+   610→        engine = QueryEngine(g)
+   611→        q = KnowledgeQuery(
+   612→            entity_filter=EntityFilter(attributes={"role": "engineer"}),
+   613→            limit=10,
+   614→        )
+   615→        results = await engine.execute(q)
+   616→        assert len(results) == 1
+   617→        assert results[0].entity.canonical_name == "alice"
+   618→        assert results[0].matched_attributes == {"role": "engineer"}
+   619→
+   620→    @pytest.mark.asyncio
+   621→    async def test_query_with_traversal(self):
+   622→        g = KnowledgeGraph(tenant_id="t1")
+   623→        a = Entity.create("Alice", EntityType.PERSON, tenant_id="t1")
+   624→        b = Entity.create("Acme", EntityType.ORGANIZATION, tenant_id="t1")
+   625→        await g.add_entity(a)
+   626→        await g.add_entity(b)
+   627→        await g.add_relationship(Relationship.create(a.entity_id, b.entity_id, RelationshipType.WORKS_FOR, tenant_id="t1"))
+   628→        engine = QueryEngine(g)
+   629→        q = KnowledgeQuery(
+   630→            entity_filter=EntityFilter(entity_type=EntityType.PERSON),
+   631→            traversal=TraversalSpec(max_depth=2),
+   632→            limit=10,
+   633→        )
+   634→        results = await engine.execute(q)
+   635→        assert len(results) == 1
+   636→        # Score should be boosted by traversal
+   637→        assert results[0].score > results[0].entity.confidence
+   638→
+   639→    @pytest.mark.asyncio
+   640→    async def test_query_limit_enforced(self):
+   641→        g = KnowledgeGraph(tenant_id="t1")
+   642→        for i in range(20):
+   643→            await g.add_entity(Entity.create(f"ent-{i:02d}-padding", EntityType.CONCEPT, tenant_id="t1"))
+   644→        engine = QueryEngine(g)
+   645→        q = KnowledgeQuery(limit=5)
+   646→        results = await engine.execute(q)
+   647→        assert len(results) == 5
+   648→
+   649→    @pytest.mark.asyncio
+   650→    async def test_query_invalid_limit_rejected(self):
+   651→        with pytest.raises(ValueError):
+   652→            KnowledgeQuery(limit=0)
+   653→        with pytest.raises(ValueError):
+   654→            KnowledgeQuery(limit=1000)
+   655→
+   656→
+   657→# ----------------------------------------------------------------------
+   658→# MergeResolver
+   659→# ----------------------------------------------------------------------
+   660→
+   661→
+   662→class TestMergeResolver:
+   663→    def test_detect_name_collision_same_type(self):
+   664→        resolver = MergeResolver()
+   665→        existing = Entity.create("Alice", EntityType.PERSON, tenant_id="t1")
+   666→        new = Entity.create("Alice", EntityType.PERSON, tenant_id="t1")
+   667→        # Same name + same type — but different IDs? No, they'd be the same ID
+   668→        # Let's force different IDs
+   669→        new.entity_id = "kg-different0000001"
+   670→        conflicts = resolver.detect_name_collisions([existing], new)
+   671→        # Same name + same type → NAME_COLLISION (would be MERGE candidate)
+   672→        assert len(conflicts) == 1
+   673→        assert conflicts[0].conflict_type == ConflictType.NAME_COLLISION
+   674→
+   675→    def test_detect_name_collision_different_type_requires_approval(self):
+   676→        resolver = MergeResolver()
+   677→        existing = Entity.create("Apple", EntityType.ORGANIZATION, tenant_id="t1")
+   678→        new = Entity.create("Apple", EntityType.CONCEPT, tenant_id="t1")
+   679→        # Force different IDs by changing tenant
+   680→        new2 = Entity.create("Apple", EntityType.CONCEPT, tenant_id="t2")
+   681→        conflicts = resolver.detect_name_collisions([existing], new2)
+   682→        # ORG + CONCEPT — both high-stakes? Only ORG is
+   683→        assert len(conflicts) == 1
+   684→        assert conflicts[0].requires_founder_approval  # ORG is high-stakes
+   685→
+   686→    def test_detect_attribute_contradiction(self):
+   687→        resolver = MergeResolver()
+   688→        existing = Entity.create("Alice", EntityType.PERSON, tenant_id="t1")
+   689→        existing.set_attribute("role", "engineer")
+   690→        new_attrs = {"role": "manager"}
+   691→        conflicts = resolver.detect_attribute_contradictions(existing, new_attrs)
+   692→        assert len(conflicts) == 1
+   693→        assert conflicts[0].conflict_type == ConflictType.ATTRIBUTE_CONTRADICTION
+   694→        assert conflicts[0].attribute_name == "role"
+   695→        assert conflicts[0].attribute_value_a == "engineer"
+   696→        assert conflicts[0].attribute_value_b == "manager"
+   697→
+   698→    def test_detect_no_contradiction_when_same_value(self):
+   699→        resolver = MergeResolver()
+   700→        existing = Entity.create("Alice", EntityType.PERSON, tenant_id="t1")
+   701→        existing.set_attribute("role", "engineer")
+   702→        conflicts = resolver.detect_attribute_contradictions(existing, {"role": "engineer"})
+   703→        assert len(conflicts) == 0
+   704→
+   705→
+   706→# ----------------------------------------------------------------------
+   707→# KnowledgeGraphManager (end-to-end)
+   708→# ----------------------------------------------------------------------
+   709→
+   710→
+   711→class TestKnowledgeGraphManager:
+   712→    @pytest.mark.asyncio
+   713→    async def test_extract_creates_entities_in_m3(self, kg_manager, m3_manager, founder_ctx):
+   714→        await m3_manager.start()
+   715→        await kg_manager.start()
+   716→        result = await kg_manager.extract(
+   717→            "Alice Smith works for Acme Corp",
+   718→            founder_ctx, source="test",
+   719→        )
+   720→        assert len(result.entities) >= 1
+   721→        # Verify entities are in M3
+   722→        from core.living_memory import MemoryType
+   723→        m3_mems = await m3_manager.recall_by_type(
+   724→            memory_type=MemoryType.SEMANTIC,
+   725→            ctx=founder_ctx,
+   726→            limit=100,
+   727→        )
+   728→        assert len(m3_mems) >= 1  # at least 1 entity anchor
+   729→        await kg_manager.stop()
+   730→        await m3_manager.stop()
+   731→
+   732→    @pytest.mark.asyncio
+   733→    async def test_extract_then_query_finds_entity(self, kg_manager, m3_manager, founder_ctx):
+   734→        await m3_manager.start()
+   735→        await kg_manager.start()
+   736→        await kg_manager.extract(
+   737→            "Mr. John Smith works for Beta Corp",
+   738→            founder_ctx, source="test",
+   739→        )
+   740→        # Query for PERSON entities
+   741→        q = KnowledgeQuery(
+   742→            entity_filter=EntityFilter(entity_type=EntityType.PERSON),
+   743→            limit=10,
+   744→        )
+   745→        results = await kg_manager.query(q, founder_ctx)
+   746→        assert len(results) >= 1
+   747→        # Should find John Smith
+   748→        names = [r.entity.canonical_name for r in results]
+   749→        assert any("john" in n for n in names)
+   750→        await kg_manager.stop()
+   751→        await m3_manager.stop()
+   752→
+   753→    @pytest.mark.asyncio
+   754→    async def test_extract_then_traverse(self, kg_manager, m3_manager, founder_ctx):
+   755→        await m3_manager.start()
+   756→        await kg_manager.start()
+   757→        result = await kg_manager.extract(
+   758→            "Acme Corp is located in Lagos",
+   759→            founder_ctx, source="test",
+   760→        )
+   761→        # Find Acme entity
+   762→        acme = await kg_manager.find_entity("Acme", founder_ctx)
+   763→        if acme:
+   764→            # Traverse from Acme
+   765→            results = await kg_manager.traverse(acme.entity_id, founder_ctx, max_depth=2)
+   766→            # Should reach Lagos
+   767→            ids = [r[0] for r in results]
+   768→            lagos = await kg_manager.find_entity("Lagos", founder_ctx)
+   769→            if lagos:
+   770→                assert lagos.entity_id in ids
+   771→        await kg_manager.stop()
+   772→        await m3_manager.stop()
+   773→
+   774→    @pytest.mark.asyncio
+   775→    async def test_extract_unauthorized_rejected(self, kg_manager, m3_manager):
+   776→        """Worker without memory.write capability cannot extract (when entities are found)."""
+   777→        await m3_manager.start()
+   778→        await kg_manager.start()
+   779→        bad_ctx = AuthorizationContext(
+   780→            citizen_id="ghost-00000001",
+   781→            rank_level=0,
+   782→            capabilities=set(),
+   783→            tenant_id="default",
+   784→        )
+   785→        # Use text that produces entities so the probe path triggers
+   786→        with pytest.raises(Exception):
+   787→            await kg_manager.extract("Mr. Alice works for Acme Corp", bad_ctx, source="test")
+   788→        await kg_manager.stop()
+   789→        await m3_manager.stop()
+   790→
+   791→    @pytest.mark.asyncio
+   792→    async def test_health_check(self, kg_manager, m3_manager, founder_ctx):
+   793→        await m3_manager.start()
+   794→        await kg_manager.start()
+   795→        await kg_manager.extract("Mr. Alice works for Acme Corp", founder_ctx, source="test")
+   796→        health = await kg_manager.health_check()
+   797→        assert health["started"] is True
+   798→        assert "default" in health["tenants"]
+   799→        assert health["tenants"]["default"]["entity_count"] >= 1
+   800→        await kg_manager.stop()
+   801→        await m3_manager.stop()
+   802→
+   803→    @pytest.mark.asyncio
+   804→    async def test_export_graph(self, kg_manager, m3_manager, founder_ctx):
+   805→        await m3_manager.start()
+   806→        await kg_manager.start()
+   807→        await kg_manager.extract("Mr. Alice works for Acme Corp", founder_ctx, source="test")
+   808→        exported = await kg_manager.export_graph(founder_ctx)
+   809→        assert exported["tenant_id"] == "default"
+   810→        assert len(exported["entities"]) >= 1
+   811→        assert "stats" in exported
+   812→        await kg_manager.stop()
+   813→        await m3_manager.stop()
+   814→
