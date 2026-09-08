@@ -1,24 +1,105 @@
+# FRIDAY .gitignore
+
+# Python
 __pycache__/
-*.pyc
-node_modules/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+*.egg
+.eggs/
 dist/
 build/
-*.log
-.env
-.venv
-*.png
-*.wav
-verification/
-reproduce_bug6.py
-test_results.txt
-final_test_output.txt
-api_server_test.log
-final_test_output.txt
+develop-eggs/
+.installed.cfg
+bin/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
 
-# Engineering system data (audit chains, receipts, tasks, knowledge base)
-.friday/
-action_ledger_chain*.json
-action_ledger_pending*.json
-cost_data.json
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Testing
+.pytest_cache/
+.cache/
+.tox/
+.coverage
+.coverage.*
+htmlcov/
+.hypothesis/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# FRIDAY runtime artifacts (test byproducts, NOT source)
+action_ledger_chain.json
+action_ledger_chain.json.tampered.*
+action_ledger_chain.json.corrupt.*
+action_ledger_pending.json
 friday_memories_*.json
+cost_tracker_data.json
 *.tampered.*.json
+*.corrupt.*.json
+*.mutation_backup
+
+# Logs
+*.log
+logs/
+barge_in_output.txt
+brain_check.txt
+ledger_output.txt
+main_check*.txt
+power_output.txt
+receipt_output.txt
+skills_output.txt
+vision_output.txt
+
+# Skills (excluded per existing .gitignore)
+skills/
+
+# Node (for apps/web, apps/desktop, apps/vscode)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+apps/vscode/out/
+apps/vscode/*.vsix
+apps/desktop/dist/
+
+# Profile / benchmark outputs (regenerable)
+benchmarks/profile_brain.prof
+benchmarks/profile_brain.txt
+benchmarks/results_*.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Secrets — NEVER commit
+.env
+.env.*
+*.pem
+*.key
+secrets.json
+credentials.json

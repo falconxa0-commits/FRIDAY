@@ -1,2 +1,25 @@
+# Root .gitignore (for /home/z/my-project)
+
+# Skills
 skills/
+
+# Downloaded snapshots (large binaries — use git-lfs or external storage if needed)
+download/*.zip
+
+# Tool results (chat artifacts, not source)
+tool-results/
+
+# Node
 node_modules/
+
+# Python caches
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
