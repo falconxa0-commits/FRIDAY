@@ -1,3 +1,0 @@
-Weather not available, using demo response mock for receipt test.
-Status: error
-Receipt Present: No
